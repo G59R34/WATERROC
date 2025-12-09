@@ -123,6 +123,9 @@ document.addEventListener('DOMContentLoaded', async function() {
             employees = await supabaseService.getEmployees();
             shiftTemplates = await supabaseService.getShiftTemplates();
             
+            console.log('Employees loaded:', employees);
+            console.log('Shift templates loaded:', shiftTemplates);
+            
             const weekEnd = new Date(currentWeekStart);
             weekEnd.setDate(weekEnd.getDate() + 6);
             
@@ -130,6 +133,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                 formatDate(currentWeekStart),
                 formatDate(weekEnd)
             );
+            
+            console.log('Shifts loaded:', shifts);
 
             // Update week display
             document.getElementById('weekDisplay').textContent = 
@@ -143,7 +148,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         } catch (error) {
             console.error('Error loading shifts:', error);
-            calendar.innerHTML = '<div class="loading-message">Error loading shifts. Please try again.</div>';
+            calendar.innerHTML = '<div class="loading-message">Error loading shifts: ' + error.message + '</div>';
         }
     }
 
@@ -318,31 +323,38 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         try {
             timeOffRequests = await supabaseService.getTimeOffRequests();
+            
+            console.log('Time off requests loaded:', timeOffRequests);
 
             if (!timeOffRequests || timeOffRequests.length === 0) {
                 list.innerHTML = '<div class="loading-message">No time off requests</div>';
                 return;
             }
 
-            list.innerHTML = timeOffRequests.map(req => `
-                <div class="time-off-item status-${req.status}">
-                    <div class="time-off-info">
-                        <div class="time-off-employee">${escapeHtml(req.employees.name)}</div>
-                        <div class="time-off-dates">
-                            ${new Date(req.start_date).toLocaleDateString()} - ${new Date(req.end_date).toLocaleDateString()}
+            list.innerHTML = timeOffRequests.map(req => {
+                // Handle both object and direct reference for employees
+                const employeeName = req.employees?.name || req.employee_name || 'Unknown Employee';
+                
+                return `
+                    <div class="time-off-item status-${req.status}">
+                        <div class="time-off-info">
+                            <div class="time-off-employee">${escapeHtml(employeeName)}</div>
+                            <div class="time-off-dates">
+                                ${new Date(req.start_date).toLocaleDateString()} - ${new Date(req.end_date).toLocaleDateString()}
+                            </div>
+                            ${req.reason ? `<div class="time-off-reason">${escapeHtml(req.reason)}</div>` : ''}
                         </div>
-                        ${req.reason ? `<div class="time-off-reason">${escapeHtml(req.reason)}</div>` : ''}
+                        <div class="time-off-actions">
+                            ${req.status === 'pending' ? `
+                                <button class="btn-approve" data-request-id="${req.id}">✓ Approve</button>
+                                <button class="btn-deny" data-request-id="${req.id}">✗ Deny</button>
+                            ` : `
+                                <span class="time-off-status ${req.status}">${req.status}</span>
+                            `}
+                        </div>
                     </div>
-                    <div class="time-off-actions">
-                        ${req.status === 'pending' ? `
-                            <button class="btn-approve" data-request-id="${req.id}">✓ Approve</button>
-                            <button class="btn-deny" data-request-id="${req.id}">✗ Deny</button>
-                        ` : `
-                            <span class="time-off-status ${req.status}">${req.status}</span>
-                        `}
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
 
             // Add click handlers
             document.querySelectorAll('.btn-approve').forEach(btn => {
@@ -371,7 +383,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         } catch (error) {
             console.error('Error loading time off requests:', error);
-            list.innerHTML = '<div class="loading-message">Error loading time off requests</div>';
+            list.innerHTML = '<div class="loading-message">Error loading time off requests: ' + error.message + '</div>';
         }
     }
 

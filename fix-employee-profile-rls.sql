@@ -4,6 +4,7 @@
 -- DISABLE RLS temporarily to test
 ALTER TABLE employee_profiles DISABLE ROW LEVEL SECURITY;
 ALTER TABLE employee_shifts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE time_off_requests DISABLE ROW LEVEL SECURITY;
 
 -- Drop ALL existing policies
 DROP POLICY IF EXISTS "Anyone can view employee profiles" ON employee_profiles;
@@ -16,6 +17,15 @@ DROP POLICY IF EXISTS "Admins can delete profiles" ON employee_profiles;
 DROP POLICY IF EXISTS "Anyone can view shifts" ON employee_shifts;
 DROP POLICY IF EXISTS "Admins can manage shifts" ON employee_shifts;
 
+DROP POLICY IF EXISTS "Anyone can view time off requests" ON time_off_requests;
+DROP POLICY IF EXISTS "Employees can create own time off request" ON time_off_requests;
+DROP POLICY IF EXISTS "Admins can manage time off requests" ON time_off_requests;
+
+-- Drop the simple policies if they exist
+DROP POLICY IF EXISTS "enable_all_for_authenticated_users" ON employee_profiles;
+DROP POLICY IF EXISTS "enable_all_shifts_for_authenticated_users" ON employee_shifts;
+DROP POLICY IF EXISTS "enable_all_time_off_for_authenticated_users" ON time_off_requests;
+
 -- Fix the foreign key constraint issue for employee_shifts
 -- Drop the problematic foreign key
 ALTER TABLE employee_shifts DROP CONSTRAINT IF EXISTS employee_shifts_created_by_fkey;
@@ -23,9 +33,17 @@ ALTER TABLE employee_shifts DROP CONSTRAINT IF EXISTS employee_shifts_created_by
 -- Make created_by nullable and don't enforce foreign key (optional field)
 ALTER TABLE employee_shifts ALTER COLUMN created_by DROP NOT NULL;
 
+-- Fix the foreign key constraint issue for time_off_requests
+-- Drop the problematic foreign key
+ALTER TABLE time_off_requests DROP CONSTRAINT IF EXISTS time_off_requests_reviewed_by_fkey;
+
+-- Make reviewed_by nullable and don't enforce foreign key (optional field)
+ALTER TABLE time_off_requests ALTER COLUMN reviewed_by DROP NOT NULL;
+
 -- Re-enable RLS
 ALTER TABLE employee_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE employee_shifts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE time_off_requests ENABLE ROW LEVEL SECURITY;
 
 -- Create simple, permissive policies
 CREATE POLICY "enable_all_for_authenticated_users"
@@ -36,6 +54,12 @@ CREATE POLICY "enable_all_for_authenticated_users"
 
 CREATE POLICY "enable_all_shifts_for_authenticated_users"
     ON employee_shifts FOR ALL
+    TO authenticated
+    USING (true)
+    WITH CHECK (true);
+
+CREATE POLICY "enable_all_time_off_for_authenticated_users"
+    ON time_off_requests FOR ALL
     TO authenticated
     USING (true)
     WITH CHECK (true);
