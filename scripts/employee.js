@@ -18,6 +18,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         setupNotificationPanel();
     }
     
+    // Initialize announcement banner
+    if (typeof announcementBanner !== 'undefined') {
+        announcementBanner.init();
+    }
+    
     // Initialize Gantt Chart in read-only mode first
     const gantt = new GanttChart('ganttChart', false);
     
@@ -126,6 +131,14 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // Auto-refresh from Supabase every 2 seconds
     if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+        // Track last announcement count to detect new ones
+        let lastAnnouncementCount = 0;
+        
+        // Initial count
+        supabaseService.getUnreadAnnouncements().then(announcements => {
+            lastAnnouncementCount = announcements ? announcements.length : 0;
+        });
+        
         setInterval(async () => {
             // Check for new tasks if notification system is available
             if (typeof notificationSystem !== 'undefined') {
@@ -141,11 +154,245 @@ document.addEventListener('DOMContentLoaded', async function() {
                     }
                 }
             }
+            
+            // Check for new announcements
+            const unreadAnnouncements = await supabaseService.getUnreadAnnouncements();
+            if (unreadAnnouncements && unreadAnnouncements.length > lastAnnouncementCount) {
+                const newCount = unreadAnnouncements.length - lastAnnouncementCount;
+                console.log(`📢 ${newCount} new announcement(s) detected!`);
+                
+                // Add notification for new announcements
+                if (typeof notificationSystem !== 'undefined' && newCount > 0) {
+                    const latestAnnouncement = unreadAnnouncements[0];
+                    notificationSystem.addNotification(
+                        'announcement',
+                        `📢 ${latestAnnouncement.title}: ${latestAnnouncement.message.substring(0, 100)}...`
+                    );
+                }
+                
+                lastAnnouncementCount = unreadAnnouncements.length;
+            } else if (unreadAnnouncements) {
+                lastAnnouncementCount = unreadAnnouncements.length;
+            }
+            
             await syncFromSupabase();
         }, 2000); // Refresh every 2 seconds
         
         console.log('🔄 Auto-refresh enabled (every 2 seconds)');
     }
+
+    // My Shifts and Profile functionality
+    let currentEmployeeData = null;
+
+    // Get current employee data
+    async function getCurrentEmployee() {
+        if (currentEmployeeData) return currentEmployeeData;
+
+        const currentUser = supabaseService.getCurrentUser();
+        if (!currentUser) return null;
+
+        const employees = await supabaseService.getEmployees();
+        currentEmployeeData = employees?.find(e => e.user_id === currentUser.id);
+        return currentEmployeeData;
+    }
+
+    // My Shifts Modal
+    const myShiftsModal = document.getElementById('myShiftsModal');
+    const myShiftsBtn = document.getElementById('viewMyShiftsBtn');
+    let shiftsWeekStart = getMonday(new Date());
+
+    myShiftsBtn.addEventListener('click', async () => {
+        myShiftsModal.style.display = 'block';
+        await loadMyShifts();
+    });
+
+    document.getElementById('myShiftsPrevWeek').addEventListener('click', async () => {
+        shiftsWeekStart.setDate(shiftsWeekStart.getDate() - 7);
+        await loadMyShifts();
+    });
+
+    document.getElementById('myShiftsNextWeek').addEventListener('click', async () => {
+        shiftsWeekStart.setDate(shiftsWeekStart.getDate() + 7);
+        await loadMyShifts();
+    });
+
+    function getMonday(date) {
+        const d = new Date(date);
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+        return new Date(d.setDate(diff));
+    }
+
+    function formatDate(date) {
+        return date.toISOString().split('T')[0];
+    }
+
+    function formatDateDisplay(date) {
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    async function loadMyShifts() {
+        const content = document.getElementById('myShiftsContent');
+        content.innerHTML = '<div class="loading-message">Loading your shifts...</div>';
+
+        const employee = await getCurrentEmployee();
+        if (!employee) {
+            content.innerHTML = '<div class="loading-message">Error loading employee data</div>';
+            return;
+        }
+
+        const weekEnd = new Date(shiftsWeekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+
+        const shifts = await supabaseService.getEmployeeShifts(
+            formatDate(shiftsWeekStart),
+            formatDate(weekEnd)
+        );
+
+        // Update week display
+        document.getElementById('myShiftsWeekDisplay').textContent = 
+            `${formatDateDisplay(shiftsWeekStart)} - ${formatDateDisplay(weekEnd)}`;
+
+        // Filter for this employee only
+        const myShifts = shifts?.filter(s => s.employee_id === employee.id) || [];
+
+        // Generate week days
+        const weekDays = [];
+        for (let i = 0; i < 7; i++) {
+            const day = new Date(shiftsWeekStart);
+            day.setDate(day.getDate() + i);
+            weekDays.push(day);
+        }
+
+        // Create shift map
+        const shiftMap = {};
+        myShifts.forEach(shift => {
+            if (!shiftMap[shift.shift_date]) {
+                shiftMap[shift.shift_date] = [];
+            }
+            shiftMap[shift.shift_date].push(shift);
+        });
+
+        // Build display
+        let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">';
+        
+        weekDays.forEach(day => {
+            const dateStr = formatDate(day);
+            const dayShifts = shiftMap[dateStr] || [];
+            const dayName = day.toLocaleDateString('en-US', { weekday: 'short' });
+            
+            html += `
+                <div style="border: 2px solid var(--border-color); border-radius: 8px; padding: 15px; background: ${dayShifts.length > 0 ? '#f0f9ff' : 'white'};">
+                    <div style="font-weight: 600; margin-bottom: 10px; text-align: center; color: var(--text-primary);">
+                        ${dayName}<br>${formatDateDisplay(day)}
+                    </div>
+                    ${dayShifts.length > 0 ? dayShifts.map(shift => {
+                        const statusColors = {
+                            'scheduled': 'var(--primary-color)',
+                            'completed': 'var(--success-color)',
+                            'cancelled': 'var(--danger-color)',
+                            'no-show': '#94a3b8'
+                        };
+                        return `
+                            <div style="background: ${statusColors[shift.status] || statusColors.scheduled}; color: white; padding: 10px; border-radius: 6px; margin-bottom: 8px; font-size: 13px;">
+                                <div style="font-weight: 600;">${shift.start_time.substring(0, 5)} - ${shift.end_time.substring(0, 5)}</div>
+                                ${shift.shift_templates ? `<div style="font-size: 11px; opacity: 0.9;">${shift.shift_templates.name}</div>` : ''}
+                                ${shift.notes ? `<div style="font-size: 11px; margin-top: 5px; opacity: 0.9;">${shift.notes}</div>` : ''}
+                            </div>
+                        `;
+                    }).join('') : '<div style="text-align: center; color: var(--text-secondary); font-size: 13px; padding: 20px 0;">No shifts</div>'}
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        content.innerHTML = html;
+    }
+
+    // My Profile Modal
+    const myProfileModal = document.getElementById('myProfileModal');
+    const myProfileBtn = document.getElementById('editMyProfileBtn');
+    const myProfileForm = document.getElementById('myProfileForm');
+
+    myProfileBtn.addEventListener('click', async () => {
+        await loadMyProfile();
+        myProfileModal.style.display = 'block';
+    });
+
+    document.getElementById('cancelMyProfileBtn').addEventListener('click', () => {
+        myProfileModal.style.display = 'none';
+    });
+
+    async function loadMyProfile() {
+        const employee = await getCurrentEmployee();
+        if (!employee) {
+            alert('Error loading employee data');
+            return;
+        }
+
+        const profile = await supabaseService.getEmployeeProfile(employee.id);
+
+        document.getElementById('myProfileName').value = employee.name;
+        document.getElementById('myProfilePhone').value = profile?.phone || '';
+        document.getElementById('myProfileEmail').value = profile?.email || '';
+        document.getElementById('myProfileSkills').value = profile?.skills ? profile.skills.join(', ') : '';
+        document.getElementById('myProfileCertifications').value = profile?.certifications ? profile.certifications.join(', ') : '';
+    }
+
+    myProfileForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const employee = await getCurrentEmployee();
+        if (!employee) {
+            alert('Error loading employee data');
+            return;
+        }
+
+        const profileData = {
+            phone: document.getElementById('myProfilePhone').value.trim() || null,
+            email: document.getElementById('myProfileEmail').value.trim() || null,
+            skills: document.getElementById('myProfileSkills').value
+                .split(',')
+                .map(s => s.trim())
+                .filter(s => s.length > 0),
+            certifications: document.getElementById('myProfileCertifications').value
+                .split(',')
+                .map(s => s.trim())
+                .filter(s => s.length > 0)
+        };
+
+        try {
+            const result = await supabaseService.createOrUpdateEmployeeProfile(employee.id, profileData);
+            
+            if (result) {
+                alert('✅ Profile updated successfully!');
+                myProfileModal.style.display = 'none';
+            } else {
+                alert('❌ Failed to update profile. Please try again.');
+            }
+        } catch (error) {
+            console.error('Error saving profile:', error);
+            alert('❌ Error saving profile. Please try again.');
+        }
+    });
+
+    // Close modals when clicking outside or on close button
+    window.addEventListener('click', (e) => {
+        if (e.target === myShiftsModal) {
+            myShiftsModal.style.display = 'none';
+        }
+        if (e.target === myProfileModal) {
+            myProfileModal.style.display = 'none';
+        }
+    });
+
+    myShiftsModal.querySelector('.close').addEventListener('click', () => {
+        myShiftsModal.style.display = 'none';
+    });
+
+    myProfileModal.querySelector('.close').addEventListener('click', () => {
+        myProfileModal.style.display = 'none';
+    });
     
     // Setup notification panel
     function setupNotificationPanel() {
@@ -403,4 +650,191 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
         });
     }
+    
+    // ============================================
+    // TIME OFF REQUEST FUNCTIONALITY
+    // ============================================
+    
+    const timeOffModal = document.getElementById('timeOffModal');
+    const requestTimeOffBtn = document.getElementById('requestTimeOffBtn');
+    const closeTimeOffModal = document.getElementById('closeTimeOffModal');
+    const cancelTimeOffBtn = document.getElementById('cancelTimeOffBtn');
+    const timeOffForm = document.getElementById('timeOffForm');
+    
+    // Open time off modal
+    requestTimeOffBtn.addEventListener('click', async () => {
+        timeOffModal.style.display = 'flex';
+        
+        // Set minimum date to today
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('timeOffStartDate').min = today;
+        document.getElementById('timeOffEndDate').min = today;
+        
+        // Load existing time off requests
+        await loadMyTimeOffRequests();
+    });
+    
+    // Close modal
+    closeTimeOffModal.addEventListener('click', () => {
+        timeOffModal.style.display = 'none';
+        timeOffForm.reset();
+    });
+    
+    cancelTimeOffBtn.addEventListener('click', () => {
+        timeOffModal.style.display = 'none';
+        timeOffForm.reset();
+    });
+    
+    // Close modal when clicking outside
+    timeOffModal.addEventListener('click', (e) => {
+        if (e.target === timeOffModal) {
+            timeOffModal.style.display = 'none';
+            timeOffForm.reset();
+        }
+    });
+    
+    // Submit time off request
+    timeOffForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        if (!supabaseService.isReady()) {
+            alert('Time off requests require an active connection');
+            return;
+        }
+        
+        const currentUser = supabaseService.getCurrentUser();
+        if (!currentUser) {
+            alert('You must be logged in to submit a time off request');
+            return;
+        }
+        
+        // Get current employee
+        const employee = await getCurrentEmployee();
+        if (!employee) {
+            alert('Could not find your employee record');
+            return;
+        }
+        
+        const startDate = document.getElementById('timeOffStartDate').value;
+        const endDate = document.getElementById('timeOffEndDate').value;
+        const reason = document.getElementById('timeOffReason').value.trim();
+        
+        // Validate dates
+        if (new Date(endDate) < new Date(startDate)) {
+            alert('End date cannot be before start date');
+            return;
+        }
+        
+        // Create time off request
+        const request = {
+            employee_id: employee.id,
+            start_date: startDate,
+            end_date: endDate,
+            reason: reason,
+            status: 'pending'
+        };
+        
+        const submitBtn = timeOffForm.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.textContent = '⏳ Submitting...';
+        
+        const result = await supabaseService.createTimeOffRequest(request);
+        
+        submitBtn.disabled = false;
+        submitBtn.textContent = '📤 Submit Request';
+        
+        if (result) {
+            alert('Time off request submitted successfully!');
+            timeOffForm.reset();
+            await loadMyTimeOffRequests();
+            
+            // Show notification
+            if (notificationSystem) {
+                notificationSystem.addNotification(
+                    'Time Off Request Submitted',
+                    `Your request from ${startDate} to ${endDate} has been submitted for approval`,
+                    'success'
+                );
+            }
+        } else {
+            alert('Failed to submit time off request. Please try again.');
+        }
+    });
+    
+    // Load employee's time off requests
+    async function loadMyTimeOffRequests() {
+        const listContainer = document.getElementById('myTimeOffRequestsList');
+        
+        if (!supabaseService.isReady()) {
+            listContainer.innerHTML = '<p style="color: #64748b; text-align: center; padding: 20px;">Time off requests require an active connection</p>';
+            return;
+        }
+        
+        const employee = await getCurrentEmployee();
+        if (!employee) {
+            listContainer.innerHTML = '<p style="color: #64748b; text-align: center; padding: 20px;">Could not load your employee record</p>';
+            return;
+        }
+        
+        const requests = await supabaseService.getTimeOffRequests();
+        
+        if (!requests || requests.length === 0) {
+            listContainer.innerHTML = '<p style="color: #64748b; text-align: center; padding: 20px;">No time off requests yet</p>';
+            return;
+        }
+        
+        // Filter to only this employee's requests
+        const myRequests = requests.filter(r => r.employee_id === employee.id);
+        
+        if (myRequests.length === 0) {
+            listContainer.innerHTML = '<p style="color: #64748b; text-align: center; padding: 20px;">No time off requests yet</p>';
+            return;
+        }
+        
+        // Sort by most recent first
+        myRequests.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        
+        listContainer.innerHTML = myRequests.map(request => {
+            const statusColors = {
+                'pending': '#f59e0b',
+                'approved': '#10b981',
+                'denied': '#ef4444'
+            };
+            
+            const statusIcons = {
+                'pending': '⏳',
+                'approved': '✅',
+                'denied': '❌'
+            };
+            
+            const startDate = new Date(request.start_date).toLocaleDateString();
+            const endDate = new Date(request.end_date).toLocaleDateString();
+            const requestDate = new Date(request.created_at).toLocaleDateString();
+            
+            return `
+                <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                        <div>
+                            <strong>${startDate} - ${endDate}</strong>
+                            <div style="color: #64748b; font-size: 0.875rem; margin-top: 4px;">
+                                Requested: ${requestDate}
+                            </div>
+                        </div>
+                        <span style="background: ${statusColors[request.status]}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.875rem; font-weight: 500;">
+                            ${statusIcons[request.status]} ${request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                        </span>
+                    </div>
+                    <div style="color: #374151; margin-top: 8px;">
+                        <strong>Reason:</strong> ${request.reason}
+                    </div>
+                    ${request.admin_notes ? `
+                        <div style="margin-top: 8px; padding: 8px; background: #f3f4f6; border-radius: 4px; font-size: 0.875rem;">
+                            <strong>Admin Notes:</strong> ${request.admin_notes}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }).join('');
+    }
 });
+

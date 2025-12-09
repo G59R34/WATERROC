@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WaterROC - Employee Profiles</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/profiles.css">
+</head>
+<body>
+    <div class="dashboard">
+        <header class="dashboard-header">
+            <div class="header-left">
+                <h1>💧 WaterROC - Employee Profiles</h1>
+            </div>
+            <div class="header-right">
+                <button id="backToDashboard" class="btn-secondary">← Back to Dashboard</button>
+                <button id="logoutBtn" class="btn-secondary">Logout</button>
+            </div>
+        </header>
+        
+        <div class="profiles-container">
+            <div class="profiles-header">
+                <h2>👥 Employee Profiles</h2>
+                <button id="refreshProfilesBtn" class="btn-primary">🔄 Refresh</button>
+            </div>
+
+            <div class="profiles-grid" id="profilesGrid">
+                <div class="loading-message">Loading profiles...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Modal -->
+    <div id="profileModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2>📝 Employee Profile</h2>
+                <span class="close">&times;</span>
+            </div>
+            <form id="profileForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="profileEmployeeName">Employee Name</label>
+                        <input type="text" id="profileEmployeeName" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="profileRole">Role</label>
+                        <input type="text" id="profileRole" readonly>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="profilePhone">Phone Number</label>
+                        <input type="tel" id="profilePhone" placeholder="(555) 123-4567">
+                    </div>
+                    <div class="form-group">
+                        <label for="profileEmail">Email</label>
+                        <input type="email" id="profileEmail" placeholder="employee@waterroc.com">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="profileHireDate">Hire Date</label>
+                    <input type="date" id="profileHireDate">
+                </div>
+
+                <div class="form-group">
+                    <label for="profileSkills">Skills (comma-separated)</label>
+                    <input type="text" id="profileSkills" placeholder="Plumbing, Welding, Electrical">
+                    <small>Enter skills separated by commas</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="profileCertifications">Certifications (comma-separated)</label>
+                    <input type="text" id="profileCertifications" placeholder="EPA Cross-Connection, Backflow Prevention">
+                    <small>Enter certifications separated by commas</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="profileNotes">Notes</label>
+                    <textarea id="profileNotes" rows="4" placeholder="Additional information about employee..."></textarea>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="cancelProfileBtn">Cancel</button>
+                    <button type="submit" class="btn-primary">💾 Save Profile</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="scripts/supabase.js"></script>
+    <script src="scripts/config.js"></script>
+    <script src="scripts/profiles.js"></script>
+</body>
+</html>

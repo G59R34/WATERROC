@@ -355,14 +355,16 @@ class CheckInSystem {
     shouldShowCheckIn() {
         if (this.hasCheckedIn) return false;
         
-        const lastCheckin = localStorage.getItem('lastCheckin');
-        if (!lastCheckin) return true;
-        
-        // Show check-in if it's been more than 4 hours
-        const fourHours = 4 * 60 * 60 * 1000;
-        const timeSinceLastCheckin = Date.now() - parseInt(lastCheckin);
-        
-        return timeSinceLastCheckin > fourHours;
+        // Always show if there are unread items
+        return true; // We'll check for actual content in the show() method
+    }
+    
+    /**
+     * Force show check-in dialog (for new notifications/announcements)
+     */
+    forceShow(userRole = 'employee') {
+        this.hasCheckedIn = false;
+        this.show(userRole);
     }
 }
 

@@ -875,6 +875,464 @@ class SupabaseService {
         
         return { employeeSubscription, taskSubscription };
     }
+
+    // ==========================================
+    // EMPLOYEE PROFILES
+    // ==========================================
+
+    async getEmployeeProfile(employeeId) {
+        if (!this.isReady()) return null;
+
+        const { data, error } = await this.client
+            .from('employee_profiles')
+            .select('*')
+            .eq('employee_id', employeeId)
+            .single();
+
+        if (error) {
+            console.error('Error fetching employee profile:', error);
+            return null;
+        }
+
+        return data;
+    }
+
+    async createOrUpdateEmployeeProfile(employeeId, profileData) {
+        if (!this.isReady()) return null;
+
+        const { data, error } = await this.client
+            .from('employee_profiles')
+            .upsert({
+                employee_id: employeeId,
+                ...profileData,
+                updated_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error creating/updating employee profile:', error);
+            return null;
+        }
+
+        console.log('✅ Employee profile saved');
+        return data;
+    }
+
+    async getAllEmployeeProfiles() {
+        if (!this.isReady()) return null;
+
+        const { data, error } = await this.client
+            .from('employee_profiles')
+            .select(`
+                *,
+                employees:employee_id (
+                    id,
+                    name,
+                    role
+                )
+            `)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching employee profiles:', error);
+            return null;
+        }
+
+        return data;
+    }
+
+    // ==========================================
+    // SHIFT SCHEDULING
+    // ==========================================
+
+    async getShiftTemplates() {
+        if (!this.isReady()) return null;
+
+        const { data, error } = await this.client
+            .from('shift_templates')
+            .select('*')
+            .order('start_time', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching shift templates:', error);
+            return null;
+        }
+
+        return data;
+    }
+
+    async createShiftTemplate(templateData) {
+        if (!this.isReady()) return null;
+
+        const { data, error } = await this.client
+            .from('shift_templates')
+            .insert(templateData)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error creating shift template:', error);
+            return null;
+        }
+
+        console.log('✅ Shift template created');
+        return data;
+    }
+
+    async getEmployeeShifts(startDate, endDate) {
+        if (!this.isReady()) return null;
+
+        const { data, error } = await this.client
+            .from('employee_shifts')
+            .select(`
+                *,
+                employees:employee_id (
+                    id,
+                    name,
+                    role
+                ),
+                shift_templates:shift_template_id (
+                    name,
+                    color
+                )
+            `)
+            .gte('shift_date', startDate)
+            .lte('shift_date', endDate)
+            .order('shift_date', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching employee shifts:', error);
+            return null;
+        }
+
+        return data;
+    }
+
+    async createEmployeeShift(shiftData) {
+        if (!this.isReady()) return null;
+
+        const { data, error } = await this.client
+            .from('employee_shifts')
+            .insert({
+                ...shiftData,
+                created_by: this.currentUser?.id
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error creating employee shift:', error);
+            return null;
+        }
+
+        console.log('✅ Shift assigned');
+        return data;
+    }
+
+    async updateEmployeeShift(shiftId, updates) {
+        if (!this.isReady()) return null;
+
+        const { data, error } = await this.client
+            .from('employee_shifts')
+            .update({
+                ...updates,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', shiftId)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error updating shift:', error);
+            return null;
+        }
+
+        console.log('✅ Shift updated');
+        return data;
+    }
+
+    async deleteEmployeeShift(shiftId) {
+        if (!this.isReady()) return null;
+
+        const { error } = await this.client
+            .from('employee_shifts')
+            .delete()
+            .eq('id', shiftId);
+
+        if (error) {
+            console.error('Error deleting shift:', error);
+            return false;
+        }
+
+        console.log('✅ Shift deleted');
+        return true;
+    }
+
+    // ==========================================
+    // TIME OFF REQUESTS
+    // ==========================================
+
+    async getTimeOffRequests(employeeId = null) {
+        if (!this.isReady()) return null;
+
+        let query = this.client
+            .from('time_off_requests')
+            .select(`
+                *,
+                employees:employee_id (
+                    id,
+                    name
+                )
+            `)
+            .order('requested_at', { ascending: false });
+
+        if (employeeId) {
+            query = query.eq('employee_id', employeeId);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            console.error('Error fetching time off requests:', error);
+            return null;
+        }
+
+        return data;
+    }
+
+    async createTimeOffRequest(requestData) {
+        if (!this.isReady()) return null;
+
+        const { data, error } = await this.client
+            .from('time_off_requests')
+            .insert(requestData)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error creating time off request:', error);
+            return null;
+        }
+
+        console.log('✅ Time off request submitted');
+        return data;
+    }
+
+    async updateTimeOffRequest(requestId, updates) {
+        if (!this.isReady()) return null;
+
+        const { data, error } = await this.client
+            .from('time_off_requests')
+            .update({
+                ...updates,
+                reviewed_by: this.currentUser?.id,
+                reviewed_at: new Date().toISOString()
+            })
+            .eq('id', requestId)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error updating time off request:', error);
+            return null;
+        }
+
+        console.log('✅ Time off request updated');
+        return data;
+    }
+
+    // ==========================================
+    // ANALYTICS & TIME TRACKING
+    // ==========================================
+
+    async getTaskTimeLogs(taskId) {
+        if (!this.isReady()) return null;
+
+        const { data, error } = await this.client
+            .from('task_time_logs')
+            .select(`
+                *,
+                employees:employee_id (
+                    name
+                )
+            `)
+            .eq('task_id', taskId)
+            .order('clock_in', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching task time logs:', error);
+            return null;
+        }
+
+        return data;
+    }
+
+    async clockIn(taskId, employeeId, notes = '') {
+        if (!this.isReady()) return null;
+
+        // Check if already clocked in
+        const { data: existing } = await this.client
+            .from('task_time_logs')
+            .select('*')
+            .eq('task_id', taskId)
+            .eq('employee_id', employeeId)
+            .is('clock_out', null)
+            .single();
+
+        if (existing) {
+            console.warn('Already clocked in');
+            return existing;
+        }
+
+        const { data, error } = await this.client
+            .from('task_time_logs')
+            .insert({
+                task_id: taskId,
+                employee_id: employeeId,
+                clock_in: new Date().toISOString(),
+                notes
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error clocking in:', error);
+            return null;
+        }
+
+        console.log('✅ Clocked in');
+        return data;
+    }
+
+    async clockOut(timeLogId, notes = '') {
+        if (!this.isReady()) return null;
+
+        const { data, error } = await this.client
+            .from('task_time_logs')
+            .update({
+                clock_out: new Date().toISOString(),
+                notes: notes || undefined
+            })
+            .eq('id', timeLogId)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error clocking out:', error);
+            return null;
+        }
+
+        console.log('✅ Clocked out');
+        return data;
+    }
+
+    async getActiveTimeLog(taskId, employeeId) {
+        if (!this.isReady()) return null;
+
+        const { data, error } = await this.client
+            .from('task_time_logs')
+            .select('*')
+            .eq('task_id', taskId)
+            .eq('employee_id', employeeId)
+            .is('clock_out', null)
+            .single();
+
+        if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+            console.error('Error fetching active time log:', error);
+            return null;
+        }
+
+        return data;
+    }
+
+    async getTaskMetrics(taskId) {
+        if (!this.isReady()) return null;
+
+        const { data, error } = await this.client
+            .from('task_metrics')
+            .select('*')
+            .eq('task_id', taskId)
+            .single();
+
+        if (error && error.code !== 'PGRST116') {
+            console.error('Error fetching task metrics:', error);
+            return null;
+        }
+
+        return data;
+    }
+
+    async getEmployeeWorkload(startDate, endDate) {
+        if (!this.isReady()) return null;
+
+        const { data, error } = await this.client
+            .rpc('get_employee_workload', {
+                start_date_param: startDate,
+                end_date_param: endDate
+            });
+
+        if (error) {
+            console.error('Error fetching employee workload:', error);
+            return null;
+        }
+
+        return data;
+    }
+
+    async getAnalyticsSummary(startDate, endDate) {
+        if (!this.isReady()) return null;
+
+        // Get tasks in date range
+        const { data: tasks, error: tasksError } = await this.client
+            .from('tasks')
+            .select(`
+                *,
+                task_metrics (
+                    actual_hours,
+                    completed_on_time
+                )
+            `)
+            .gte('date', startDate)
+            .lte('date', endDate);
+
+        if (tasksError) {
+            console.error('Error fetching analytics:', tasksError);
+            return null;
+        }
+
+        // Calculate summary statistics
+        const summary = {
+            total_tasks: tasks.length,
+            completed_tasks: tasks.filter(t => t.status === 'completed').length,
+            in_progress_tasks: tasks.filter(t => t.status === 'in-progress').length,
+            pending_tasks: tasks.filter(t => t.status === 'pending').length,
+            overdue_tasks: tasks.filter(t => t.status === 'overdue').length,
+            on_time_completion_rate: 0,
+            total_hours_logged: 0,
+            avg_hours_per_task: 0
+        };
+
+        const completedWithMetrics = tasks.filter(t => 
+            t.status === 'completed' && t.task_metrics?.length > 0
+        );
+
+        if (completedWithMetrics.length > 0) {
+            const onTimeCount = completedWithMetrics.filter(t => 
+                t.task_metrics[0]?.completed_on_time
+            ).length;
+            
+            summary.on_time_completion_rate = (onTimeCount / completedWithMetrics.length) * 100;
+            
+            summary.total_hours_logged = completedWithMetrics.reduce((sum, t) => 
+                sum + (t.task_metrics[0]?.actual_hours || 0), 0
+            );
+            
+            summary.avg_hours_per_task = summary.total_hours_logged / completedWithMetrics.length;
+        }
+
+        return summary;
+    }
 }
 
 // Create global instance
@@ -884,3 +1342,4 @@ const supabaseService = new SupabaseService();
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = SupabaseService;
 }
+

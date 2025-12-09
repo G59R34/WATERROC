@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WaterROC - Shift Scheduling</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/shifts.css">
+</head>
+<body>
+    <div class="dashboard">
+        <header class="dashboard-header">
+            <div class="header-left">
+                <h1>💧 WaterROC - Shift Scheduling</h1>
+            </div>
+            <div class="header-right">
+                <button id="backToDashboard" class="btn-secondary">← Back to Dashboard</button>
+                <button id="logoutBtn" class="btn-secondary">Logout</button>
+            </div>
+        </header>
+        
+        <div class="shifts-container">
+            <div class="shifts-header">
+                <h2>📅 Shift Schedule</h2>
+                <div class="shifts-controls">
+                    <button id="addShiftBtn" class="btn-primary">+ Add Shift</button>
+                    <button id="prevWeekBtn" class="btn-secondary">← Prev Week</button>
+                    <span id="weekDisplay"></span>
+                    <button id="nextWeekBtn" class="btn-secondary">Next Week →</button>
+                </div>
+            </div>
+
+            <div class="shift-calendar" id="shiftCalendar">
+                <div class="loading-message">Loading shifts...</div>
+            </div>
+
+            <div class="time-off-section">
+                <h3>🏖️ Time Off Requests</h3>
+                <div class="time-off-list" id="timeOffList">
+                    <div class="loading-message">Loading time off requests...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Shift Modal -->
+    <div id="shiftModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📅 Assign Shift</h2>
+                <span class="close">&times;</span>
+            </div>
+            <form id="shiftForm">
+                <div class="form-group">
+                    <label for="shiftEmployee">Employee</label>
+                    <select id="shiftEmployee" required>
+                        <option value="">Select Employee...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="shiftDate">Date</label>
+                    <input type="date" id="shiftDate" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="shiftTemplate">Shift Template</label>
+                    <select id="shiftTemplate">
+                        <option value="">Custom Shift...</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="shiftStartTime">Start Time</label>
+                        <input type="time" id="shiftStartTime" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="shiftEndTime">End Time</label>
+                        <input type="time" id="shiftEndTime" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="shiftNotes">Notes (optional)</label>
+                    <textarea id="shiftNotes" rows="3" placeholder="Additional notes..."></textarea>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="cancelShiftBtn">Cancel</button>
+                    <button type="submit" class="btn-primary">💾 Save Shift</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="scripts/supabase.js"></script>
+    <script src="scripts/config.js"></script>
+    <script src="scripts/shifts.js"></script>
+</body>
+</html>

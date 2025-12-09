@@ -24,11 +24,19 @@
             </div>
         </header>
         
+        <!-- Announcement Banner -->
+        <div id="announcementBanner" class="announcement-banner-container"></div>
+        
         <div class="dashboard-content">
             <div class="info-panel">
                 <div class="info-card">
                     <h3>📊 Schedule Overview</h3>
                     <p>View your team's schedule and assignments</p>
+                    <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button id="viewMyShiftsBtn" class="btn-primary">📅 My Shifts</button>
+                        <button id="editMyProfileBtn" class="btn-primary">👤 My Profile</button>
+                        <button id="requestTimeOffBtn" class="btn-primary">🏖️ Request Time Off</button>
+                    </div>
                 </div>
                 
                 <div class="info-card">
@@ -109,13 +117,115 @@
             <!-- Notifications will be rendered here -->
         </div>
     </div>
+
+    <!-- My Shifts Modal -->
+    <div id="myShiftsModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2>📅 My Shifts</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                    <button id="myShiftsPrevWeek" class="btn-secondary">← Previous Week</button>
+                    <span id="myShiftsWeekDisplay" style="font-weight: 600;"></span>
+                    <button id="myShiftsNextWeek" class="btn-secondary">Next Week →</button>
+                </div>
+                <div id="myShiftsContent" style="overflow-x: auto;">
+                    <div class="loading-message">Loading your shifts...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- My Profile Modal -->
+    <div id="myProfileModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>👤 My Profile</h2>
+                <span class="close">&times;</span>
+            </div>
+            <form id="myProfileForm">
+                <div class="form-group">
+                    <label for="myProfileName">Name</label>
+                    <input type="text" id="myProfileName" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label for="myProfilePhone">Phone Number</label>
+                    <input type="tel" id="myProfilePhone" placeholder="(555) 123-4567">
+                </div>
+
+                <div class="form-group">
+                    <label for="myProfileEmail">Email</label>
+                    <input type="email" id="myProfileEmail" placeholder="your.email@example.com">
+                </div>
+
+                <div class="form-group">
+                    <label for="myProfileSkills">Skills (comma-separated)</label>
+                    <input type="text" id="myProfileSkills" placeholder="Plumbing, Welding, Electrical">
+                    <small>Enter your skills separated by commas</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="myProfileCertifications">Certifications (comma-separated)</label>
+                    <input type="text" id="myProfileCertifications" placeholder="EPA Cross-Connection, Backflow Prevention">
+                    <small>Enter your certifications separated by commas</small>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="cancelMyProfileBtn">Cancel</button>
+                    <button type="submit" class="btn-primary">💾 Save Profile</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Time Off Request Modal -->
+    <div id="timeOffModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>🏖️ Request Time Off</h2>
+                <button class="close-modal" id="closeTimeOffModal">&times;</button>
+            </div>
+            <form id="timeOffForm">
+                <div class="form-group">
+                    <label for="timeOffStartDate">Start Date</label>
+                    <input type="date" id="timeOffStartDate" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="timeOffEndDate">End Date</label>
+                    <input type="date" id="timeOffEndDate" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="timeOffReason">Reason</label>
+                    <textarea id="timeOffReason" rows="4" placeholder="Enter reason for time off..." required></textarea>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="cancelTimeOffBtn">Cancel</button>
+                    <button type="submit" class="btn-primary">📤 Submit Request</button>
+                </div>
+            </form>
+
+            <!-- My Time Off Requests List -->
+            <div style="margin-top: 30px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+                <h3>My Time Off Requests</h3>
+                <div id="myTimeOffRequestsList"></div>
+            </div>
+        </div>
+    </div>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="scripts/supabase.js"></script>
     <script src="scripts/config.js"></script>
     <script src="scripts/checkin.js"></script>
     <script src="scripts/notifications.js"></script>
+    <script src="scripts/announcement-banner.js"></script>
     <script src="scripts/gantt.js"></script>
     <script src="scripts/employee.js"></script>
+</script>
 </body>
 </html>

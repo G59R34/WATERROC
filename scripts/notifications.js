@@ -74,6 +74,15 @@ class NotificationSystem {
         // Add to check-in system if available
         if (typeof checkInSystem !== 'undefined') {
             checkInSystem.addNotification(type, message);
+            
+            // Show check-in dialog for important notifications
+            if (type === 'new-task' || type === 'announcement' || type === 'message') {
+                // Get user role from session
+                const userRole = sessionStorage.getItem('userRole') || 'employee';
+                setTimeout(() => {
+                    checkInSystem.forceShow(userRole);
+                }, 1000);
+            }
         }
         
         // Keep only last 50 notifications

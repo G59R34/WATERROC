@@ -18,6 +18,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         setupNotificationPanel();
     }
     
+    // Initialize announcement banner
+    if (typeof announcementBanner !== 'undefined') {
+        announcementBanner.init();
+    }
+    
     // Initialize Gantt Chart FIRST
     const gantt = new GanttChart('ganttChart', true);
     
@@ -107,6 +112,21 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         console.log('🔄 Auto-refresh enabled (every 2 seconds)');
     }
+    
+    // Analytics navigation
+    document.getElementById('viewAnalyticsBtn').addEventListener('click', function() {
+        window.location.href = 'analytics.html';
+    });
+    
+    // Employee Profiles navigation
+    document.getElementById('manageProfilesBtn').addEventListener('click', function() {
+        window.location.href = 'profiles.html';
+    });
+    
+    // Shift Scheduling navigation
+    document.getElementById('manageShiftsBtn').addEventListener('click', function() {
+        window.location.href = 'shifts.html';
+    });
     
     // Setup notification panel
     function setupNotificationPanel() {
@@ -248,6 +268,11 @@ document.addEventListener('DOMContentLoaded', async function() {
             if (result) {
                 alert('✅ Announcement sent to all employees!');
                 announcementModal.style.display = 'none';
+                
+                // Refresh announcement banner
+                if (typeof announcementBanner !== 'undefined') {
+                    await announcementBanner.loadAnnouncements();
+                }
                 
                 // Add to notification system
                 if (typeof notificationSystem !== 'undefined') {

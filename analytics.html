@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WaterROC - Analytics Dashboard</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/analytics.css">
+</head>
+<body>
+    <div class="dashboard">
+        <header class="dashboard-header">
+            <div class="header-left">
+                <h1>💧 WaterROC - Analytics</h1>
+            </div>
+            <div class="header-right">
+                <button id="backToDashboard" class="btn-secondary">← Back to Dashboard</button>
+                <button id="logoutBtn" class="btn-secondary">Logout</button>
+            </div>
+        </header>
+        
+        <div class="analytics-container">
+            <!-- Date Range Selector -->
+            <div class="analytics-controls">
+                <h2>📊 Performance Analytics</h2>
+                <div class="date-range-selector">
+                    <label>Date Range:</label>
+                    <select id="dateRangeSelect">
+                        <option value="today">Today</option>
+                        <option value="week" selected>This Week</option>
+                        <option value="month">This Month</option>
+                        <option value="quarter">This Quarter</option>
+                        <option value="year">This Year</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                    <div id="customDateRange" style="display: none;">
+                        <input type="date" id="customStartDate">
+                        <span>to</span>
+                        <input type="date" id="customEndDate">
+                        <button id="applyCustomRange" class="btn-primary">Apply</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="analytics-summary">
+                <div class="summary-card">
+                    <div class="summary-icon">📋</div>
+                    <div class="summary-content">
+                        <h3>Total Tasks</h3>
+                        <div class="summary-value" id="totalTasks">0</div>
+                    </div>
+                </div>
+                
+                <div class="summary-card">
+                    <div class="summary-icon">✅</div>
+                    <div class="summary-content">
+                        <h3>Completed</h3>
+                        <div class="summary-value" id="completedTasks">0</div>
+                        <div class="summary-subtitle" id="completionRate">0%</div>
+                    </div>
+                </div>
+                
+                <div class="summary-card">
+                    <div class="summary-icon">⏱️</div>
+                    <div class="summary-content">
+                        <h3>On-Time Rate</h3>
+                        <div class="summary-value" id="onTimeRate">0%</div>
+                    </div>
+                </div>
+                
+                <div class="summary-card">
+                    <div class="summary-icon">🕐</div>
+                    <div class="summary-content">
+                        <h3>Total Hours</h3>
+                        <div class="summary-value" id="totalHours">0h</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Employee Performance Table -->
+            <div class="analytics-section">
+                <h3>👥 Employee Performance</h3>
+                <div class="table-container">
+                    <table class="analytics-table">
+                        <thead>
+                            <tr>
+                                <th>Employee</th>
+                                <th>Total Tasks</th>
+                                <th>Completed</th>
+                                <th>Pending</th>
+                                <th>Hours Logged</th>
+                                <th>Completion Rate</th>
+                                <th>Performance</th>
+                            </tr>
+                        </thead>
+                        <tbody id="employeePerformanceTable">
+                            <tr>
+                                <td colspan="7" class="loading-message">Loading performance data...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Task Status Breakdown -->
+            <div class="analytics-grid">
+                <div class="analytics-section">
+                    <h3>📊 Task Status Breakdown</h3>
+                    <div class="status-breakdown" id="statusBreakdown">
+                        <div class="status-item">
+                            <div class="status-bar" data-status="completed">
+                                <div class="status-bar-fill" style="width: 0%"></div>
+                            </div>
+                            <div class="status-label">
+                                <span class="status-name">✅ Completed</span>
+                                <span class="status-count">0</span>
+                            </div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-bar" data-status="in-progress">
+                                <div class="status-bar-fill" style="width: 0%"></div>
+                            </div>
+                            <div class="status-label">
+                                <span class="status-name">🔵 In Progress</span>
+                                <span class="status-count">0</span>
+                            </div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-bar" data-status="pending">
+                                <div class="status-bar-fill" style="width: 0%"></div>
+                            </div>
+                            <div class="status-label">
+                                <span class="status-name">🟡 Pending</span>
+                                <span class="status-count">0</span>
+                            </div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-bar" data-status="overdue">
+                                <div class="status-bar-fill" style="width: 0%"></div>
+                            </div>
+                            <div class="status-label">
+                                <span class="status-name">🔴 Overdue</span>
+                                <span class="status-count">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="analytics-section">
+                    <h3>🔔 Recent Activity</h3>
+                    <div class="activity-feed" id="activityFeed">
+                        <div class="activity-item">
+                            <div class="activity-icon">📊</div>
+                            <div class="activity-content">
+                                <p>Analyzing data...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="scripts/supabase.js"></script>
+    <script src="scripts/config.js"></script>
+    <script src="scripts/analytics.js"></script>
+</body>
+</html>
