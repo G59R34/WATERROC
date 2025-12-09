@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waterstream - Admin Dashboard</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/gantt.css">
+</head>
+<body>
+    <div class="dashboard">
+        <header class="dashboard-header">
+            <div class="header-left">
+                <h1>💧 Waterstream Admin</h1>
+            </div>
+            <div class="header-right">
+                <span class="user-info">Admin Dashboard</span>
+                <button id="logoutBtn" class="btn-secondary">Logout</button>
+            </div>
+        </header>
+        
+        <div class="dashboard-content">
+            <div class="controls-panel">
+                <div class="controls-section">
+                    <h3>Gantt Chart Controls</h3>
+                    <div class="control-group">
+                        <button id="addEmployeeBtn" class="btn-primary">+ Add Employee</button>
+                        <button id="addTaskBtn" class="btn-primary">+ Add Task</button>
+                        <button id="saveDataBtn" class="btn-success">💾 Save Changes</button>
+                        <button id="resetViewBtn" class="btn-secondary">🔄 Reset View</button>
+                    </div>
+                </div>
+                
+                <div class="controls-section">
+                    <h3>Date Range</h3>
+                    <div class="date-controls">
+                        <input type="date" id="startDate" />
+                        <span>to</span>
+                        <input type="date" id="endDate" />
+                        <button id="updateDateRange" class="btn-secondary">Update</button>
+                    </div>
+                </div>
+                
+                <div class="controls-section">
+                    <h3>Color Legend</h3>
+                    <div class="color-legend">
+                        <div class="legend-item">
+                            <span class="color-box" style="background-color: #3b82f6;"></span>
+                            <span>In Progress</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="color-box" style="background-color: #10b981;"></span>
+                            <span>Completed</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="color-box" style="background-color: #f59e0b;"></span>
+                            <span>Pending</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="color-box" style="background-color: #ef4444;"></span>
+                            <span>Overdue</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="color-box" style="background-color: #8b5cf6;"></span>
+                            <span>On Hold</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="gantt-container">
+                <div id="ganttChart" class="gantt-chart"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add Employee Modal -->
+    <div id="addEmployeeModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Add Employee</h2>
+            <form id="addEmployeeForm">
+                <div class="form-group">
+                    <label for="linkUserAccount">Link to User Account (Optional)</label>
+                    <select id="linkUserAccount">
+                        <option value="">-- No User Account --</option>
+                    </select>
+                    <small style="color: #64748b; display: block; margin-top: 4px;">
+                        Select a user to link their login account to this employee
+                    </small>
+                </div>
+                <div class="form-group">
+                    <label for="employeeName">Employee Name</label>
+                    <input type="text" id="employeeName" required>
+                </div>
+                <div class="form-group">
+                    <label for="employeeRole">Role/Position</label>
+                    <input type="text" id="employeeRole" required>
+                </div>
+                <button type="submit" class="btn-primary">Add Employee</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Add Task Modal -->
+    <div id="addTaskModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Add Task</h2>
+            <form id="addTaskForm">
+                <div class="form-group">
+                    <label for="taskEmployee">Employee</label>
+                    <select id="taskEmployee" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="taskName">Task Name</label>
+                    <input type="text" id="taskName" required>
+                </div>
+                <div class="form-group">
+                    <label for="taskStart">Start Date</label>
+                    <input type="date" id="taskStart" required>
+                </div>
+                <div class="form-group">
+                    <label for="taskStartTime">Start Time (HHMM)</label>
+                    <input type="time" id="taskStartTime" required>
+                </div>
+                <div class="form-group">
+                    <label for="taskEnd">End Date</label>
+                    <input type="date" id="taskEnd" required>
+                </div>
+                <div class="form-group">
+                    <label for="taskEndTime">End Time (HHMM)</label>
+                    <input type="time" id="taskEndTime" required>
+                </div>
+                <div class="form-group">
+                    <label for="taskStatus">Status</label>
+                    <select id="taskStatus" required>
+                        <option value="pending">Pending</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                        <option value="overdue">Overdue</option>
+                        <option value="on-hold">On Hold</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-primary">Add Task</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Edit Task Modal -->
+    <div id="editTaskModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Edit Task</h2>
+            <form id="editTaskForm">
+                <input type="hidden" id="editTaskId">
+                <div class="form-group">
+                    <label for="editTaskName">Task Name</label>
+                    <input type="text" id="editTaskName" required>
+                </div>
+                <div class="form-group">
+                    <label for="editTaskStart">Start Date</label>
+                    <input type="date" id="editTaskStart" required>
+                </div>
+                <div class="form-group">
+                    <label for="editTaskStartTime">Start Time</label>
+                    <input type="time" id="editTaskStartTime" required>
+                </div>
+                <div class="form-group">
+                    <label for="editTaskEnd">End Date</label>
+                    <input type="date" id="editTaskEnd" required>
+                </div>
+                <div class="form-group">
+                    <label for="editTaskEndTime">End Time</label>
+                    <input type="time" id="editTaskEndTime" required>
+                </div>
+                <div class="form-group">
+                    <label for="editTaskStatus">Status</label>
+                    <select id="editTaskStatus" required>
+                        <option value="pending">Pending</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                        <option value="overdue">Overdue</option>
+                        <option value="on-hold">On Hold</option>
+                    </select>
+                </div>
+                <div id="taskAcknowledgements" class="task-acknowledgements-section">
+                    <h3>Task Acknowledgements</h3>
+                    <div id="ackList" class="ack-list"></div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                    <button type="button" id="deleteTaskBtn" class="btn-danger">Delete Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="scripts/supabase.js"></script>
+    <script src="scripts/config.js"></script>
+    <script src="scripts/gantt.js"></script>
+    <script src="scripts/admin.js"></script>
+</body>
+</html>

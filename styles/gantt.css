@@ -1,0 +1,325 @@
+/* Gantt Chart Styles */
+.gantt-chart {
+    width: 100%;
+    min-height: 600px;
+    position: relative;
+}
+
+.gantt-header {
+    display: flex;
+    border-bottom: 2px solid var(--border-color);
+    background: var(--bg-color);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.gantt-employee-header {
+    min-width: 200px;
+    width: 200px;
+    padding: 15px;
+    font-weight: 600;
+    border-right: 2px solid var(--border-color);
+    background: var(--bg-color);
+}
+
+.gantt-timeline-header {
+    flex: 1;
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.gantt-day-header {
+    min-width: 120px;
+    width: 120px;
+    padding: 12px;
+    text-align: center;
+    border-right: 1px solid var(--border-color);
+    font-weight: 500;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.gantt-day-header.weekend {
+    background: #f1f5f9;
+}
+
+.gantt-day-header .day-name {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 2px;
+}
+
+.gantt-day-header .day-date {
+    display: block;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    font-weight: 600;
+}
+
+.gantt-day-header .day-time {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--primary-color);
+    font-weight: 600;
+    background: #eff6ff;
+    padding: 2px 4px;
+    border-radius: 4px;
+    margin-top: 2px;
+}
+
+.gantt-body {
+    display: flex;
+    flex-direction: column;
+}
+
+.gantt-row {
+    display: flex;
+    border-bottom: 1px solid var(--border-color);
+    min-height: 100px;
+    position: relative;
+}
+
+.gantt-row:hover {
+    background: #f8fafc;
+}
+
+.gantt-employee-cell {
+    min-width: 200px;
+    width: 200px;
+    padding: 25px 15px;
+    border-right: 2px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background: white;
+}
+
+.employee-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.employee-role {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.gantt-timeline-cell {
+    flex: 1;
+    display: flex;
+    position: relative;
+}
+
+.gantt-day-cell {
+    min-width: 120px;
+    width: 120px;
+    border-right: 1px solid #e5e7eb;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.gantt-day-cell.weekend {
+    background: #fafafa;
+}
+
+.gantt-day-cell.today {
+    background: #eff6ff;
+    border-left: 2px solid var(--primary-color);
+    border-right: 2px solid var(--primary-color);
+}
+
+/* Task Bars */
+.gantt-task {
+    position: absolute;
+    height: 50px;
+    top: 50%;
+    transform: translateY(-50%);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: white;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.gantt-task:hover {
+    transform: translateY(-50%) scale(1.03);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 6;
+}
+
+.gantt-task.editable:hover {
+    cursor: move;
+}
+
+/* Task Status Colors */
+.gantt-task.status-in-progress {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.gantt-task.status-completed {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.gantt-task.status-pending {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.gantt-task.status-overdue {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+.gantt-task.status-on-hold {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+}
+
+.task-name {
+    display: block;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.task-dates {
+    display: block;
+    font-size: 0.75rem;
+    opacity: 0.95;
+    margin-top: 3px;
+}
+
+.task-time {
+    display: block;
+    font-size: 0.7rem;
+    opacity: 0.9;
+    margin-top: 2px;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 1px 4px;
+    border-radius: 3px;
+    display: inline-block;
+    margin-top: 3px;
+}
+
+/* Empty State */
+.gantt-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+}
+
+.gantt-empty-state h3 {
+    margin-bottom: 10px;
+    color: var(--text-primary);
+}
+
+/* Read-only Mode */
+.gantt-chart.readonly .gantt-task {
+    cursor: pointer;
+}
+
+.gantt-chart.readonly .gantt-task:hover {
+    cursor: pointer;
+}
+
+/* Resize Handles */
+.gantt-task .resize-handle {
+    position: absolute;
+    width: 8px;
+    height: 100%;
+    top: 0;
+    cursor: ew-resize;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.gantt-task:hover .resize-handle {
+    opacity: 1;
+}
+
+.gantt-task .resize-handle.left {
+    left: 0;
+    background: linear-gradient(to right, rgba(255,255,255,0.8), transparent);
+}
+
+.gantt-task .resize-handle.right {
+    right: 0;
+    background: linear-gradient(to left, rgba(255,255,255,0.8), transparent);
+}
+
+/* Loading State */
+.gantt-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    color: var(--text-secondary);
+}
+
+.gantt-loading::after {
+    content: '⏳';
+    font-size: 3rem;
+    animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Scrollbar Styling */
+.gantt-timeline-header::-webkit-scrollbar,
+.gantt-chart::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+}
+
+.gantt-timeline-header::-webkit-scrollbar-track,
+.gantt-chart::-webkit-scrollbar-track {
+    background: var(--bg-color);
+}
+
+.gantt-timeline-header::-webkit-scrollbar-thumb,
+.gantt-chart::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+.gantt-timeline-header::-webkit-scrollbar-thumb:hover,
+.gantt-chart::-webkit-scrollbar-thumb:hover {
+    background: var(--secondary-color);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .gantt-employee-header,
+    .gantt-employee-cell {
+        min-width: 150px;
+        width: 150px;
+    }
+    
+    .gantt-day-header,
+    .gantt-day-cell {
+        min-width: 60px;
+    }
+    
+    .gantt-task {
+        font-size: 0.75rem;
+        padding: 6px 10px;
+    }
+}

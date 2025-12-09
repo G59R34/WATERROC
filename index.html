@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waterstream - Login</title>
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="logo">
+                <h1>💧 Waterstream</h1>
+                <p>Employee Management System</p>
+            </div>
+            <div class="login-form">
+                <h2 id="formTitle">Sign In</h2>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="username">Username or Email</label>
+                        <input type="text" id="username" name="username" required>
+                    </div>
+                    <div class="form-group" id="emailGroup" style="display: none;">
+                        <label for="email">Email Address</label>
+                        <input type="email" id="email" name="email">
+                    </div>
+                    <div class="form-group" id="fullNameGroup" style="display: none;">
+                        <label for="fullName">Full Name</label>
+                        <input type="text" id="fullName" name="fullName">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="role">Role</label>
+                        <select id="role" name="role" required>
+                            <option value="admin">Admin</option>
+                            <option value="employee">Employee</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-primary" id="submitBtn">Login</button>
+                </form>
+                <div class="toggle-form">
+                    <p>Don't have an account? <a href="#" id="toggleSignup">Sign Up</a></p>
+                </div>
+                <div class="demo-credentials">
+                    <p><strong>Demo Credentials (Offline Mode):</strong></p>
+                    <p>Admin: crouch / admin123 or hoen / admin123</p>
+                    <p>Employee: any username / emp123</p>
+                    <p class="supabase-note">💡 Configure Supabase for full authentication</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="scripts/supabase.js"></script>
+    <script src="scripts/config.js"></script>
+    <script src="scripts/login.js"></script>
+</body>
+</html>

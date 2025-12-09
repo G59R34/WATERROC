@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waterstream - Employee Dashboard</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/gantt.css">
+</head>
+<body>
+    <div class="dashboard">
+        <header class="dashboard-header">
+            <div class="header-left">
+                <h1>💧 Waterstream</h1>
+            </div>
+            <div class="header-right">
+                <span class="user-info">Employee View</span>
+                <button id="logoutBtn" class="btn-secondary">Logout</button>
+            </div>
+        </header>
+        
+        <div class="dashboard-content">
+            <div class="info-panel">
+                <div class="info-card">
+                    <h3>📊 Schedule Overview</h3>
+                    <p>View your team's schedule and assignments</p>
+                </div>
+                
+                <div class="info-card">
+                    <h3>🎨 Color Legend</h3>
+                    <div class="color-legend">
+                        <div class="legend-item">
+                            <span class="color-box" style="background-color: #3b82f6;"></span>
+                            <span>In Progress</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="color-box" style="background-color: #10b981;"></span>
+                            <span>Completed</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="color-box" style="background-color: #f59e0b;"></span>
+                            <span>Pending</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="color-box" style="background-color: #ef4444;"></span>
+                            <span>Overdue</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="color-box" style="background-color: #8b5cf6;"></span>
+                            <span>On Hold</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="info-card readonly-notice">
+                    <h3>ℹ️ Read-Only Mode</h3>
+                    <p>You are viewing the schedule in read-only mode. Contact your administrator to make changes.</p>
+                </div>
+            </div>
+            
+            <div class="gantt-container">
+                <div id="ganttChart" class="gantt-chart readonly"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Task Details Modal (Read-Only) -->
+    <div id="taskDetailsModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Task Details</h2>
+            <div id="taskDetails" class="task-details-content"></div>
+            <div class="task-actions">
+                <button id="acknowledgeBtn" class="btn-success">✓ Acknowledge Task</button>
+                <button id="unacknowledgeBtn" class="btn-secondary" style="display:none;">Remove Acknowledgement</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="scripts/supabase.js"></script>
+    <script src="scripts/config.js"></script>
+    <script src="scripts/gantt.js"></script>
+    <script src="scripts/employee.js"></script>
+</body>
+</html>
