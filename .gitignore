@@ -1,5 +1,5 @@
 # Waterstream - Do not commit these files
-# config.js  # Commented out to deploy to GitHub Pages
+
 .env
 *.log
 node_modules/
