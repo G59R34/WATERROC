@@ -6,7 +6,7 @@ class HourlyGanttChart {
         this.isEditable = isEditable;
         this.hourWidth = 80; // Width per hour
         this.timeIndicatorInterval = null;
-        this.workAreas = ['day-off', 'free', 'united', 'autozone'];
+        this.workAreas = ['music-prod', 'video-creation', 'administrative', 'other', 'note-other'];
         this.tasks = [];
         
         this.init();
@@ -150,19 +150,28 @@ class HourlyGanttChart {
         if (supabaseService && supabaseService.isReady()) {
             this.tasks = await supabaseService.getHourlyTasks(dateStr, dateStr) || [];
             console.log('Loaded tasks from Supabase:', this.tasks);
+            
+            // Load exceptions for this date
+            this.exceptions = await supabaseService.getExceptionLogs({
+                date: dateStr
+            }) || [];
+            console.log('Loaded exceptions from Supabase:', this.exceptions);
         } else {
             console.warn('Supabase not available, no tasks loaded');
             this.tasks = [];
+            this.exceptions = [];
         }
         
         // Fetch shift data for all employees
         const employeesWithShifts = await Promise.all(
             employees.map(async (emp) => {
                 const shift = await this.getEmployeeShift(emp.id, this.selectedDate);
-                console.log(`Employee ${emp.name} (ID: ${emp.id}) shift:`, shift);
+                const empExceptions = this.exceptions.filter(exc => exc.employee_id === emp.id);
+                console.log(`Employee ${emp.name} (ID: ${emp.id}) shift:`, shift, 'exceptions:', empExceptions);
                 return {
                     ...emp,
-                    shift: shift
+                    shift: shift,
+                    exceptions: empExceptions
                 };
             })
         );
@@ -232,10 +241,11 @@ class HourlyGanttChart {
         // Tasks are already loaded in this.tasks from render()
         
         const workAreaLabels = {
-            'day-off': 'Day Off',
-            'free': 'Free',
-            'united': 'United',
-            'autozone': 'AutoZone'
+            'music-prod': 'Music Prod.',
+            'video-creation': 'Video Creation',
+            'administrative': 'Administrative',
+            'other': 'Other',
+            'note-other': 'Note - Other'
         };
         
         employees.forEach(employee => {
@@ -245,7 +255,39 @@ class HourlyGanttChart {
             // Employee name cell (spans all 4 work area rows)
             const employeeNameCell = document.createElement('div');
             employeeNameCell.className = 'hourly-gantt-employee-name-cell';
-            employeeNameCell.textContent = employee.name;
+            
+            // Add employee name
+            const nameSpan = document.createElement('div');
+            nameSpan.textContent = employee.name;
+            nameSpan.style.fontWeight = '600';
+            employeeNameCell.appendChild(nameSpan);
+            
+            // Add exception badges if any
+            if (employee.exceptions && employee.exceptions.length > 0) {
+                const exceptionColors = {
+                    'VAUT': '#10b981',
+                    'DO': '#3b82f6',
+                    'UAEO': '#ef4444'
+                };
+                
+                employee.exceptions.forEach(exc => {
+                    const badge = document.createElement('div');
+                    badge.style.cssText = `
+                        background: ${exceptionColors[exc.exception_code] || '#64748b'};
+                        color: white;
+                        padding: 4px 8px;
+                        border-radius: 4px;
+                        font-size: 11px;
+                        font-weight: 600;
+                        margin-top: 6px;
+                        text-align: center;
+                    `;
+                    badge.textContent = exc.exception_code;
+                    badge.title = exc.reason || exc.exception_code;
+                    employeeNameCell.appendChild(badge);
+                });
+            }
+            
             employeeNameCell.style.gridRow = 'span 4';
             employeeSection.appendChild(employeeNameCell);
             
@@ -303,6 +345,8 @@ class HourlyGanttChart {
                 const employeeTasks = this.tasks.filter(task => 
                     task.employee_id === employee.id && task.work_area === area
                 );
+                
+                console.log(`Tasks for ${employee.name} in ${area}:`, employeeTasks);
                 
                 employeeTasks.forEach(task => {
                     const taskBar = this.createTaskBar(task);
@@ -371,6 +415,7 @@ class HourlyGanttChart {
     }
     
     createTaskBar(task) {
+        console.log('Creating task bar for:', task);
         const taskBar = document.createElement('div');
         taskBar.className = `hourly-gantt-task status-${task.status}`;
         
@@ -378,12 +423,16 @@ class HourlyGanttChart {
         const startTime = task.start_time || task.startTime;
         const endTime = task.end_time || task.endTime;
         
+        console.log('Task times:', startTime, endTime);
+        
         const startMinutes = this.timeToMinutes(startTime);
         const endMinutes = this.timeToMinutes(endTime);
         const durationMinutes = endMinutes - startMinutes;
         
         const leftPosition = (startMinutes / 60) * this.hourWidth;
         const width = (durationMinutes / 60) * this.hourWidth;
+        
+        console.log('Task bar position:', { left: leftPosition, width: width });
         
         taskBar.style.left = `${leftPosition}px`;
         taskBar.style.width = `${width}px`;
@@ -445,7 +494,7 @@ class HourlyGanttChart {
         }
     }
     
-    async addTask(employeeId, taskName, startTime, endTime, status = 'pending', workArea = 'free') {
+    async addTask(employeeId, taskName, startTime, endTime, status = 'pending', workArea = 'other') {
         const dateKey = this.formatDate(this.selectedDate);
         
         // Get employee name from Supabase
@@ -464,7 +513,9 @@ class HourlyGanttChart {
             task_date: dateKey
         };
         
+        console.log('Creating task with data:', taskData);
         const newTask = await supabaseService.createHourlyTask(taskData);
+        console.log('Task created:', newTask);
         
         // Re-render to show the new task
         await this.render();

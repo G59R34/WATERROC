@@ -32,7 +32,7 @@
                 <div class="controls-section">
                     <h3>Gantt Chart Controls</h3>
                     <div class="control-group">
-                        <button id="addEmployeeBtn" class="btn-primary">Add Employee</button>
+                        <button id="addEmployeeBtn" class="btn-primary">Add Personell</button>
                         <button id="addTaskBtn" class="btn-primary">Add Task</button>
                         <button id="sendAnnouncementBtn" class="btn-warning">Send Announcement</button>
                         <button id="viewAnalyticsBtn" class="btn-success">View Analytics</button>
@@ -54,9 +54,10 @@
                 <div class="controls-section">
                     <h3>Advanced Features</h3>
                     <div class="control-group">
-                        <button id="manageProfilesBtn" class="btn-primary">Employee Profiles</button>
+                        <button id="manageProfilesBtn" class="btn-primary">Personell Profiles</button>
                         <button id="manageShiftsBtn" class="btn-primary">Shift Scheduling</button>
                         <button id="manageTaskTemplatesBtn" class="btn-primary">Task Templates</button>
+                        <button id="manageExceptionsBtn" class="btn-warning">Exceptions & Absence</button>
                     </div>
                 </div>
                 
@@ -303,6 +304,17 @@
                     <input type="text" id="hourlyTaskName" required>
                 </div>
                 <div class="form-group">
+                    <label for="hourlyTaskCategory">Category</label>
+                    <select id="hourlyTaskCategory" required>
+                        <option value="">Select Category</option>
+                        <option value="music-prod">Music Prod.</option>
+                        <option value="video-creation">Video Creation</option>
+                        <option value="administrative">Administrative</option>
+                        <option value="other">Other</option>
+                        <option value="note-other">Note - Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label for="hourlyTaskStartTime">Start Time</label>
                     <input type="time" id="hourlyTaskStartTime" required>
                 </div>
@@ -336,6 +348,17 @@
                 <div class="form-group">
                     <label for="editHourlyTaskName">Task Name</label>
                     <input type="text" id="editHourlyTaskName" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="editHourlyTaskCategory">Category</label>
+                    <select id="editHourlyTaskCategory" required>
+                        <option value="music-prod">Music Prod.</option>
+                        <option value="video-creation">Video Creation</option>
+                        <option value="administrative">Administrative</option>
+                        <option value="other">Other</option>
+                        <option value="note-other">Note - Other</option>
+                    </select>
                 </div>
                 
                 <div class="form-group">

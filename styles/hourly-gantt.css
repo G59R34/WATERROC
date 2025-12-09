@@ -177,40 +177,49 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.hourly-gantt-work-area.area-day-off {
+.hourly-gantt-work-area.area-music-prod {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    color: white;
+}
+
+.hourly-gantt-work-area.area-music-prod:hover {
+    border-color: #7c3aed;
+}
+
+.hourly-gantt-work-area.area-video-creation {
     background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
     color: white;
 }
 
-.hourly-gantt-work-area.area-day-off:hover {
+.hourly-gantt-work-area.area-video-creation:hover {
     border-color: #dc2626;
 }
 
-.hourly-gantt-work-area.area-free {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: white;
-}
-
-.hourly-gantt-work-area.area-free:hover {
-    border-color: #059669;
-}
-
-.hourly-gantt-work-area.area-united {
+.hourly-gantt-work-area.area-administrative {
     background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
     color: white;
 }
 
-.hourly-gantt-work-area.area-united:hover {
+.hourly-gantt-work-area.area-administrative:hover {
     border-color: #2563eb;
 }
 
-.hourly-gantt-work-area.area-autozone {
+.hourly-gantt-work-area.area-other {
     background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
     color: white;
 }
 
-.hourly-gantt-work-area.area-autozone:hover {
+.hourly-gantt-work-area.area-other:hover {
     border-color: #d97706;
+}
+
+.hourly-gantt-work-area.area-note-other {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+}
+
+.hourly-gantt-work-area.area-note-other:hover {
+    border-color: #059669;
 }
 
 .hourly-gantt-work-area.active {
@@ -296,20 +305,24 @@
 }
 
 /* Color-coded work bars by area - solid thick bars */
-.work-bar-day-off {
-    background: #dc2626 !important;
+.work-bar-music-prod {
+    background: #8b5cf6 !important;
 }
 
-.work-bar-free {
-    background: #16a34a !important;
+.work-bar-video-creation {
+    background: #ef4444 !important;
 }
 
-.work-bar-united {
+.work-bar-administrative {
     background: #2563eb !important;
 }
 
-.work-bar-autozone {
-    background: #ea580c !important;
+.work-bar-other {
+    background: #f59e0b !important;
+}
+
+.work-bar-note-other {
+    background: #10b981 !important;
 }
 
 /* Task bars - small blocks ON TOP of colored bars */

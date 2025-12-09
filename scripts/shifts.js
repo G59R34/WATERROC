@@ -114,6 +114,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     }
 
+    let exceptions = [];
+
     async function loadShifts() {
         const calendar = document.getElementById('shiftCalendar');
         calendar.innerHTML = '<div class="loading-message">Loading shifts...</div>';
@@ -135,6 +137,25 @@ document.addEventListener('DOMContentLoaded', async function() {
             );
             
             console.log('Shifts loaded:', shifts);
+
+            // Ensure DO exceptions for each day in the week
+            for (let i = 0; i < 7; i++) {
+                const checkDate = new Date(currentWeekStart);
+                checkDate.setDate(checkDate.getDate() + i);
+                try {
+                    await supabaseService.ensureDOExceptions(formatDate(checkDate));
+                } catch (error) {
+                    console.error('Error ensuring DO for', formatDate(checkDate), error);
+                }
+            }
+
+            // Load exceptions for the week
+            exceptions = await supabaseService.getExceptionLogs({
+                startDate: formatDate(currentWeekStart),
+                endDate: formatDate(weekEnd)
+            });
+            
+            console.log('Exceptions loaded:', exceptions);
 
             // Update week display
             document.getElementById('weekDisplay').textContent = 
@@ -180,6 +201,31 @@ document.addEventListener('DOMContentLoaded', async function() {
             });
         }
 
+        // Create exception map for quick lookup
+        const exceptionMap = {};
+        if (exceptions) {
+            exceptions.forEach(exc => {
+                const key = `${exc.employee_id}-${exc.exception_date}`;
+                if (!exceptionMap[key]) {
+                    exceptionMap[key] = [];
+                }
+                exceptionMap[key].push(exc);
+            });
+        }
+
+        // Exception colors
+        const exceptionColors = {
+            'VAUT': '#10b981',
+            'DO': '#3b82f6',
+            'UAEO': '#ef4444'
+        };
+
+        const exceptionLabels = {
+            'VAUT': 'Verified Authorized Unavailable Time',
+            'DO': 'Day Off',
+            'UAEO': 'Unauthorized Absence'
+        };
+
         // Build calendar HTML
         let html = '<div class="calendar-grid">';
         
@@ -200,6 +246,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 const dateStr = formatDate(day);
                 const key = `${emp.id}-${dateStr}`;
                 const dayShifts = shiftMap[key] || [];
+                const dayExceptions = exceptionMap[key] || [];
                 
                 html += `<div class="shift-cell" data-employee-id="${emp.id}" data-date="${dateStr}">`;
                 dayShifts.forEach(shift => {
@@ -212,6 +259,17 @@ document.addEventListener('DOMContentLoaded', async function() {
                         </div>
                     `;
                 });
+                
+                // Add exception badges
+                dayExceptions.forEach(exc => {
+                    html += `
+                        <div class="exception-badge" style="background: ${exceptionColors[exc.exception_code] || '#64748b'}; color: white; padding: 6px 8px; border-radius: 4px; margin-top: 4px; font-size: 11px; font-weight: 600; text-align: center;" title="${exceptionLabels[exc.exception_code] || exc.exception_code}${exc.reason ? '\n' + exc.reason : ''}">
+                            ${exc.exception_code}
+                            ${exc.start_time && exc.end_time ? `<div style="font-size: 10px; opacity: 0.9; margin-top: 2px;">${exc.start_time.substring(0, 5)}-${exc.end_time.substring(0, 5)}</div>` : ''}
+                        </div>
+                    `;
+                });
+                
                 html += '</div>';
             });
             

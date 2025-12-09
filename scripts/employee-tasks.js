@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         // Load current user from auth
         await supabaseService.loadCurrentUser();
-        const user = supabaseService.getCurrentUser();
+        const user = await supabaseService.getCurrentUser();
 
         if (!user) {
             console.error('Could not load user data');
@@ -183,7 +183,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             console.log('Current employee shift:', currentShift);
 
             if (currentShift) {
-                updateShiftDisplay();
+                await updateShiftDisplay();
             } else {
                 document.getElementById('currentShift').textContent = 'No shift scheduled today';
             }
@@ -193,7 +193,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
 
-    function updateShiftDisplay() {
+    async function updateShiftDisplay() {
         if (!currentShift) return;
 
         const startTime = currentShift.start_time.substring(0, 5);
@@ -240,6 +240,45 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         
         document.getElementById('currentShift').textContent = displayText;
+        
+        // Load and display exception status
+        await loadExceptionStatus();
+    }
+    
+    async function loadExceptionStatus() {
+        try {
+            const today = new Date().toISOString().split('T')[0];
+            const exceptions = await supabaseService.getExceptionLogs({
+                employeeId: currentEmployee.employeeId,
+                date: today
+            });
+            
+            const exceptionDiv = document.getElementById('exceptionStatus');
+            
+            if (exceptions && exceptions.length > 0) {
+                const exception = exceptions[0];
+                const codeColors = {
+                    'VAUT': { bg: '#10b981', text: 'Authorized Time Off' },
+                    'DO': { bg: '#3b82f6', text: 'Day Off' },
+                    'UAEO': { bg: '#ef4444', text: 'Unauthorized Absence' }
+                };
+                
+                const codeInfo = codeColors[exception.exception_code] || { bg: '#64748b', text: exception.exception_code };
+                
+                exceptionDiv.innerHTML = `
+                    <div style="padding: 12px; background: ${codeInfo.bg}; color: white; border-radius: 8px; margin-top: 10px;">
+                        <strong style="font-size: 14px;">⚠️ Exception Status: ${exception.exception_code}</strong>
+                        <div style="font-size: 13px; margin-top: 5px; opacity: 0.95;">${codeInfo.text}</div>
+                        ${exception.reason ? `<div style="font-size: 12px; margin-top: 5px; opacity: 0.9;">Reason: ${exception.reason}</div>` : ''}
+                        ${exception.approved_by ? `<div style="font-size: 12px; margin-top: 3px; opacity: 0.9;">✓ Approved by ${exception.approved_by}</div>` : ''}
+                    </div>
+                `;
+            } else {
+                exceptionDiv.innerHTML = '';
+            }
+        } catch (error) {
+            console.error('Error loading exception status:', error);
+        }
     }
 
     async function loadTasks() {
@@ -372,7 +411,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                         <div class="task-time">
                             <strong>🕐 Time:</strong> ${startTime.substring(0,5)} - ${endTime.substring(0,5)}
                         </div>
-                        <div class="task-location ${workArea || 'free'}">
+                        <div class="task-location ${workArea || 'other'}">
                             📍 ${formatWorkArea(workArea)}
                         </div>
                         ${timeUntilHtml}
@@ -386,10 +425,11 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     function formatWorkArea(area) {
         const areaNames = {
-            'day-off': 'Day Off',
-            'free': 'Free Time',
-            'united': 'United',
-            'autozone': 'AutoZone'
+            'music-prod': 'Music Prod.',
+            'video-creation': 'Video Creation',
+            'administrative': 'Administrative',
+            'other': 'Other',
+            'note-other': 'Note - Other'
         };
         return areaNames[area] || 'Unassigned';
     }
@@ -403,13 +443,27 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Make acknowledgeTask available globally
     window.acknowledgeTask = async function(taskId) {
         try {
+            console.log('Attempting to acknowledge task:', taskId);
+            console.log('Current employee:', currentEmployee);
+            
             if (!supabaseService || !supabaseService.isReady()) {
                 showNotification('❌ Supabase not connected');
                 return;
             }
             
+            if (!currentEmployee || !currentEmployee.name) {
+                showNotification('❌ Employee data not loaded');
+                return;
+            }
+            
             // Acknowledge the task in the database
-            await supabaseService.acknowledgeTask(taskId, currentEmployee.name);
+            const result = await supabaseService.acknowledgeHourlyTask(taskId, currentEmployee.name);
+            console.log('Acknowledge result:', result);
+            
+            if (!result) {
+                showNotification('❌ Failed to acknowledge task');
+                return;
+            }
             
             // Reload tasks to update display
             await loadTasks();
@@ -417,7 +471,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             showNotification('✅ Task acknowledged!');
         } catch (error) {
             console.error('Error acknowledging task:', error);
-            showNotification('❌ Error acknowledging task');
+            showNotification('❌ Error: ' + error.message);
         }
     };
 

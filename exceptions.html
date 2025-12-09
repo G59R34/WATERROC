@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WaterROC - Exceptions & Absence</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/profiles.css">
+</head>
+<body>
+    <div class="dashboard">
+        <header class="dashboard-header">
+            <div class="header-left">
+                <h1>WaterROC</h1>
+            </div>
+            <div class="header-right">
+                <button id="notificationBtn" class="notification-btn">
+                    🔔
+                    <span id="notificationBadge" class="notification-badge">0</span>
+                </button>
+                <span class="user-info">Exceptions & Absence Management</span>
+                <button id="backToDashboardBtn" class="btn-secondary">Back to Dashboard</button>
+                <button id="logoutBtn" class="btn-secondary">Logout</button>
+            </div>
+        </header>
+
+        <!-- Announcement Banner -->
+        <div id="announcementBanner" class="announcement-banner-container"></div>
+
+        <div class="dashboard-content">
+            <div class="profiles-container">
+                <!-- Tab Navigation -->
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="apply-exception">Apply Exception</button>
+                    <button class="tab-btn" data-tab="exception-logs">Exception Logs</button>
+                    <button class="tab-btn" data-tab="summary">Summary Report</button>
+                </div>
+
+                <!-- Apply Exception Tab -->
+                <div id="apply-exception" class="tab-content active">
+                    <div class="section-header">
+                        <h2>Apply Exception Code</h2>
+                        <p style="color: #64748b; margin-top: 5px;">Mark employee absences, authorized time off, or day offs</p>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>Exception Codes Reference</h3>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 30px;">
+                            <div class="info-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 15px;">
+                                <h4 style="margin: 0 0 8px 0; font-size: 16px;">VAUT</h4>
+                                <p style="margin: 0; font-size: 13px; opacity: 0.9;">Verified Authorized Unavailable Time - Admin approved employee leave</p>
+                            </div>
+                            <div class="info-card" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; padding: 15px;">
+                                <h4 style="margin: 0 0 8px 0; font-size: 16px;">DO</h4>
+                                <p style="margin: 0; font-size: 13px; opacity: 0.9;">Day Off - Employee is not scheduled to work</p>
+                            </div>
+                            <div class="info-card" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; padding: 15px;">
+                                <h4 style="margin: 0 0 8px 0; font-size: 16px;">UAEO</h4>
+                                <p style="margin: 0; font-size: 13px; opacity: 0.9;">Unauthorized Absence from Expected Operations - No approval</p>
+                            </div>
+                        </div>
+
+                        <form id="applyExceptionForm">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="exceptionEmployee">Employee *</label>
+                                    <select id="exceptionEmployee" required>
+                                        <option value="">Select Employee</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="exceptionDate">Date *</label>
+                                    <input type="date" id="exceptionDate" required>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="exceptionCode">Exception Code *</label>
+                                    <select id="exceptionCode" required>
+                                        <option value="">Select Exception Code</option>
+                                        <option value="VAUT">VAUT - Authorized Unavailable Time</option>
+                                        <option value="DO">DO - Day Off</option>
+                                        <option value="UAEO">UAEO - Unauthorized Absence</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="exceptionStartTime">Start Time (Optional)</label>
+                                    <input type="time" id="exceptionStartTime">
+                                    <small style="color: #64748b;">Leave blank for full day</small>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="exceptionEndTime">End Time (Optional)</label>
+                                    <input type="time" id="exceptionEndTime">
+                                    <small style="color: #64748b;">Leave blank for full day</small>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="exceptionReason">Reason</label>
+                                <textarea id="exceptionReason" rows="3" placeholder="Enter reason for exception..."></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="exceptionApproved" style="margin-right: 8px;">
+                                    Mark as approved by admin
+                                </label>
+                                <small style="color: #64748b; display: block; margin-top: 5px;">Check this for VAUT codes or pre-approved absences</small>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="submit" class="btn-primary">Apply Exception</button>
+                                <button type="button" id="cancelExceptionBtn" class="btn-secondary">Clear Form</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Exception Logs Tab -->
+                <div id="exception-logs" class="tab-content">
+                    <div class="section-header">
+                        <h2>Exception Logs</h2>
+                        <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
+                            <input type="date" id="filterStartDate" class="form-control" placeholder="Start Date">
+                            <input type="date" id="filterEndDate" class="form-control" placeholder="End Date">
+                            <select id="filterEmployee" class="form-control">
+                                <option value="">All Employees</option>
+                            </select>
+                            <select id="filterExceptionCode" class="form-control">
+                                <option value="">All Codes</option>
+                                <option value="VAUT">VAUT</option>
+                                <option value="DO">DO</option>
+                                <option value="UAEO">UAEO</option>
+                            </select>
+                            <button id="filterLogsBtn" class="btn-primary">Filter</button>
+                            <button id="clearFiltersBtn" class="btn-secondary">Clear</button>
+                            <button id="exportLogsBtn" class="btn-success">Export CSV</button>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="data-table" id="exceptionLogsTable">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Employee</th>
+                                    <th>Code</th>
+                                    <th>Time</th>
+                                    <th>Reason</th>
+                                    <th>Approved By</th>
+                                    <th>Approved At</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="exceptionLogsBody">
+                                <tr>
+                                    <td colspan="8" style="text-align: center; padding: 40px;">
+                                        <div style="color: #94a3b8;">Loading exception logs...</div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Summary Report Tab -->
+                <div id="summary" class="tab-content">
+                    <div class="section-header">
+                        <h2>Exception Summary</h2>
+                        <div style="display: flex; gap: 10px; margin-top: 15px;">
+                            <button id="refreshSummaryBtn" class="btn-primary">Refresh</button>
+                            <button id="exportSummaryBtn" class="btn-success">Export Report</button>
+                        </div>
+                    </div>
+
+                    <div class="stats-grid" id="summaryStats" style="margin-bottom: 30px;">
+                        <!-- Stats will be populated here -->
+                    </div>
+
+                    <div class="table-container">
+                        <table class="data-table" id="summarytable">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Exception Code</th>
+                                    <th>Total</th>
+                                    <th>Approved</th>
+                                    <th>Unapproved</th>
+                                    <th>First Date</th>
+                                    <th>Last Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="summaryTableBody">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; padding: 40px;">
+                                        <div style="color: #94a3b8;">Loading summary...</div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="scripts/config.js"></script>
+    <script src="scripts/supabase.js"></script>
+    <script src="scripts/login.js"></script>
+    <script src="scripts/notifications.js"></script>
+    <script src="scripts/announcement-banner.js"></script>
+    <script src="scripts/exceptions.js"></script>
+</body>
+</html>

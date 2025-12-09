@@ -176,9 +176,12 @@ class SupabaseService {
     }
     
     /**
-     * Get current user
+     * Get current user (loads if not already loaded)
      */
-    getCurrentUser() {
+    async getCurrentUser() {
+        if (!this.currentUser) {
+            await this.loadCurrentUser();
+        }
         return this.currentUser;
     }
     
@@ -438,7 +441,7 @@ class SupabaseService {
     // ==========================================
     
     /**
-     * Acknowledge a task
+     * Acknowledge a task (regular daily task)
      */
     async acknowledgeTask(taskId, notes = null) {
         if (!this.isReady()) return null;
@@ -446,6 +449,8 @@ class SupabaseService {
         try {
             const userId = this.currentUser ? this.currentUser.id : null;
             if (!userId) throw new Error('User not authenticated');
+            
+            console.log('Acknowledging regular task:', taskId, 'for user:', userId);
             
             const { data, error } = await this.client
                 .from('task_acknowledgements')
@@ -458,7 +463,10 @@ class SupabaseService {
                 ])
                 .select();
             
-            if (error) throw error;
+            if (error) {
+                console.error('Error in acknowledgement:', error);
+                throw error;
+            }
             console.log('✅ Task acknowledged');
             return data[0];
         } catch (error) {
@@ -1186,16 +1194,49 @@ class SupabaseService {
     }
 
     /**
-     * Acknowledge a task (employee action)
+     * Acknowledge an hourly task (employee action for hourly tasks)
      */
-    async acknowledgeTask(taskId, employeeName) {
+    async acknowledgeHourlyTask(taskId, employeeName) {
         if (!this.isReady()) return null;
 
-        return await this.updateHourlyTask(taskId, {
-            acknowledged: true,
-            acknowledged_at: new Date().toISOString(),
-            acknowledged_by: employeeName
-        });
+        try {
+            // First get the task to verify it exists
+            const { data: task, error: fetchError } = await this.client
+                .from('hourly_tasks')
+                .select('*')
+                .eq('id', taskId)
+                .single();
+
+            if (fetchError || !task) {
+                console.error('Task not found or error fetching:', fetchError);
+                return null;
+            }
+
+            console.log('Found hourly task to acknowledge:', task);
+
+            // Now update it
+            const { data, error } = await this.client
+                .from('hourly_tasks')
+                .update({
+                    acknowledged: true,
+                    acknowledged_at: new Date().toISOString(),
+                    acknowledged_by: employeeName
+                })
+                .eq('id', taskId)
+                .select()
+                .single();
+
+            if (error) {
+                console.error('Error acknowledging hourly task:', error);
+                return null;
+            }
+
+            console.log('✅ Hourly task acknowledged:', data);
+            return data;
+        } catch (error) {
+            console.error('Error in acknowledgeHourlyTask:', error);
+            return null;
+        }
     }
 
     /**
@@ -1545,6 +1586,401 @@ class SupabaseService {
         }
 
         return summary;
+    }
+
+    /**
+     * Exception Code Management
+     */
+    
+    /**
+     * Apply an exception code to an employee shift
+     * @param {number} shiftId - The shift ID
+     * @param {string} exceptionCode - VAUT, DO, or UAEO
+     * @param {object} details - Exception details (reason, approvedBy, startTime, endTime)
+     */
+    async applyShiftException(shiftId, exceptionCode, details = {}) {
+        if (!this.isReady()) {
+            throw new Error('Supabase client not initialized');
+        }
+
+        const updates = {
+            exception_code: exceptionCode,
+            exception_reason: details.reason || null,
+            exception_approved_by: details.approvedBy || null,
+            exception_approved_at: details.approvedBy ? new Date().toISOString() : null,
+            exception_start_time: details.startTime || null,
+            exception_end_time: details.endTime || null
+        };
+
+        const { data, error } = await this.client
+            .from('employee_shifts')
+            .update(updates)
+            .eq('id', shiftId)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error applying shift exception:', error);
+            throw error;
+        }
+
+        console.log('✅ Exception applied to shift:', data);
+        return data;
+    }
+
+    /**
+     * Apply an exception code to a task
+     * @param {number} taskId - The task ID
+     * @param {string} exceptionCode - VAUT, DO, or UAEO
+     * @param {object} details - Exception details (reason, approvedBy)
+     */
+    async applyTaskException(taskId, exceptionCode, details = {}) {
+        if (!this.isReady()) {
+            throw new Error('Supabase client not initialized');
+        }
+
+        const updates = {
+            exception_code: exceptionCode,
+            exception_reason: details.reason || null,
+            exception_approved_by: details.approvedBy || null,
+            exception_approved_at: details.approvedBy ? new Date().toISOString() : null
+        };
+
+        const { data, error } = await this.client
+            .from('hourly_tasks')
+            .update(updates)
+            .eq('id', taskId)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error applying task exception:', error);
+            throw error;
+        }
+
+        console.log('✅ Exception applied to task:', data);
+        return data;
+    }
+
+    /**
+     * Remove exception code from a shift
+     * @param {number} shiftId - The shift ID
+     */
+    async removeShiftException(shiftId) {
+        if (!this.isReady()) {
+            throw new Error('Supabase client not initialized');
+        }
+
+        const { data, error} = await this.client
+            .from('employee_shifts')
+            .update({
+                exception_code: null,
+                exception_reason: null,
+                exception_approved_by: null,
+                exception_approved_at: null,
+                exception_start_time: null,
+                exception_end_time: null
+            })
+            .eq('id', shiftId)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error removing shift exception:', error);
+            throw error;
+        }
+
+        return data;
+    }
+
+    /**
+     * Get all exception logs
+     * @param {object} filters - Optional filters (employeeId, date, exceptionCode)
+     */
+    async getExceptionLogs(filters = {}) {
+        if (!this.isReady()) return [];
+
+        let query = this.client
+            .from('exception_logs')
+            .select('*')
+            .order('exception_date', { ascending: false })
+            .order('created_at', { ascending: false });
+
+        if (filters.employeeId) {
+            query = query.eq('employee_id', filters.employeeId);
+        }
+
+        if (filters.date) {
+            query = query.eq('exception_date', filters.date);
+        }
+
+        if (filters.exceptionCode) {
+            query = query.eq('exception_code', filters.exceptionCode);
+        }
+
+        if (filters.startDate && filters.endDate) {
+            query = query.gte('exception_date', filters.startDate)
+                        .lte('exception_date', filters.endDate);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            console.error('Error fetching exception logs:', error);
+            return [];
+        }
+
+        return data || [];
+    }
+
+    /**
+     * Get exception summary for an employee
+     * @param {number} employeeId - The employee ID (optional, null for all employees)
+     */
+    async getExceptionSummary(employeeId = null) {
+        if (!this.isReady()) return [];
+
+        let query = this.client
+            .from('exception_summary')
+            .select('*');
+
+        if (employeeId) {
+            query = query.eq('employee_id', employeeId);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            console.error('Error fetching exception summary:', error);
+            return [];
+        }
+
+        return data || [];
+    }
+
+    /**
+     * Get daily exceptions report
+     * @param {string} date - The date to get exceptions for (YYYY-MM-DD)
+     */
+    async getDailyExceptions(date = null) {
+        if (!this.isReady()) return [];
+
+        let query = this.client
+            .from('daily_exceptions')
+            .select('*');
+
+        if (date) {
+            query = query.eq('exception_date', date);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            console.error('Error fetching daily exceptions:', error);
+            return [];
+        }
+
+        return data || [];
+    }
+
+    /**
+     * Create a manual exception log entry
+     * @param {object} exceptionData - Exception details
+     */
+    async createExceptionLog(exceptionData) {
+        if (!this.isReady()) {
+            throw new Error('Supabase client not initialized');
+        }
+
+        const { data, error } = await this.client
+            .from('exception_logs')
+            .insert({
+                employee_id: exceptionData.employeeId,
+                employee_name: exceptionData.employeeName,
+                exception_code: exceptionData.exceptionCode,
+                exception_date: exceptionData.date,
+                start_time: exceptionData.startTime || null,
+                end_time: exceptionData.endTime || null,
+                reason: exceptionData.reason || null,
+                approved_by: exceptionData.approvedBy || null,
+                approved_at: exceptionData.approvedBy ? new Date().toISOString() : null,
+                created_by: exceptionData.createdBy || null
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error creating exception log:', error);
+            throw error;
+        }
+
+        console.log('✅ Exception log created:', data);
+        return data;
+    }
+
+    /**
+     * Ensure DO exceptions are applied for employees without shifts on a specific date
+     * This is a JavaScript implementation that doesn't require SQL functions
+     */
+    async ensureDOExceptions(date) {
+        if (!this.isReady()) {
+            console.warn('Supabase not initialized');
+            return null;
+        }
+
+        try {
+            console.log('🔧 Checking for employees without shifts on:', date);
+            
+            // Get all active employees - simplified query
+            const { data: employees, error: empError } = await this.client
+                .from('employees')
+                .select('id, name, status');
+            
+            if (empError) {
+                console.error('❌ Error fetching employees:', empError);
+                throw empError;
+            }
+            
+            console.log(`📊 Found ${employees?.length || 0} employees:`, employees);
+            
+            if (!employees || employees.length === 0) {
+                console.log('ℹ️ No active employees found');
+                return [];
+            }
+            
+            const createdDOs = [];
+            
+            // For each employee, check if they have a shift or DO exception
+            for (const emp of employees) {
+                console.log(`\n👤 Processing employee: ${emp.name} (ID: ${emp.id}, Status: ${emp.status})`);
+                
+                // Check for existing shift
+                const { data: shifts, error: shiftError } = await this.client
+                    .from('employee_shifts')
+                    .select('id')
+                    .eq('employee_id', emp.id)
+                    .eq('shift_date', date)
+                    .limit(1);
+                
+                if (shiftError) {
+                    console.error('  ❌ Error checking shifts:', shiftError);
+                    continue;
+                }
+                
+                console.log(`  📅 Shifts found: ${shifts?.length || 0}`);
+                
+                // If employee has a shift, skip
+                if (shifts && shifts.length > 0) {
+                    console.log(`  ⏭️ Skipping - employee has shift`);
+                    continue;
+                }
+                
+                // Check for existing DO exception
+                const { data: exceptions, error: excError } = await this.client
+                    .from('exception_logs')
+                    .select('id')
+                    .eq('employee_id', emp.id)
+                    .eq('exception_date', date)
+                    .eq('exception_code', 'DO')
+                    .limit(1);
+                
+                if (excError) {
+                    console.error('  ❌ Error checking exceptions:', excError);
+                    continue;
+                }
+                
+                console.log(`  📋 Existing DO exceptions: ${exceptions?.length || 0}`);
+                
+                // If DO already exists, skip
+                if (exceptions && exceptions.length > 0) {
+                    console.log(`  ⏭️ Skipping - DO already exists`);
+                    continue;
+                }
+                
+                // Create automatic DO exception
+                console.log(`  🔨 Creating DO exception for ${emp.name}...`);
+                const { data: newDO, error: createError } = await this.client
+                    .from('exception_logs')
+                    .insert({
+                        employee_id: emp.id,
+                        employee_name: emp.name,
+                        exception_code: 'DO',
+                        exception_date: date,
+                        reason: 'Automatic Day Off - No shift scheduled',
+                        approved_by: 'SYSTEM',
+                        approved_at: new Date().toISOString(),
+                        created_by: 'SYSTEM'
+                    })
+                    .select()
+                    .single();
+                
+                if (createError) {
+                    console.error('  ❌ Error creating DO:', createError);
+                    continue;
+                }
+                
+                console.log(`  ✅ Created DO for employee: ${emp.name}`);
+                createdDOs.push({ employee_id: emp.id, employee_name: emp.name });
+            }
+            
+            console.log('✅ DO exceptions ensured for date:', date, '→', createdDOs.length, 'DOs created');
+            return createdDOs;
+        } catch (error) {
+            console.error('Error ensuring DO exceptions:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Backfill DO exceptions for a date range
+     * JavaScript implementation - no SQL functions required
+     */
+    async backfillDOExceptions(startDate, endDate) {
+        if (!this.isReady()) {
+            console.warn('Supabase not initialized');
+            return null;
+        }
+
+        try {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            const totalCreated = [];
+            
+            console.log('🔧 Backfilling DO exceptions from', startDate, 'to', endDate);
+            
+            // Iterate through each date
+            for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
+                const dateStr = date.toISOString().split('T')[0];
+                const created = await this.ensureDOExceptions(dateStr);
+                if (created && created.length > 0) {
+                    totalCreated.push(...created);
+                }
+            }
+            
+            console.log('✅ DO exceptions backfilled:', totalCreated.length, 'total DOs created');
+            return totalCreated;
+        } catch (error) {
+            console.error('Error backfilling DO exceptions:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Manually run auto DO exceptions for current date
+     */
+    async autoApplyDOExceptions() {
+        if (!this.isReady()) {
+            console.warn('Supabase not initialized');
+            return null;
+        }
+
+        try {
+            const today = new Date().toISOString().split('T')[0];
+            return await this.ensureDOExceptions(today);
+        } catch (error) {
+            console.error('Error auto-applying DO exceptions:', error);
+            return [];
+        }
     }
 }
 

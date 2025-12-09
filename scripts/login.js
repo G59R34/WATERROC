@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         const session = await supabaseService.getSession();
         if (session && sessionStorage.getItem('userRole')) {
             await supabaseService.loadCurrentUser();
-            const user = supabaseService.getCurrentUser();
+            const user = await supabaseService.getCurrentUser();
             if (user) {
                 // Check employment status before allowing access
                 const { data: profile } = await supabaseService.client
@@ -230,7 +230,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 }
             }
             
-            const user = supabaseService.getCurrentUser();
+            const user = await supabaseService.getCurrentUser();
             
             if (!user) {
                 throw new Error('Failed to load user profile');

@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         
         await supabaseService.loadCurrentUser();
-        const currentUser = supabaseService.getCurrentUser();
+        const currentUser = await supabaseService.getCurrentUser();
         
         // Check employment status
         if (currentUser) {
@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     async function syncFromSupabase() {
         if (!supabaseService.isReady()) return;
         
-        const currentUser = supabaseService.getCurrentUser();
+        const currentUser = await supabaseService.getCurrentUser();
         if (!currentUser) return;
         
         const employees = await supabaseService.getEmployees();
@@ -163,7 +163,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         setInterval(async () => {
             // Check for new tasks if notification system is available
             if (typeof notificationSystem !== 'undefined') {
-                const currentUser = supabaseService.getCurrentUser();
+                const currentUser = await supabaseService.getCurrentUser();
                 if (currentUser) {
                     const allTasks = await supabaseService.getTasksWithAcknowledgements();
                     const employees = await supabaseService.getEmployees();
@@ -209,7 +209,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     async function getCurrentEmployee() {
         if (currentEmployeeData) return currentEmployeeData;
 
-        const currentUser = supabaseService.getCurrentUser();
+        const currentUser = await supabaseService.getCurrentUser();
         if (!currentUser) return null;
 
         const employees = await supabaseService.getEmployees();
@@ -270,6 +270,13 @@ document.addEventListener('DOMContentLoaded', async function() {
             formatDate(weekEnd)
         );
 
+        // Get exceptions for this employee for the week
+        const exceptions = await supabaseService.getExceptionLogs({
+            employeeId: employee.id,
+            startDate: formatDate(shiftsWeekStart),
+            endDate: formatDate(weekEnd)
+        });
+
         // Update week display
         document.getElementById('myShiftsWeekDisplay').textContent = 
             `${formatDateDisplay(shiftsWeekStart)} - ${formatDateDisplay(weekEnd)}`;
@@ -294,12 +301,35 @@ document.addEventListener('DOMContentLoaded', async function() {
             shiftMap[shift.shift_date].push(shift);
         });
 
+        // Create exception map
+        const exceptionMap = {};
+        exceptions.forEach(exc => {
+            if (!exceptionMap[exc.exception_date]) {
+                exceptionMap[exc.exception_date] = [];
+            }
+            exceptionMap[exc.exception_date].push(exc);
+        });
+
+        // Exception colors
+        const exceptionColors = {
+            'VAUT': 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+            'DO': 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+            'UAEO': 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+        };
+
+        const exceptionLabels = {
+            'VAUT': 'Verified Authorized Unavailable Time',
+            'DO': 'Day Off',
+            'UAEO': 'Unauthorized Absence'
+        };
+
         // Build display
         let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">';
         
         weekDays.forEach(day => {
             const dateStr = formatDate(day);
             const dayShifts = shiftMap[dateStr] || [];
+            const dayExceptions = exceptionMap[dateStr] || [];
             const dayName = day.toLocaleDateString('en-US', { weekday: 'short' });
             
             html += `
@@ -322,6 +352,15 @@ document.addEventListener('DOMContentLoaded', async function() {
                             </div>
                         `;
                     }).join('') : '<div style="text-align: center; color: var(--text-secondary); font-size: 13px; padding: 20px 0;">No shifts</div>'}
+                    ${dayExceptions.length > 0 ? dayExceptions.map(exc => `
+                        <div style="background: ${exceptionColors[exc.exception_code] || '#64748b'}; color: white; padding: 10px; border-radius: 6px; margin-top: 8px; font-size: 12px; border: 2px solid rgba(255,255,255,0.3);">
+                            <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">${exc.exception_code}</div>
+                            <div style="font-size: 11px; opacity: 0.95; margin-bottom: 3px;">${exceptionLabels[exc.exception_code] || exc.exception_code}</div>
+                            ${exc.start_time && exc.end_time ? `<div style="font-size: 11px; opacity: 0.9;">⏰ ${exc.start_time.substring(0, 5)} - ${exc.end_time.substring(0, 5)}</div>` : ''}
+                            ${exc.reason ? `<div style="font-size: 11px; margin-top: 4px; opacity: 0.9; font-style: italic;">${exc.reason}</div>` : ''}
+                            ${exc.approved_by && exc.approved_by !== 'SYSTEM' ? `<div style="font-size: 10px; margin-top: 4px; opacity: 0.8;">✓ Approved by ${exc.approved_by}</div>` : ''}
+                        </div>
+                    `).join('') : ''}
                 </div>
             `;
         });
@@ -723,7 +762,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             return;
         }
         
-        const currentUser = supabaseService.getCurrentUser();
+        const currentUser = await supabaseService.getCurrentUser();
         if (!currentUser) {
             alert('You must be logged in to submit a time off request');
             return;

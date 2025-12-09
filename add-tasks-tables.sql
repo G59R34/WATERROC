@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS hourly_tasks (
     name TEXT NOT NULL,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
-    work_area TEXT NOT NULL CHECK (work_area IN ('day-off', 'free', 'united', 'autozone')),
+    work_area TEXT NOT NULL CHECK (work_area IN ('music-prod', 'video-creation', 'administrative', 'other', 'note-other')),
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'in-progress', 'completed', 'overdue', 'on-hold')),
     acknowledged BOOLEAN DEFAULT FALSE,
     acknowledged_at TIMESTAMPTZ,

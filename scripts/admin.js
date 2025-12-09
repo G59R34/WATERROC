@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         
         await supabaseService.loadCurrentUser();
-        const currentUser = supabaseService.getCurrentUser();
+        const currentUser = await supabaseService.getCurrentUser();
         
         if (!supabaseService.isAdmin()) {
             alert('Access denied. Admin privileges required.');
@@ -68,6 +68,15 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         // Sync from Supabase AFTER gantt is initialized
         await syncFromSupabase();
+        
+        // Ensure DO exceptions are created for today
+        try {
+            const today = new Date().toISOString().split('T')[0];
+            console.log('🔧 Admin page: Ensuring DO exceptions for today:', today);
+            await supabaseService.ensureDOExceptions(today);
+        } catch (error) {
+            console.error('Error ensuring DO exceptions on admin load:', error);
+        }
     }
     
     // Sync data from Supabase
@@ -140,6 +149,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Task Templates navigation
     document.getElementById('manageTaskTemplatesBtn').addEventListener('click', function() {
         window.location.href = 'task-templates.html';
+    });
+    
+    // Exceptions & Absence navigation
+    document.getElementById('manageExceptionsBtn').addEventListener('click', function() {
+        window.location.href = 'exceptions.html';
     });
     
     // Setup notification panel
@@ -513,7 +527,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         // Sync to Supabase if enabled
         if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
-            const currentUser = supabaseService.getCurrentUser();
+            const currentUser = await supabaseService.getCurrentUser();
             await supabaseService.updateTask(taskId, {
                 name: name,
                 start_date: startDate,
@@ -844,13 +858,12 @@ document.addEventListener('DOMContentLoaded', async function() {
     async function addHourlyTask() {
         const employeeId = parseInt(document.getElementById('hourlyTaskEmployee').value);
         const name = document.getElementById('hourlyTaskName').value;
+        const category = document.getElementById('hourlyTaskCategory').value;
         const startTime = document.getElementById('hourlyTaskStartTime').value;
         const endTime = document.getElementById('hourlyTaskEndTime').value;
         const status = document.getElementById('hourlyTaskStatus').value;
-        const form = document.getElementById('addHourlyTaskForm');
-        const workArea = form ? form.dataset.workArea || 'free' : 'free';
         
-        if (!employeeId || !name || !startTime || !endTime) {
+        if (!employeeId || !name || !category || !startTime || !endTime) {
             alert('Please fill in all fields');
             return;
         }
@@ -862,10 +875,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         
         if (currentHourlyGantt) {
-            await currentHourlyGantt.addTask(employeeId, name, startTime, endTime, status, workArea);
+            await currentHourlyGantt.addTask(employeeId, name, startTime, endTime, status, category);
             document.getElementById('addHourlyTaskModal').style.display = 'none';
             document.getElementById('addHourlyTaskForm').reset();
-            delete form.dataset.workArea;
             alert('✅ Hourly task added successfully!');
         }
     }
@@ -877,10 +889,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         document.getElementById('hourlyTaskStartTime').value = `${String(hour).padStart(2, '0')}:00`;
         document.getElementById('hourlyTaskEndTime').value = `${String(hour + 1).padStart(2, '0')}:00`;
         
-        // Store work area in a data attribute for later use
-        const form = document.getElementById('addHourlyTaskForm');
-        if (form) {
-            form.dataset.workArea = workArea || 'free';
+        // Set category dropdown to the work area if provided
+        if (workArea) {
+            document.getElementById('hourlyTaskCategory').value = workArea;
         }
         
         document.getElementById('addHourlyTaskModal').style.display = 'block';
@@ -892,10 +903,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Handle both Supabase format (start_time) and old format (startTime)
         const startTime = task.start_time || task.startTime;
         const endTime = task.end_time || task.endTime;
+        const workArea = task.work_area || task.workArea;
         
         // Populate the form
         document.getElementById('editHourlyTaskId').value = task.id;
         document.getElementById('editHourlyTaskName').value = task.name;
+        document.getElementById('editHourlyTaskCategory').value = workArea || 'other';
         document.getElementById('editHourlyTaskStartTime').value = startTime.substring(0, 5);
         document.getElementById('editHourlyTaskEndTime').value = endTime.substring(0, 5);
         document.getElementById('editHourlyTaskStatus').value = task.status;
@@ -955,6 +968,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     async function saveHourlyTask() {
         const taskId = parseInt(document.getElementById('editHourlyTaskId').value);
         const name = document.getElementById('editHourlyTaskName').value;
+        const category = document.getElementById('editHourlyTaskCategory').value;
         const startTime = document.getElementById('editHourlyTaskStartTime').value;
         const endTime = document.getElementById('editHourlyTaskEndTime').value;
         const status = document.getElementById('editHourlyTaskStatus').value;
@@ -967,6 +981,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         try {
             await supabaseService.updateHourlyTask(taskId, {
                 name,
+                work_area: category,
                 start_time: startTime,
                 end_time: endTime,
                 status

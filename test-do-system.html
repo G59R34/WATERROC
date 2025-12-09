@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test DO System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #output {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>DO System Test Page</h1>
+    <p>This page helps test the automatic DO exception system</p>
+    
+    <div>
+        <button onclick="testEmployees()">1. Check Employees</button>
+        <button onclick="testShifts()">2. Check Shifts for Today</button>
+        <button onclick="testExceptions()">3. Check Exceptions</button>
+        <button onclick="testCreateDO()">4. Create DO for Today</button>
+        <button onclick="clearOutput()">Clear Output</button>
+    </div>
+    
+    <div id="output"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="scripts/config.js"></script>
+    <script src="scripts/supabase.js"></script>
+    
+    <script>
+        const output = document.getElementById('output');
+        
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = new Date().toLocaleTimeString() + ' - ' + message;
+            output.appendChild(div);
+            console.log(message);
+        }
+        
+        function clearOutput() {
+            output.innerHTML = '';
+        }
+        
+        async function testEmployees() {
+            log('Checking employees...', 'info');
+            try {
+                const employees = await supabaseService.getEmployees();
+                log(`✅ Found ${employees?.length || 0} employees`, 'success');
+                if (employees && employees.length > 0) {
+                    employees.forEach(emp => {
+                        log(`  - ${emp.name} (ID: ${emp.id}, Status: ${emp.status || 'null'})`, 'info');
+                    });
+                } else {
+                    log('⚠️ No employees found. Add employees first!', 'error');
+                }
+            } catch (error) {
+                log('❌ Error: ' + error.message, 'error');
+            }
+        }
+        
+        async function testShifts() {
+            log('Checking shifts for today...', 'info');
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                log(`Date: ${today}`, 'info');
+                
+                const shifts = await supabaseService.getEmployeeShifts(today, today);
+                log(`✅ Found ${shifts?.length || 0} shifts for today`, 'success');
+                
+                if (shifts && shifts.length > 0) {
+                    shifts.forEach(shift => {
+                        log(`  - Employee ${shift.employee_id}: ${shift.start_time} - ${shift.end_time}`, 'info');
+                    });
+                }
+            } catch (error) {
+                log('❌ Error: ' + error.message, 'error');
+            }
+        }
+        
+        async function testExceptions() {
+            log('Checking exception logs...', 'info');
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const exceptions = await supabaseService.getExceptionLogs({ date: today });
+                log(`✅ Found ${exceptions?.length || 0} exceptions for today`, 'success');
+                
+                if (exceptions && exceptions.length > 0) {
+                    exceptions.forEach(exc => {
+                        log(`  - ${exc.employee_name}: ${exc.exception_code} - ${exc.reason}`, 'info');
+                    });
+                }
+            } catch (error) {
+                log('❌ Error: ' + error.message, 'error');
+            }
+        }
+        
+        async function testCreateDO() {
+            log('Running DO creation for today...', 'info');
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                log(`Creating DOs for: ${today}`, 'info');
+                
+                const result = await supabaseService.ensureDOExceptions(today);
+                
+                if (result && result.length > 0) {
+                    log(`✅ Created ${result.length} DO exceptions`, 'success');
+                    result.forEach(r => {
+                        log(`  - Created DO for: ${r.employee_name}`, 'success');
+                    });
+                } else {
+                    log('ℹ️ No DOs created (employees either have shifts or already have DOs)', 'info');
+                }
+                
+                // Now fetch and display all exceptions
+                await testExceptions();
+            } catch (error) {
+                log('❌ Error: ' + error.message, 'error');
+                console.error(error);
+            }
+        }
+        
+        // Auto-run on load
+        window.addEventListener('load', async () => {
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for supabase to init
+            log('=== DO System Test Page Loaded ===', 'info');
+            log('Click buttons above to test the system', 'info');
+        });
+    </script>
+</body>
+</html>
