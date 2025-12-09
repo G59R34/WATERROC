@@ -361,17 +361,20 @@ body {
 
 .modal-content {
     background-color: white;
-    margin: 5% auto;
+    margin: 2% auto;
     padding: 30px;
     border-radius: 12px;
     width: 90%;
     max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
     box-shadow: var(--shadow-lg);
     animation: slideDown 0.3s;
 }
 
 .modal-content-large {
     max-width: 700px;
+    max-height: 95vh;
 }
 
 @keyframes slideDown {

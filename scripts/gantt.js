@@ -96,11 +96,20 @@ class GanttChart {
         const body = this.createBody();
         this.container.appendChild(body);
         
-        // Synchronize scroll between header and body
+        // Synchronize scroll between body and header timeline
         const timelineHeader = header.querySelector('.gantt-timeline-header');
+        
+        // Use requestAnimationFrame to prevent scroll fighting
+        let isScrolling = false;
         body.addEventListener('scroll', () => {
-            timelineHeader.scrollLeft = body.scrollLeft;
-        });
+            if (!isScrolling) {
+                isScrolling = true;
+                requestAnimationFrame(() => {
+                    timelineHeader.scrollLeft = body.scrollLeft;
+                    isScrolling = false;
+                });
+            }
+        }, { passive: true });
     }
     
     renderEmptyState() {
@@ -206,8 +215,15 @@ class GanttChart {
         
         // Add tasks for this employee
         const employeeTasks = this.data.tasks.filter(task => task.employeeId === employee.id);
+        
+        // Sort tasks by start date for proper stacking
+        employeeTasks.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+        
+        // Track task lanes for collision detection
+        const taskLanes = [];
+        
         employeeTasks.forEach(task => {
-            const taskElement = this.createTaskElement(task);
+            const taskElement = this.createTaskElement(task, taskLanes);
             timelineCell.appendChild(taskElement);
         });
         
@@ -215,7 +231,7 @@ class GanttChart {
         return row;
     }
     
-    createTaskElement(task) {
+    createTaskElement(task, taskLanes = []) {
         const taskDiv = document.createElement('div');
         taskDiv.className = `gantt-task status-${task.status}`;
         taskDiv.dataset.taskId = task.id;
@@ -234,8 +250,40 @@ class GanttChart {
         const left = daysFromStart * this.dayWidth + 4;
         const width = taskDuration * this.dayWidth - 8;
         
+        // Find which lane this task should be in (collision detection)
+        const taskHeight = 70; // Task height + margin
+        let lane = 0;
+        let collision = true;
+        
+        while (collision) {
+            collision = false;
+            for (let i = 0; i < taskLanes.length; i++) {
+                const existingTask = taskLanes[i];
+                if (existingTask.lane === lane) {
+                    // Check if tasks overlap horizontally
+                    const existingLeft = existingTask.left;
+                    const existingRight = existingTask.left + existingTask.width;
+                    const taskRight = left + width;
+                    
+                    if (!(taskRight < existingLeft || left > existingRight)) {
+                        collision = true;
+                        lane++;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Store this task's position for future collision checks
+        taskLanes.push({ left, width, lane });
+        
+        // Calculate vertical position based on lane
+        const topOffset = lane * taskHeight;
+        
         taskDiv.style.left = `${left}px`;
         taskDiv.style.width = `${width}px`;
+        taskDiv.style.top = `${topOffset + 20}px`; // Base offset + lane offset
+        taskDiv.style.transform = 'none'; // Remove the centered transform
         
         // Format time display
         const startTime = task.startTime || '0000';
