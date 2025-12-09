@@ -328,41 +328,130 @@
     .analytics-grid {
         grid-template-columns: 1fr;
     }
+    
+    .analytics-summary {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
 @media (max-width: 768px) {
     .analytics-container {
         padding: 15px;
     }
+    
+    .analytics-header h2 {
+        font-size: 1.25rem;
+    }
 
     .analytics-controls {
         flex-direction: column;
-        align-items: flex-start;
+        align-items: stretch;
         gap: 15px;
     }
 
     .date-range-selector {
         flex-wrap: wrap;
+        gap: 5px;
+    }
+    
+    .date-range-btn {
+        font-size: 0.85rem;
+        padding: 6px 12px;
     }
 
     .analytics-summary {
         grid-template-columns: 1fr;
+        gap: 15px;
     }
 
     .summary-card {
-        padding: 20px;
+        padding: 15px;
+    }
+    
+    .summary-label {
+        font-size: 0.85rem;
     }
 
     .summary-value {
-        font-size: 28px;
+        font-size: 24px;
+    }
+    
+    .summary-trend {
+        font-size: 0.8rem;
     }
 
     .analytics-table {
-        font-size: 12px;
+        font-size: 0.85rem;
     }
 
     .analytics-table th,
     .analytics-table td {
+        padding: 8px 6px;
+    }
+    
+    /* Make table scrollable on mobile */
+    .analytics-section {
+        overflow-x: auto;
+    }
+}
+
+@media (max-width: 480px) {
+    .analytics-container {
         padding: 10px;
+    }
+    
+    .analytics-header h2 {
+        font-size: 1.1rem;
+    }
+    
+    .date-range-btn {
+        font-size: 0.75rem;
+        padding: 5px 10px;
+    }
+    
+    .summary-card {
+        padding: 12px;
+    }
+    
+    .summary-icon {
+        font-size: 1.5rem;
+    }
+    
+    .summary-label {
+        font-size: 0.75rem;
+    }
+    
+    .summary-value {
+        font-size: 20px;
+    }
+    
+    .summary-trend {
+        font-size: 0.7rem;
+    }
+    
+    .analytics-table {
+        font-size: 0.75rem;
+    }
+    
+    .analytics-table th,
+    .analytics-table td {
+        padding: 6px 4px;
+    }
+    
+    .employee-name {
+        font-size: 0.8rem;
+    }
+    
+    .progress-bar {
+        height: 6px;
+    }
+    
+    .activity-item {
+        padding: 10px;
+        font-size: 0.8rem;
+    }
+    
+    .activity-icon {
+        font-size: 1rem;
     }
 }

@@ -209,6 +209,7 @@
 
     .profiles-grid {
         grid-template-columns: 1fr;
+        gap: 15px;
     }
 
     .profiles-header {
@@ -216,8 +217,53 @@
         align-items: flex-start;
         gap: 15px;
     }
+    
+    .profiles-header h2 {
+        font-size: 1.25rem;
+    }
 
     .form-row {
         grid-template-columns: 1fr;
+    }
+    
+    .profile-card {
+        padding: 20px;
+    }
+    
+    .profile-header {
+        flex-direction: column;
+        align-items: flex-start;
+        text-align: left;
+    }
+    
+    .profile-avatar {
+        align-self: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .profiles-container {
+        padding: 10px;
+    }
+    
+    .profiles-header h2 {
+        font-size: 1.1rem;
+    }
+    
+    .profiles-header button {
+        width: 100%;
+    }
+    
+    .profile-card {
+        padding: 15px;
+    }
+    
+    .profile-info-row {
+        font-size: 0.85rem;
+    }
+    
+    .tag {
+        font-size: 0.7rem;
+        padding: 3px 8px;
     }
 }

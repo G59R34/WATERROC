@@ -261,7 +261,7 @@
 /* Responsive Design */
 @media (max-width: 1024px) {
     .calendar-grid {
-        grid-template-columns: 100px repeat(7, minmax(100px, 1fr));
+        grid-template-columns: 100px repeat(7, minmax(90px, 1fr));
     }
 }
 
@@ -273,17 +273,39 @@
     .shifts-header {
         flex-direction: column;
         align-items: flex-start;
+        gap: 15px;
     }
 
     .shifts-controls {
         width: 100%;
         justify-content: space-between;
+        flex-wrap: wrap;
     }
 
     #weekDisplay {
         width: 100%;
         text-align: center;
         padding: 10px 0;
+        font-size: 0.9rem;
+    }
+
+    .calendar-grid {
+        grid-template-columns: 80px repeat(7, minmax(70px, 1fr));
+        font-size: 0.85rem;
+    }
+    
+    .calendar-header,
+    .calendar-cell {
+        padding: 8px 4px;
+    }
+    
+    .shift-block {
+        padding: 4px;
+        font-size: 0.75rem;
+    }
+    
+    .shift-block-time {
+        font-size: 0.7rem;
     }
 
     .time-off-item {
@@ -294,5 +316,72 @@
 
     .time-off-actions {
         width: 100%;
+        flex-direction: column;
+    }
+    
+    .time-off-actions button {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .shifts-container {
+        padding: 10px;
+    }
+    
+    .shifts-header h2 {
+        font-size: 1.25rem;
+    }
+    
+    .shifts-controls button {
+        padding: 8px 12px;
+        font-size: 0.85rem;
+    }
+    
+    #weekDisplay {
+        font-size: 0.85rem;
+    }
+    
+    .calendar-grid {
+        grid-template-columns: 60px repeat(7, minmax(50px, 1fr));
+        font-size: 0.75rem;
+        gap: 2px;
+    }
+    
+    .calendar-header {
+        padding: 6px 2px;
+        font-size: 0.7rem;
+    }
+    
+    .calendar-cell {
+        padding: 4px 2px;
+        min-height: 50px;
+    }
+    
+    .shift-block {
+        padding: 3px;
+        font-size: 0.65rem;
+    }
+    
+    .shift-block-time {
+        font-size: 0.6rem;
+    }
+    
+    /* Make calendar scrollable horizontally on very small screens */
+    .shift-calendar {
+        overflow-x: auto;
+    }
+    
+    .time-off-section {
+        margin-top: 20px;
+    }
+    
+    .time-off-section h3 {
+        font-size: 1rem;
+    }
+    
+    .time-off-item {
+        padding: 12px;
+        font-size: 0.85rem;
     }
 }

@@ -645,19 +645,137 @@ body {
 @media (max-width: 768px) {
     .dashboard-header {
         padding: 15px 20px;
+        flex-wrap: wrap;
     }
     
     .dashboard-header h1 {
         font-size: 1.5rem;
     }
     
+    .header-right {
+        gap: 8px;
+    }
+    
+    .user-info {
+        display: none; /* Hide user info text on mobile */
+    }
+    
     .dashboard-content {
-        padding: 20px;
+        padding: 15px;
     }
     
     .controls-panel,
     .gantt-container {
         padding: 15px;
+    }
+    
+    .info-card {
+        padding: 15px;
+    }
+    
+    .info-card h3 {
+        font-size: 1rem;
+    }
+    
+    /* Make buttons stack on mobile */
+    .info-card button {
+        width: 100%;
+    }
+    
+    /* Form controls */
+    .form-row {
+        flex-direction: column;
+    }
+    
+    .form-row .form-group {
+        width: 100%;
+    }
+    
+    /* Modal improvements */
+    .modal-content {
+        width: 95%;
+        max-width: 95%;
+        margin: 20px auto;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    
+    .modal-actions {
+        flex-direction: column;
+    }
+    
+    .modal-actions button {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .notification-panel {
+        width: 100%;
+        right: -100%;
+    }
+    
+    .dashboard-header {
+        padding: 10px 15px;
+    }
+    
+    .dashboard-header h1 {
+        font-size: 1.25rem;
+    }
+    
+    .header-right {
+        gap: 5px;
+    }
+    
+    .notification-btn {
+        padding: 6px 12px;
+        font-size: 1rem;
+    }
+    
+    .btn-primary,
+    .btn-secondary,
+    .btn-success,
+    .btn-danger {
+        padding: 10px 16px;
+        font-size: 0.9rem;
+    }
+    
+    .dashboard-content {
+        padding: 10px;
+    }
+    
+    .controls-panel,
+    .gantt-container,
+    .info-card {
+        padding: 12px;
+    }
+    
+    /* Login page mobile */
+    .login-container {
+        padding: 15px;
+    }
+    
+    .logo h1 {
+        font-size: 2rem;
+    }
+    
+    .logo p {
+        font-size: 0.9rem;
+    }
+    
+    .login-form {
+        padding: 25px 20px;
+    }
+    
+    .login-form h2 {
+        font-size: 1.25rem;
+        margin-bottom: 20px;
+    }
+    
+    .form-group input,
+    .form-group select {
+        padding: 10px 14px;
+        font-size: 0.95rem;
     }
 }
 

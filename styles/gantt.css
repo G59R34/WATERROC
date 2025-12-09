@@ -332,19 +332,82 @@
 
 /* Mobile Responsive */
 @media (max-width: 768px) {
+    .gantt-chart {
+        height: calc(100vh - 200px);
+    }
+    
     .gantt-employee-header,
     .gantt-employee-cell {
-        min-width: 150px;
-        width: 150px;
+        min-width: 120px;
+        width: 120px;
+        padding: 10px;
+        font-size: 0.85rem;
     }
     
     .gantt-day-header,
     .gantt-day-cell {
-        min-width: 60px;
+        min-width: 80px;
+        width: 80px;
+        padding: 8px;
+        font-size: 0.8rem;
     }
     
     .gantt-task {
         font-size: 0.75rem;
-        padding: 6px 10px;
+        padding: 4px 8px;
+        min-height: 28px;
+    }
+    
+    .gantt-task-title {
+        font-size: 0.7rem;
+    }
+    
+    .gantt-task-actions {
+        gap: 4px;
+    }
+    
+    .gantt-task-action-btn {
+        font-size: 0.7rem;
+        padding: 2px 6px;
+    }
+}
+
+@media (max-width: 480px) {
+    .gantt-chart {
+        height: calc(100vh - 180px);
+    }
+    
+    .gantt-employee-header,
+    .gantt-employee-cell {
+        min-width: 100px;
+        width: 100px;
+        padding: 8px;
+        font-size: 0.8rem;
+    }
+    
+    .gantt-day-header,
+    .gantt-day-cell {
+        min-width: 70px;
+        width: 70px;
+        padding: 6px;
+        font-size: 0.75rem;
+    }
+    
+    .gantt-day-header .day-name {
+        display: none; /* Hide day name, keep date only */
+    }
+    
+    .gantt-task {
+        font-size: 0.7rem;
+        padding: 3px 6px;
+        min-height: 24px;
+    }
+    
+    .gantt-task-title {
+        font-size: 0.65rem;
+    }
+    
+    .gantt-task-actions {
+        display: none; /* Hide actions on very small screens, use tap to edit */
     }
 }
