@@ -7,6 +7,22 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
     
+    // Initialize notification system if available
+    if (typeof notificationSystem !== 'undefined') {
+        await notificationSystem.init();
+        setupNotificationPanel();
+    }
+    
+    // Initialize Gantt Chart FIRST
+    const gantt = new GanttChart('ganttChart', true);
+    
+    // Set up date inputs
+    const startDateInput = document.getElementById('startDate');
+    const endDateInput = document.getElementById('endDate');
+    
+    startDateInput.valueAsDate = gantt.startDate;
+    endDateInput.valueAsDate = gantt.endDate;
+    
     // Check Supabase authentication
     if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
         const session = await supabaseService.getSession();
@@ -24,19 +40,9 @@ document.addEventListener('DOMContentLoaded', async function() {
             return;
         }
         
-        // Sync from Supabase
+        // Sync from Supabase AFTER gantt is initialized
         await syncFromSupabase();
     }
-    
-    // Initialize Gantt Chart
-    const gantt = new GanttChart('ganttChart', true);
-    
-    // Set up date inputs
-    const startDateInput = document.getElementById('startDate');
-    const endDateInput = document.getElementById('endDate');
-    
-    startDateInput.valueAsDate = gantt.startDate;
-    endDateInput.valueAsDate = gantt.endDate;
     
     // Sync data from Supabase
     async function syncFromSupabase() {
@@ -68,7 +74,65 @@ document.addEventListener('DOMContentLoaded', async function() {
             };
             
             localStorage.setItem('ganttData', JSON.stringify(data));
+            gantt.data = data;
+            gantt.render();
         }
+    }
+    
+    // Auto-refresh from Supabase every 2 seconds
+    if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+        setInterval(async () => {
+            // Check for new acknowledgements if notification system is available
+            if (typeof notificationSystem !== 'undefined') {
+                const tasks = await supabaseService.getTasksWithAcknowledgements();
+                if (tasks) {
+                    const totalAcks = tasks.reduce((sum, task) => sum + (task.acknowledgements?.length || 0), 0);
+                    await notificationSystem.checkForNewAcknowledgements(totalAcks);
+                }
+            }
+            await syncFromSupabase();
+        }, 2000); // Refresh every 2 seconds
+        
+        console.log('🔄 Auto-refresh enabled (every 2 seconds)');
+    }
+    
+    // Setup notification panel
+    function setupNotificationPanel() {
+        const notificationBtn = document.getElementById('notificationBtn');
+        const notificationPanel = document.getElementById('notificationPanel');
+        const notificationOverlay = document.getElementById('notificationOverlay');
+        const closeNotificationBtn = document.getElementById('closeNotificationBtn');
+        const markAllReadBtn = document.getElementById('markAllReadBtn');
+        const clearAllBtn = document.getElementById('clearAllBtn');
+        
+        if (!notificationBtn) return; // Exit if elements don't exist
+        
+        // Toggle notification panel
+        notificationBtn.addEventListener('click', () => {
+            notificationPanel.classList.add('active');
+            notificationOverlay.classList.add('active');
+        });
+        
+        // Close panel
+        const closePanel = () => {
+            notificationPanel.classList.remove('active');
+            notificationOverlay.classList.remove('active');
+        };
+        
+        closeNotificationBtn.addEventListener('click', closePanel);
+        notificationOverlay.addEventListener('click', closePanel);
+        
+        // Mark all as read
+        markAllReadBtn.addEventListener('click', () => {
+            notificationSystem.markAllAsRead();
+        });
+        
+        // Clear all notifications
+        clearAllBtn.addEventListener('click', () => {
+            if (confirm('Clear all notifications?')) {
+                notificationSystem.clearAll();
+            }
+        });
     }
     
     // Logout functionality
@@ -381,6 +445,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Load and display acknowledgements
         await loadTaskAcknowledgements(task.id);
         
+        // Load and display messages
+        await loadAdminTaskMessages(task.id);
+        
+        // Setup admin message sending
+        setupAdminMessageSending(task.id);
+        
         // Show modal
         editTaskModal.style.display = 'block';
     };
@@ -438,6 +508,104 @@ document.addEventListener('DOMContentLoaded', async function() {
             option.value = emp.id;
             option.textContent = `${emp.name} - ${emp.role}`;
             select.appendChild(option);
+        });
+    }
+    
+    // Load task messages for admin
+    async function loadAdminTaskMessages(taskId) {
+        const messagesList = document.getElementById('taskMessagesList');
+        
+        if (!supabaseService.isReady()) {
+            messagesList.innerHTML = '<p class="messages-empty">Messages are not available offline</p>';
+            return;
+        }
+        
+        const messages = await supabaseService.getTaskMessages(taskId);
+        
+        if (!messages || messages.length === 0) {
+            messagesList.innerHTML = '<p class="messages-empty">No messages yet.</p>';
+            return;
+        }
+        
+        messagesList.innerHTML = messages.map(msg => {
+            const isFromAdmin = msg.is_from_admin;
+            const author = msg.user?.full_name || 'Unknown';
+            const time = new Date(msg.created_at).toLocaleString();
+            
+            return `
+                <div class="message-item ${isFromAdmin ? 'from-admin' : 'from-employee'}">
+                    <div class="message-header">
+                        <span class="message-author">${isFromAdmin ? '👨‍💼 Admin' : '👤 Employee'}: ${author}</span>
+                        <span class="message-time">${time}</span>
+                    </div>
+                    <div class="message-text">${msg.message}</div>
+                </div>
+            `;
+        }).join('');
+        
+        // Mark messages as read
+        await supabaseService.markMessagesAsRead(taskId);
+        
+        // Scroll to bottom
+        messagesList.scrollTop = messagesList.scrollHeight;
+    }
+    
+    // Setup admin message sending
+    function setupAdminMessageSending(taskId) {
+        const messageInput = document.getElementById('adminMessageInput');
+        const sendBtn = document.getElementById('sendAdminMessageBtn');
+        
+        // Clear previous input
+        messageInput.value = '';
+        
+        // Remove previous event listeners by cloning
+        const newSendBtn = sendBtn.cloneNode(true);
+        sendBtn.parentNode.replaceChild(newSendBtn, sendBtn);
+        
+        newSendBtn.addEventListener('click', async () => {
+            const message = messageInput.value.trim();
+            
+            if (!message) {
+                alert('Please enter a message');
+                return;
+            }
+            
+            if (!supabaseService.isReady()) {
+                alert('Messages are not available offline');
+                return;
+            }
+            
+            newSendBtn.disabled = true;
+            newSendBtn.textContent = 'Sending...';
+            
+            const result = await supabaseService.sendTaskMessage(taskId, message, true);
+            
+            if (result) {
+                messageInput.value = '';
+                await loadAdminTaskMessages(taskId);
+                
+                // Show success notification
+                if (notificationSystem) {
+                    notificationSystem.addNotification(
+                        'Reply sent',
+                        'Your message has been sent to the employee',
+                        'success'
+                    );
+                }
+            } else {
+                alert('Failed to send message. Please try again.');
+            }
+            
+            newSendBtn.disabled = false;
+            newSendBtn.textContent = 'Send Reply';
+        });
+        
+        // Allow Enter key to send (Shift+Enter for new line)
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                newSendBtn.click();
+            }
         });
     }
 });

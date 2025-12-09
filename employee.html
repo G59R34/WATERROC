@@ -14,6 +14,10 @@
                 <h1>💧 Waterstream</h1>
             </div>
             <div class="header-right">
+                <button id="notificationBtn" class="notification-btn">
+                    🔔
+                    <span id="notificationBadge" class="notification-badge">0</span>
+                </button>
                 <span class="user-info">Employee View</span>
                 <button id="logoutBtn" class="btn-secondary">Logout</button>
             </div>
@@ -66,7 +70,7 @@
     
     <!-- Task Details Modal (Read-Only) -->
     <div id="taskDetailsModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content modal-content-large">
             <span class="close">&times;</span>
             <h2>Task Details</h2>
             <div id="taskDetails" class="task-details-content"></div>
@@ -74,12 +78,41 @@
                 <button id="acknowledgeBtn" class="btn-success">✓ Acknowledge Task</button>
                 <button id="unacknowledgeBtn" class="btn-secondary" style="display:none;">Remove Acknowledgement</button>
             </div>
+            
+            <!-- Task Messages Section -->
+            <div class="task-messages-section">
+                <h3>💬 Messages</h3>
+                <div id="taskMessagesList" class="task-messages-list">
+                    <!-- Messages will be rendered here -->
+                </div>
+                <div class="task-message-input">
+                    <textarea id="messageInput" placeholder="Ask a question or send a message to admin..." rows="3"></textarea>
+                    <button id="sendMessageBtn" class="btn-primary">Send Message</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Notification Panel -->
+    <div class="notification-overlay" id="notificationOverlay"></div>
+    <div class="notification-panel" id="notificationPanel">
+        <div class="notification-header">
+            <h3>🔔 Notifications</h3>
+            <div class="notification-actions">
+                <button class="notification-action-btn" id="markAllReadBtn">Mark all read</button>
+                <button class="notification-action-btn" id="clearAllBtn">Clear</button>
+                <button class="notification-action-btn" id="closeNotificationBtn">✕</button>
+            </div>
+        </div>
+        <div class="notification-list" id="notificationList">
+            <!-- Notifications will be rendered here -->
         </div>
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="scripts/supabase.js"></script>
     <script src="scripts/config.js"></script>
+    <script src="scripts/notifications.js"></script>
     <script src="scripts/gantt.js"></script>
     <script src="scripts/employee.js"></script>
 </body>

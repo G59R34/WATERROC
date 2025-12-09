@@ -99,7 +99,28 @@ CREATE TABLE IF NOT EXISTS public.task_acknowledgements (
 -- Add indexes
 CREATE INDEX IF NOT EXISTS idx_task_ack_task_id ON public.task_acknowledgements(task_id);
 CREATE INDEX IF NOT EXISTS idx_task_ack_user_id ON public.task_acknowledgements(user_id);
-CREATE INDEX IF NOT EXISTS idx_task_ack_timestamp ON public.task_acknowledgements(acknowledged_at);
+CREATE INDEX IF NOT EXISTS idx_task_ack_acknowledged_at ON public.task_acknowledgements(acknowledged_at);
+
+-- ==========================================
+-- TASK MESSAGES TABLE
+-- ==========================================
+
+CREATE TABLE IF NOT EXISTS public.task_messages (
+    id BIGSERIAL PRIMARY KEY,
+    task_id BIGINT NOT NULL REFERENCES public.tasks(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    message TEXT NOT NULL,
+    is_from_admin BOOLEAN DEFAULT FALSE,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Add indexes
+CREATE INDEX IF NOT EXISTS idx_task_messages_task_id ON public.task_messages(task_id);
+CREATE INDEX IF NOT EXISTS idx_task_messages_user_id ON public.task_messages(user_id);
+CREATE INDEX IF NOT EXISTS idx_task_messages_created_at ON public.task_messages(created_at);
+CREATE INDEX IF NOT EXISTS idx_task_messages_is_read ON public.task_messages(is_read);
 
 -- ==========================================
 -- ROW LEVEL SECURITY (RLS) POLICIES

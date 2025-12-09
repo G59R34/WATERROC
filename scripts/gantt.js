@@ -13,13 +13,14 @@ class GanttChart {
     }
     
     init() {
-        // Set default date range (30 days from today)
+        // Set infinite scroll date range - from today to 1 year ahead
         const today = new Date();
+        today.setHours(0, 0, 0, 0); // Start of today
         this.startDate = new Date(today);
-        this.startDate.setDate(today.getDate() - 7);
         
+        // Extend to 365 days in the future for infinite scroll
         this.endDate = new Date(today);
-        this.endDate.setDate(today.getDate() + 23);
+        this.endDate.setDate(today.getDate() + 365);
         
         this.render();
     }
@@ -94,6 +95,12 @@ class GanttChart {
         // Create body
         const body = this.createBody();
         this.container.appendChild(body);
+        
+        // Synchronize scroll between header and body
+        const timelineHeader = header.querySelector('.gantt-timeline-header');
+        body.addEventListener('scroll', () => {
+            timelineHeader.scrollLeft = body.scrollLeft;
+        });
     }
     
     renderEmptyState() {

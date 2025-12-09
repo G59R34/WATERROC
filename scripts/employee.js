@@ -7,6 +7,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
     
+    // Initialize notification system if available
+    if (typeof notificationSystem !== 'undefined') {
+        await notificationSystem.init();
+        setupNotificationPanel();
+    }
+    
     // Initialize Gantt Chart in read-only mode first
     const gantt = new GanttChart('ganttChart', false);
     
@@ -106,11 +112,65 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
     
-    // Subscribe to real-time changes
+    // Auto-refresh from Supabase every 2 seconds
     if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
-        supabaseService.subscribeToChanges(async (type, payload) => {
-            console.log(`${type} changed, refreshing...`);
+        setInterval(async () => {
+            // Check for new tasks if notification system is available
+            if (typeof notificationSystem !== 'undefined') {
+                const currentUser = supabaseService.getCurrentUser();
+                if (currentUser) {
+                    const allTasks = await supabaseService.getTasksWithAcknowledgements();
+                    const employees = await supabaseService.getEmployees();
+                    const userEmployee = employees?.find(e => e.user_id === currentUser.id);
+                    
+                    if (userEmployee && allTasks) {
+                        const userTasks = allTasks.filter(t => t.employee_id === userEmployee.id);
+                        await notificationSystem.checkForNewTasks(userTasks.length);
+                    }
+                }
+            }
             await syncFromSupabase();
+        }, 2000); // Refresh every 2 seconds
+        
+        console.log('🔄 Auto-refresh enabled (every 2 seconds)');
+    }
+    
+    // Setup notification panel
+    function setupNotificationPanel() {
+        const notificationBtn = document.getElementById('notificationBtn');
+        const notificationPanel = document.getElementById('notificationPanel');
+        const notificationOverlay = document.getElementById('notificationOverlay');
+        const closeNotificationBtn = document.getElementById('closeNotificationBtn');
+        const markAllReadBtn = document.getElementById('markAllReadBtn');
+        const clearAllBtn = document.getElementById('clearAllBtn');
+        
+        if (!notificationBtn) return; // Exit if elements don't exist
+        
+        // Toggle notification panel
+        notificationBtn.addEventListener('click', () => {
+            notificationPanel.classList.add('active');
+            notificationOverlay.classList.add('active');
+        });
+        
+        // Close panel
+        const closePanel = () => {
+            notificationPanel.classList.remove('active');
+            notificationOverlay.classList.remove('active');
+        };
+        
+        closeNotificationBtn.addEventListener('click', closePanel);
+        notificationOverlay.addEventListener('click', closePanel);
+        
+        // Mark all as read
+        markAllReadBtn.addEventListener('click', () => {
+            notificationSystem.markAllAsRead();
+        });
+        
+        // Clear all notifications
+        clearAllBtn.addEventListener('click', () => {
+            if (confirm('Clear all notifications?')) {
+                notificationSystem.clearAll();
+            }
         });
     }
     
@@ -158,6 +218,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         // Setup acknowledgement buttons
         await setupAcknowledgementButtons(task.id);
+        
+        // Load and display messages
+        await loadTaskMessages(task.id);
+        
+        // Setup message sending
+        setupMessageSending(task.id);
         
         taskDetailsModal.style.display = 'block';
     };
@@ -226,5 +292,103 @@ document.addEventListener('DOMContentLoaded', async function() {
         const endDate = new Date(end);
         const oneDay = 24 * 60 * 60 * 1000;
         return Math.round(Math.abs((endDate - startDate) / oneDay)) + 1;
+    }
+    
+    // Load task messages
+    async function loadTaskMessages(taskId) {
+        const messagesList = document.getElementById('taskMessagesList');
+        
+        if (!supabaseService.isReady()) {
+            messagesList.innerHTML = '<p class="messages-empty">Messages are not available offline</p>';
+            return;
+        }
+        
+        const messages = await supabaseService.getTaskMessages(taskId);
+        
+        if (!messages || messages.length === 0) {
+            messagesList.innerHTML = '<p class="messages-empty">No messages yet. Send a message to ask a question!</p>';
+            return;
+        }
+        
+        messagesList.innerHTML = messages.map(msg => {
+            const isFromAdmin = msg.is_from_admin;
+            const author = msg.user?.full_name || 'Unknown';
+            const time = new Date(msg.created_at).toLocaleString();
+            
+            return `
+                <div class="message-item ${isFromAdmin ? 'from-admin' : 'from-employee'}">
+                    <div class="message-header">
+                        <span class="message-author">${isFromAdmin ? '👨‍💼 ' : '👤 '}${author}</span>
+                        <span class="message-time">${time}</span>
+                    </div>
+                    <div class="message-text">${msg.message}</div>
+                </div>
+            `;
+        }).join('');
+        
+        // Mark messages as read
+        await supabaseService.markMessagesAsRead(taskId);
+        
+        // Scroll to bottom
+        messagesList.scrollTop = messagesList.scrollHeight;
+    }
+    
+    // Setup message sending
+    function setupMessageSending(taskId) {
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendMessageBtn');
+        
+        // Clear previous input
+        messageInput.value = '';
+        
+        // Remove previous event listeners by cloning
+        const newSendBtn = sendBtn.cloneNode(true);
+        sendBtn.parentNode.replaceChild(newSendBtn, sendBtn);
+        
+        newSendBtn.addEventListener('click', async () => {
+            const message = messageInput.value.trim();
+            
+            if (!message) {
+                alert('Please enter a message');
+                return;
+            }
+            
+            if (!supabaseService.isReady()) {
+                alert('Messages are not available offline');
+                return;
+            }
+            
+            newSendBtn.disabled = true;
+            newSendBtn.textContent = 'Sending...';
+            
+            const result = await supabaseService.sendTaskMessage(taskId, message, false);
+            
+            if (result) {
+                messageInput.value = '';
+                await loadTaskMessages(taskId);
+                
+                // Show success notification
+                if (notificationSystem) {
+                    notificationSystem.addNotification(
+                        'Message sent to admin',
+                        'Your message has been sent successfully',
+                        'success'
+                    );
+                }
+            } else {
+                alert('Failed to send message. Please try again.');
+            }
+            
+            newSendBtn.disabled = false;
+            newSendBtn.textContent = 'Send Message';
+        });
+        
+        // Allow Enter key to send (Shift+Enter for new line)
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                newSendBtn.click();
+            }
+        });
     }
 });

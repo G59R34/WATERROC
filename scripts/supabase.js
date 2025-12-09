@@ -567,6 +567,108 @@ class SupabaseService {
     }
     
     // ==========================================
+    // TASK MESSAGING OPERATIONS
+    // ==========================================
+    
+    /**
+     * Send a message about a task
+     */
+    async sendTaskMessage(taskId, message, isFromAdmin = false) {
+        if (!this.isReady() || !this.currentUser) return false;
+        
+        try {
+            const { data, error } = await this.client
+                .from('task_messages')
+                .insert({
+                    task_id: taskId,
+                    user_id: this.currentUser.id,
+                    message: message,
+                    is_from_admin: isFromAdmin,
+                    is_read: false
+                })
+                .select()
+                .single();
+            
+            if (error) throw error;
+            console.log('✅ Message sent successfully');
+            return data;
+        } catch (error) {
+            console.error('Error sending message:', error);
+            return false;
+        }
+    }
+    
+    /**
+     * Get all messages for a task
+     */
+    async getTaskMessages(taskId) {
+        if (!this.isReady()) return null;
+        
+        try {
+            const { data, error } = await this.client
+                .from('task_messages')
+                .select(`
+                    *,
+                    user:users(
+                        full_name,
+                        username,
+                        is_admin
+                    )
+                `)
+                .eq('task_id', taskId)
+                .order('created_at', { ascending: true });
+            
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('Error fetching messages:', error);
+            return null;
+        }
+    }
+    
+    /**
+     * Mark messages as read
+     */
+    async markMessagesAsRead(taskId) {
+        if (!this.isReady() || !this.currentUser) return false;
+        
+        try {
+            const { error } = await this.client
+                .from('task_messages')
+                .update({ is_read: true })
+                .eq('task_id', taskId)
+                .neq('user_id', this.currentUser.id); // Don't mark own messages as read
+            
+            if (error) throw error;
+            return true;
+        } catch (error) {
+            console.error('Error marking messages as read:', error);
+            return false;
+        }
+    }
+    
+    /**
+     * Get unread message count for admin
+     */
+    async getUnreadMessageCount() {
+        if (!this.isReady() || !this.currentUser) return 0;
+        
+        try {
+            const { count, error } = await this.client
+                .from('task_messages')
+                .select('*', { count: 'exact', head: true })
+                .eq('is_read', false)
+                .eq('is_from_admin', false); // Messages from employees to admin
+            
+            if (error) throw error;
+            return count || 0;
+        } catch (error) {
+            console.error('Error fetching unread message count:', error);
+            return 0;
+        }
+    }
+    
+    // ==========================================
     // SYNC OPERATIONS
     // ==========================================
     

@@ -14,6 +14,10 @@
                 <h1>💧 Waterstream Admin</h1>
             </div>
             <div class="header-right">
+                <button id="notificationBtn" class="notification-btn">
+                    🔔
+                    <span id="notificationBadge" class="notification-badge">0</span>
+                </button>
                 <span class="user-info">Admin Dashboard</span>
                 <button id="logoutBtn" class="btn-secondary">Logout</button>
             </div>
@@ -149,7 +153,7 @@
     
     <!-- Edit Task Modal -->
     <div id="editTaskModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content modal-content-large">
             <span class="close">&times;</span>
             <h2>Edit Task</h2>
             <form id="editTaskForm">
@@ -188,6 +192,19 @@
                     <h3>Task Acknowledgements</h3>
                     <div id="ackList" class="ack-list"></div>
                 </div>
+                
+                <!-- Task Messages Section -->
+                <div class="task-messages-section">
+                    <h3>💬 Messages</h3>
+                    <div id="taskMessagesList" class="task-messages-list">
+                        <!-- Messages will be rendered here -->
+                    </div>
+                    <div class="task-message-input">
+                        <textarea id="adminMessageInput" placeholder="Reply to employee messages..." rows="3"></textarea>
+                        <button type="button" id="sendAdminMessageBtn" class="btn-primary">Send Reply</button>
+                    </div>
+                </div>
+                
                 <div class="form-actions">
                     <button type="submit" class="btn-primary">Save Changes</button>
                     <button type="button" id="deleteTaskBtn" class="btn-danger">Delete Task</button>
@@ -196,9 +213,26 @@
         </div>
     </div>
     
+    <!-- Notification Panel -->
+    <div class="notification-overlay" id="notificationOverlay"></div>
+    <div class="notification-panel" id="notificationPanel">
+        <div class="notification-header">
+            <h3>🔔 Notifications</h3>
+            <div class="notification-actions">
+                <button class="notification-action-btn" id="markAllReadBtn">Mark all read</button>
+                <button class="notification-action-btn" id="clearAllBtn">Clear</button>
+                <button class="notification-action-btn" id="closeNotificationBtn">✕</button>
+            </div>
+        </div>
+        <div class="notification-list" id="notificationList">
+            <!-- Notifications will be rendered here -->
+        </div>
+    </div>
+    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="scripts/supabase.js"></script>
     <script src="scripts/config.js"></script>
+    <script src="scripts/notifications.js"></script>
     <script src="scripts/gantt.js"></script>
     <script src="scripts/admin.js"></script>
 </body>
