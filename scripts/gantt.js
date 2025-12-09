@@ -142,6 +142,9 @@ class GanttChart {
             
             const dayHeader = document.createElement('div');
             dayHeader.className = 'gantt-day-header';
+            dayHeader.dataset.date = this.formatDate(currentDate);
+            dayHeader.style.cursor = 'pointer';
+            dayHeader.title = 'Click to view hourly schedule';
             
             if (this.isWeekend(currentDate)) {
                 dayHeader.classList.add('weekend');

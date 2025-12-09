@@ -6,6 +6,7 @@
     <title>WaterROC - Admin Dashboard</title>
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/gantt.css">
+    <link rel="stylesheet" href="styles/hourly-gantt.css">
 </head>
 <body>
     <div class="dashboard">
@@ -272,13 +273,142 @@
             <!-- Notifications will be rendered here -->
         </div>
     </div>
-    
+
+    <!-- Hourly Gantt Modal -->
+    <div id="hourlyGanttModal" class="modal">
+        <div class="modal-content modal-content-xlarge">
+            <span class="close" id="closeHourlyGantt">&times;</span>
+            <h2 id="hourlyGanttTitle">Hourly Schedule - Loading...</h2>
+            <div class="hourly-gantt-controls">
+                <button class="btn-primary" id="addHourlyTaskBtn">+ Add Hourly Task</button>
+            </div>
+            <div id="hourlyGanttChart" class="hourly-gantt-chart"></div>
+        </div>
+    </div>
+
+    <!-- Add Hourly Task Modal -->
+    <div id="addHourlyTaskModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeAddHourlyTask">&times;</span>
+            <h2>Add Hourly Task</h2>
+            <form id="addHourlyTaskForm">
+                <div class="form-group">
+                    <label for="hourlyTaskEmployee">Employee</label>
+                    <select id="hourlyTaskEmployee" required>
+                        <option value="">Select Employee</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="hourlyTaskName">Task Name</label>
+                    <input type="text" id="hourlyTaskName" required>
+                </div>
+                <div class="form-group">
+                    <label for="hourlyTaskStartTime">Start Time</label>
+                    <input type="time" id="hourlyTaskStartTime" required>
+                </div>
+                <div class="form-group">
+                    <label for="hourlyTaskEndTime">End Time</label>
+                    <input type="time" id="hourlyTaskEndTime" required>
+                </div>
+                <div class="form-group">
+                    <label for="hourlyTaskStatus">Status</label>
+                    <select id="hourlyTaskStatus" required>
+                        <option value="pending">Pending</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                        <option value="overdue">Overdue</option>
+                        <option value="on-hold">On Hold</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-primary">Add Task</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Hourly Task Modal -->
+    <div id="editHourlyTaskModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeEditHourlyTask">&times;</span>
+            <h2>Edit Hourly Task</h2>
+            <form id="editHourlyTaskForm">
+                <input type="hidden" id="editHourlyTaskId">
+                
+                <div class="form-group">
+                    <label for="editHourlyTaskName">Task Name</label>
+                    <input type="text" id="editHourlyTaskName" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="editHourlyTaskStartTime">Start Time</label>
+                    <input type="time" id="editHourlyTaskStartTime" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="editHourlyTaskEndTime">End Time</label>
+                    <input type="time" id="editHourlyTaskEndTime" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="editHourlyTaskStatus">Status</label>
+                    <select id="editHourlyTaskStatus" required>
+                        <option value="pending">Pending</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                        <option value="overdue">Overdue</option>
+                        <option value="on-hold">On Hold</option>
+                    </select>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                    <button type="button" class="btn-danger" id="deleteHourlyTaskBtn">Delete Task</button>
+                    <button type="button" class="btn-secondary" id="cancelEditHourlyTask">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Shift Modal -->
+    <div id="editShiftModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeEditShift">&times;</span>
+            <h2>Edit Shift Time</h2>
+            <form id="editShiftForm">
+                <input type="hidden" id="editShiftEmployeeId">
+                <input type="hidden" id="editShiftDate">
+                <input type="hidden" id="editShiftId">
+                
+                <div class="form-group">
+                    <label for="editShiftEmployeeName">Employee</label>
+                    <input type="text" id="editShiftEmployeeName" disabled>
+                </div>
+                
+                <div class="form-group">
+                    <label for="editShiftStartTime">Start Time</label>
+                    <input type="time" id="editShiftStartTime" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="editShiftEndTime">End Time</label>
+                    <input type="time" id="editShiftEndTime" required>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Update Shift</button>
+                    <button type="button" class="btn-secondary" id="cancelEditShift">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="scripts/supabase.js"></script>
     <script src="scripts/config.js"></script>
+    <script src="scripts/task-logger.js"></script>
     <script src="scripts/notifications.js"></script>
     <script src="scripts/announcement-banner.js"></script>
     <script src="scripts/gantt.js"></script>
+    <script src="scripts/hourly-gantt.js"></script>
     <script src="scripts/admin.js"></script>
 </script>
 </body>

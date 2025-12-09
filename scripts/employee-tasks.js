@@ -1,0 +1,445 @@
+// Employee Tasks Page - Shows tasks in text format, only upcoming tasks within 2 hours
+document.addEventListener('DOMContentLoaded', async function() {
+    'use strict';
+
+    // Check authentication first using sessionStorage
+    const userRole = sessionStorage.getItem('userRole');
+    if (userRole !== 'employee') {
+        window.location.href = 'index.html';
+        return;
+    }
+
+    let currentEmployee = null;
+    let currentShift = null;
+    let tasks = [];
+    let refreshInterval = null;
+    let initAttempts = 0;
+
+    // Wait for Supabase to load
+    function waitForSupabase() {
+        return new Promise((resolve) => {
+            const checkSupabase = () => {
+                initAttempts++;
+                if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+                    console.log('Supabase is ready after', initAttempts, 'attempts');
+                    resolve(true);
+                } else if (initAttempts >= 50) {
+                    console.error('Supabase failed to load after 50 attempts');
+                    resolve(false);
+                } else {
+                    console.log('Waiting for Supabase... attempt', initAttempts);
+                    setTimeout(checkSupabase, 100);
+                }
+            };
+            checkSupabase();
+        });
+    }
+
+    // Initialize
+    async function init() {
+        console.log('Initializing employee tasks page...');
+        
+        // Wait for Supabase to be ready
+        const supabaseReady = await waitForSupabase();
+        
+        if (!supabaseReady) {
+            alert('⚠️ Connection error. Please try refreshing the page.');
+            return;
+        }
+        
+        console.log('Supabase is ready');
+        
+        // Load current user from auth
+        await supabaseService.loadCurrentUser();
+        const user = supabaseService.getCurrentUser();
+
+        if (!user) {
+            console.error('Could not load user data');
+            alert('Could not load user data. Please log in again.');
+            sessionStorage.clear();
+            window.location.href = 'index.html';
+            return;
+        }
+        
+        console.log('Current user loaded:', user);
+        
+        // Use the user's name directly - user object has username and full_name from users table
+        currentEmployee = {
+            id: user.id,
+            name: user.full_name || user.username || 'Employee',
+            username: user.username
+        };
+        
+        console.log('Employee data set:', currentEmployee);
+
+        // Initialize UI
+        setupEventListeners();
+        updateEmployeeInfo();
+        updateCurrentTime();
+        await loadTodayShift();
+        await loadTasks();
+
+        // Auto-refresh every 30 seconds
+        refreshInterval = setInterval(async () => {
+            await loadTasks();
+            updateCurrentTime();
+            updateShiftDisplay(); // Update shift countdown
+        }, 30000);
+
+        // Update time and shift display every second
+        setInterval(() => {
+            updateCurrentTime();
+            updateShiftDisplay();
+        }, 1000);
+    }
+
+    function setupEventListeners() {
+        document.getElementById('logoutBtn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            
+            try {
+                // Sign out from Supabase
+                if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+                    console.log('Signing out from Supabase...');
+                    await supabaseService.signOut();
+                }
+            } catch (error) {
+                console.error('Error during Supabase logout:', error);
+            }
+            
+            // Clear all session data
+            sessionStorage.clear();
+            
+            // Redirect to login
+            window.location.href = 'index.html';
+        });
+
+        document.getElementById('refreshBtn').addEventListener('click', async () => {
+            await loadTasks();
+            showNotification('✅ Tasks refreshed');
+        });
+    }
+
+    function updateEmployeeInfo() {
+        document.getElementById('employeeName').textContent = currentEmployee.name;
+    }
+
+    function updateCurrentTime() {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+        document.getElementById('currentTime').textContent = timeString;
+    }
+
+    async function loadTodayShift() {
+        try {
+            if (typeof supabaseService === 'undefined' || !supabaseService.isReady()) {
+                console.warn('Supabase not available for loading shifts');
+                document.getElementById('currentShift').textContent = 'Shift data unavailable (offline mode)';
+                return;
+            }
+
+            const today = new Date().toISOString().split('T')[0];
+            
+            // Get employee record by matching username
+            const { data: employees } = await supabaseService.client
+                .from('employees')
+                .select('*')
+                .eq('name', currentEmployee.name);
+            
+            if (!employees || employees.length === 0) {
+                console.warn('No employee record found');
+                document.getElementById('currentShift').textContent = 'No employee record found';
+                return;
+            }
+            
+            const employeeId = employees[0].id;
+            console.log('Employee ID:', employeeId);
+            
+            // Store employee ID for later use
+            currentEmployee.employeeId = employeeId;
+            
+            const shifts = await supabaseService.getEmployeeShifts(today, today);
+            console.log('All shifts for today:', shifts);
+            currentShift = shifts.find(s => s.employee_id === employeeId);
+            console.log('Current employee shift:', currentShift);
+
+            if (currentShift) {
+                updateShiftDisplay();
+            } else {
+                document.getElementById('currentShift').textContent = 'No shift scheduled today';
+            }
+        } catch (error) {
+            console.error('Error loading shift:', error);
+            document.getElementById('currentShift').textContent = 'Error loading shift';
+        }
+    }
+
+    function updateShiftDisplay() {
+        if (!currentShift) return;
+
+        const startTime = currentShift.start_time.substring(0, 5);
+        const endTime = currentShift.end_time.substring(0, 5);
+        const now = new Date();
+        
+        // Parse shift start time
+        const [startHour, startMin] = currentShift.start_time.split(':').map(Number);
+        const shiftStart = new Date();
+        shiftStart.setHours(startHour, startMin, 0, 0);
+        
+        // Parse shift end time
+        const [endHour, endMin] = currentShift.end_time.split(':').map(Number);
+        const shiftEnd = new Date();
+        shiftEnd.setHours(endHour, endMin, 0, 0);
+        
+        const minutesUntilStart = Math.floor((shiftStart - now) / 60000);
+        const minutesUntilEnd = Math.floor((shiftEnd - now) / 60000);
+        
+        let displayText = `Today's Shift: ${startTime} - ${endTime}`;
+        
+        if (minutesUntilStart > 0) {
+            // Shift hasn't started yet
+            const hours = Math.floor(minutesUntilStart / 60);
+            const mins = minutesUntilStart % 60;
+            if (hours > 0) {
+                displayText += ` • Starts in ${hours}h ${mins}m`;
+            } else {
+                displayText += ` • Starts in ${mins} minutes`;
+            }
+        } else if (minutesUntilEnd > 0) {
+            // Currently in shift
+            const hours = Math.floor(minutesUntilEnd / 60);
+            const mins = minutesUntilEnd % 60;
+            displayText += ` • 🟢 Active`;
+            if (hours > 0) {
+                displayText += ` (${hours}h ${mins}m remaining)`;
+            } else {
+                displayText += ` (${mins}m remaining)`;
+            }
+        } else {
+            // Shift has ended
+            displayText += ' • Completed';
+        }
+        
+        document.getElementById('currentShift').textContent = displayText;
+    }
+
+    async function loadTasks() {
+        try {
+            // Get today's date
+            const today = new Date().toISOString().split('T')[0];
+            
+            // Load hourly tasks from localStorage (same as hourly gantt)
+            const hourlyData = localStorage.getItem('hourlyGanttData');
+            console.log('hourlyGanttData from localStorage:', hourlyData);
+            
+            if (hourlyData) {
+                const data = JSON.parse(hourlyData);
+                const todayTasks = data.tasks[today] || [];
+                console.log('Tasks for today:', todayTasks);
+                console.log('Looking for employeeId:', currentEmployee.employeeId);
+                
+                // Filter tasks for current employee using the employeeId we got from the employees table
+                if (currentEmployee.employeeId) {
+                    tasks = todayTasks.filter(task => task.employeeId === currentEmployee.employeeId);
+                } else {
+                    console.warn('No employeeId set, cannot filter tasks');
+                    tasks = [];
+                }
+                console.log('Filtered tasks for employee:', tasks);
+                
+                renderTasks();
+            } else {
+                console.log('No hourlyGanttData found in localStorage');
+                tasks = [];
+                renderTasks();
+            }
+        } catch (error) {
+            console.error('Error loading tasks:', error);
+        }
+    }
+
+    function renderTasks() {
+        const now = new Date();
+        const currentTime = now.getHours() * 60 + now.getMinutes();
+        const twoHoursFromNow = currentTime + 120; // 2 hours = 120 minutes
+
+        // Categorize tasks
+        const upcomingTasks = [];
+        const currentTasks = [];
+        const completedTasks = [];
+
+        tasks.forEach(task => {
+            const [startHour, startMin] = task.startTime.split(':').map(Number);
+            const [endHour, endMin] = task.endTime.split(':').map(Number);
+            const taskStartTime = startHour * 60 + startMin;
+            const taskEndTime = endHour * 60 + endMin;
+
+            if (task.status === 'completed') {
+                completedTasks.push(task);
+            } else if (taskStartTime > currentTime) {
+                // Upcoming task - only show if within 2 hours
+                if (taskStartTime <= twoHoursFromNow) {
+                    upcomingTasks.push({ ...task, minutesUntil: taskStartTime - currentTime });
+                }
+            } else if (currentTime >= taskStartTime && currentTime <= taskEndTime) {
+                currentTasks.push(task);
+            }
+        });
+
+        // Sort by start time
+        upcomingTasks.sort((a, b) => a.minutesUntil - b.minutesUntil);
+        currentTasks.sort((a, b) => a.startTime.localeCompare(b.startTime));
+        completedTasks.sort((a, b) => b.startTime.localeCompare(a.startTime));
+
+        // Render each category
+        renderTaskList('upcomingTasksList', upcomingTasks, true);
+        renderTaskList('currentTasksList', currentTasks, false);
+        renderTaskList('completedTasksList', completedTasks, false);
+    }
+
+    function renderTaskList(containerId, taskList, showTimeUntil) {
+        const container = document.getElementById(containerId);
+        
+        if (taskList.length === 0) {
+            container.innerHTML = '<div class="empty-state"><p>No tasks</p></div>';
+            return;
+        }
+
+        container.innerHTML = taskList.map(task => {
+            const urgentClass = task.minutesUntil && task.minutesUntil <= 30 ? 'urgent' : '';
+            const statusClass = task.status === 'completed' ? 'completed' : 
+                               task.status === 'in-progress' ? 'in-progress' : '';
+            
+            let timeUntilHtml = '';
+            if (showTimeUntil && task.minutesUntil !== undefined) {
+                const hours = Math.floor(task.minutesUntil / 60);
+                const mins = task.minutesUntil % 60;
+                const timeText = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+                timeUntilHtml = `<div class="time-until">⏰ Starts in ${timeText}</div>`;
+            }
+
+            const acknowledgedHtml = task.acknowledged 
+                ? `<div class="acknowledged-badge">✅ Acknowledged ${task.acknowledgedAt ? 'at ' + new Date(task.acknowledgedAt).toLocaleTimeString() : ''}</div>`
+                : '';
+            
+            const acknowledgeBtn = !task.acknowledged && task.status !== 'completed'
+                ? `<button class="btn-acknowledge" onclick="acknowledgeTask(${task.id})">✓ Acknowledge Task</button>`
+                : '';
+
+            return `
+                <div class="task-item ${urgentClass} ${statusClass}" data-task-id="${task.id}">
+                    <div class="task-header">
+                        <h3 class="task-title">${escapeHtml(task.name)}</h3>
+                        <span class="task-status ${task.status}">${task.status}</span>
+                    </div>
+                    <div class="task-details">
+                        <div class="task-time">
+                            <strong>🕐 Time:</strong> ${task.startTime} - ${task.endTime}
+                        </div>
+                        <div class="task-location ${task.workArea || 'free'}">
+                            📍 ${formatWorkArea(task.workArea)}
+                        </div>
+                        ${timeUntilHtml}
+                        ${acknowledgedHtml}
+                    </div>
+                    ${acknowledgeBtn}
+                </div>
+            `;
+        }).join('');
+    }
+
+    function formatWorkArea(area) {
+        const areaNames = {
+            'day-off': 'Day Off',
+            'free': 'Free Time',
+            'united': 'United',
+            'autozone': 'AutoZone'
+        };
+        return areaNames[area] || 'Unassigned';
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Make acknowledgeTask available globally
+    window.acknowledgeTask = async function(taskId) {
+        try {
+            const today = new Date().toISOString().split('T')[0];
+            
+            // Load hourly gantt data
+            const hourlyData = JSON.parse(localStorage.getItem('hourlyGanttData') || '{"tasks":{}}');
+            const todayTasks = hourlyData.tasks[today] || [];
+            
+            // Find and update the task
+            const taskIndex = todayTasks.findIndex(t => t.id === taskId);
+            if (taskIndex !== -1) {
+                todayTasks[taskIndex].acknowledged = true;
+                todayTasks[taskIndex].acknowledgedAt = new Date().toISOString();
+                todayTasks[taskIndex].acknowledgedBy = currentEmployee.name;
+                
+                const updatedTask = todayTasks[taskIndex];
+                
+                // Save back to localStorage
+                hourlyData.tasks[today] = todayTasks;
+                localStorage.setItem('hourlyGanttData', JSON.stringify(hourlyData));
+                
+                // Log the acknowledgment
+                if (typeof taskLogger !== 'undefined') {
+                    taskLogger.logEvent('acknowledged', updatedTask);
+                }
+                
+                // Reload tasks to update display
+                await loadTasks();
+                
+                showNotification('✅ Task acknowledged!');
+            } else {
+                showNotification('❌ Task not found');
+            }
+        } catch (error) {
+            console.error('Error acknowledging task:', error);
+            showNotification('❌ Error acknowledging task');
+        }
+    };
+
+    function showNotification(message) {
+        // Simple notification - could be enhanced
+        const notif = document.createElement('div');
+        notif.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            z-index: 10000;
+            animation: slideIn 0.3s ease;
+        `;
+        notif.textContent = message;
+        document.body.appendChild(notif);
+
+        setTimeout(() => {
+            notif.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => notif.remove(), 300);
+        }, 3000);
+    }
+
+    // Start the application
+    init();
+
+    // Cleanup on unload
+    window.addEventListener('beforeunload', () => {
+        if (refreshInterval) {
+            clearInterval(refreshInterval);
+        }
+    });
+
+});

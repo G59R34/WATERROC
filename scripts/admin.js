@@ -389,6 +389,10 @@ document.addEventListener('DOMContentLoaded', async function() {
             addEmployeeModal.style.display = 'none';
             addTaskModal.style.display = 'none';
             editTaskModal.style.display = 'none';
+            const hourlyModal = document.getElementById('hourlyGanttModal');
+            const addHourlyModal = document.getElementById('addHourlyTaskModal');
+            if (hourlyModal) hourlyModal.style.display = 'none';
+            if (addHourlyModal) addHourlyModal.style.display = 'none';
         });
     });
     
@@ -403,7 +407,22 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (e.target === editTaskModal) {
             editTaskModal.style.display = 'none';
         }
+        const hourlyModal = document.getElementById('hourlyGanttModal');
+        const addHourlyModal = document.getElementById('addHourlyTaskModal');
+        if (e.target === hourlyModal) {
+            if (currentHourlyGantt) {
+                currentHourlyGantt.destroy();
+                currentHourlyGantt = null;
+            }
+            hourlyModal.style.display = 'none';
+        }
+        if (e.target === addHourlyModal) {
+            addHourlyModal.style.display = 'none';
+        }
     });
+    
+    // Hourly Gantt Modal Setup
+    setupHourlyGanttModal();
     
     // Add Employee Form
     document.getElementById('addEmployeeForm').addEventListener('submit', async function(e) {
@@ -726,5 +745,350 @@ document.addEventListener('DOMContentLoaded', async function() {
                 newSendBtn.click();
             }
         });
+    }
+    
+    // Hourly Gantt Modal Functions
+    function setupHourlyGanttModal() {
+        const hourlyModal = document.getElementById('hourlyGanttModal');
+        const addHourlyModal = document.getElementById('addHourlyTaskModal');
+        
+        // Make day headers clickable to open hourly view
+        document.addEventListener('click', (e) => {
+            // Check if clicked element or its parent is a day header
+            let target = e.target;
+            
+            // Traverse up to find gantt-day-header
+            while (target && !target.classList.contains('gantt-day-header')) {
+                target = target.parentElement;
+                // Stop if we've gone too far up
+                if (target && target.classList.contains('gantt-header')) {
+                    break;
+                }
+            }
+            
+            if (target && target.classList.contains('gantt-day-header')) {
+                const dateStr = target.dataset.date;
+                if (dateStr) {
+                    openHourlyGantt(dateStr);
+                }
+            }
+        });
+        
+        // Close hourly gantt modal
+        document.getElementById('closeHourlyGantt')?.addEventListener('click', () => {
+            if (currentHourlyGantt) {
+                currentHourlyGantt.destroy();
+                currentHourlyGantt = null;
+            }
+            hourlyModal.style.display = 'none';
+        });
+        
+        // Open add hourly task modal
+        document.getElementById('addHourlyTaskBtn')?.addEventListener('click', () => {
+            if (currentHourlyGantt) {
+                populateHourlyTaskEmployees();
+                addHourlyModal.style.display = 'block';
+            }
+        });
+        
+        // Close add hourly task modal
+        document.getElementById('closeAddHourlyTask')?.addEventListener('click', () => {
+            addHourlyModal.style.display = 'none';
+        });
+        
+        // Add hourly task form submission
+        document.getElementById('addHourlyTaskForm')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            addHourlyTask();
+        });
+    }
+    
+    function openHourlyGantt(dateStr) {
+        const hourlyModal = document.getElementById('hourlyGanttModal');
+        const titleEl = document.getElementById('hourlyGanttTitle');
+        const date = new Date(dateStr);
+        
+        titleEl.textContent = `Hourly Schedule - ${date.toLocaleDateString('en-US', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        })}`;
+        
+        // Create or update hourly gantt
+        currentHourlyGantt = new HourlyGanttChart('hourlyGanttChart', dateStr, true);
+        
+        hourlyModal.style.display = 'block';
+    }
+    
+    function populateHourlyTaskEmployees() {
+        const select = document.getElementById('hourlyTaskEmployee');
+        const ganttData = localStorage.getItem('ganttData');
+        
+        // Clear existing options except first
+        while (select.options.length > 1) {
+            select.remove(1);
+        }
+        
+        if (ganttData) {
+            const data = JSON.parse(ganttData);
+            data.employees.forEach(emp => {
+                const option = document.createElement('option');
+                option.value = emp.id;
+                option.textContent = emp.name;
+                select.appendChild(option);
+            });
+        }
+    }
+    
+    function addHourlyTask() {
+        const employeeId = parseInt(document.getElementById('hourlyTaskEmployee').value);
+        const name = document.getElementById('hourlyTaskName').value;
+        const startTime = document.getElementById('hourlyTaskStartTime').value;
+        const endTime = document.getElementById('hourlyTaskEndTime').value;
+        const status = document.getElementById('hourlyTaskStatus').value;
+        const form = document.getElementById('addHourlyTaskForm');
+        const workArea = form ? form.dataset.workArea || 'free' : 'free';
+        
+        if (!employeeId || !name || !startTime || !endTime) {
+            alert('Please fill in all fields');
+            return;
+        }
+        
+        // Validate times
+        if (startTime >= endTime) {
+            alert('Start time must be before end time');
+            return;
+        }
+        
+        if (currentHourlyGantt) {
+            currentHourlyGantt.addTask(employeeId, name, startTime, endTime, status, workArea);
+            document.getElementById('addHourlyTaskModal').style.display = 'none';
+            document.getElementById('addHourlyTaskForm').reset();
+            delete form.dataset.workArea;
+            alert('✅ Hourly task added successfully!');
+        }
+    }
+    
+    // Global functions for hourly gantt callbacks
+    window.openHourlyTaskModal = function(employeeId, hour, workArea) {
+        populateHourlyTaskEmployees();
+        document.getElementById('hourlyTaskEmployee').value = employeeId;
+        document.getElementById('hourlyTaskStartTime').value = `${String(hour).padStart(2, '0')}:00`;
+        document.getElementById('hourlyTaskEndTime').value = `${String(hour + 1).padStart(2, '0')}:00`;
+        
+        // Store work area in a data attribute for later use
+        const form = document.getElementById('addHourlyTaskForm');
+        if (form) {
+            form.dataset.workArea = workArea || 'free';
+        }
+        
+        document.getElementById('addHourlyTaskModal').style.display = 'block';
+    };
+    
+    window.editHourlyTask = function(task) {
+        console.log('Edit task:', task);
+        
+        // Populate the form
+        document.getElementById('editHourlyTaskId').value = task.id;
+        document.getElementById('editHourlyTaskName').value = task.name;
+        document.getElementById('editHourlyTaskStartTime').value = task.startTime;
+        document.getElementById('editHourlyTaskEndTime').value = task.endTime;
+        document.getElementById('editHourlyTaskStatus').value = task.status;
+        
+        // Show the modal
+        document.getElementById('editHourlyTaskModal').style.display = 'block';
+    };
+    
+    // Edit Shift Modal
+    window.openEditShiftModal = function(employeeId, employeeName, shift, date) {
+        console.log('Opening edit shift modal:', { employeeId, employeeName, shift, date });
+        
+        document.getElementById('editShiftEmployeeId').value = employeeId;
+        document.getElementById('editShiftEmployeeName').value = employeeName;
+        document.getElementById('editShiftDate').value = date;
+        document.getElementById('editShiftId').value = shift ? shift.id : '';
+        document.getElementById('editShiftStartTime').value = shift ? shift.start_time.substring(0, 5) : '09:00';
+        document.getElementById('editShiftEndTime').value = shift ? shift.end_time.substring(0, 5) : '17:00';
+        
+        document.getElementById('editShiftModal').style.display = 'block';
+    };
+    
+    // Edit Shift Form Submit
+    document.getElementById('editShiftForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await updateShift();
+    });
+    
+    document.getElementById('closeEditShift')?.addEventListener('click', () => {
+        document.getElementById('editShiftModal').style.display = 'none';
+    });
+    
+    document.getElementById('cancelEditShift')?.addEventListener('click', () => {
+        document.getElementById('editShiftModal').style.display = 'none';
+    });
+    
+    // Edit Hourly Task Modal handlers
+    document.getElementById('closeEditHourlyTask')?.addEventListener('click', () => {
+        document.getElementById('editHourlyTaskModal').style.display = 'none';
+    });
+    
+    document.getElementById('cancelEditHourlyTask')?.addEventListener('click', () => {
+        document.getElementById('editHourlyTaskModal').style.display = 'none';
+    });
+    
+    document.getElementById('editHourlyTaskForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await saveHourlyTask();
+    });
+    
+    document.getElementById('deleteHourlyTaskBtn')?.addEventListener('click', async () => {
+        if (confirm('Are you sure you want to delete this task?')) {
+            await deleteHourlyTask();
+        }
+    });
+    
+    async function saveHourlyTask() {
+        const taskId = parseInt(document.getElementById('editHourlyTaskId').value);
+        const name = document.getElementById('editHourlyTaskName').value;
+        const startTime = document.getElementById('editHourlyTaskStartTime').value;
+        const endTime = document.getElementById('editHourlyTaskEndTime').value;
+        const status = document.getElementById('editHourlyTaskStatus').value;
+        
+        // Get hourly gantt data
+        const data = JSON.parse(localStorage.getItem('hourlyGanttData') || '{"tasks":{}}');
+        
+        // Find and update the task
+        let taskFound = false;
+        let previousStatus = null;
+        let updatedTask = null;
+        
+        for (const date in data.tasks) {
+            const tasks = data.tasks[date];
+            const taskIndex = tasks.findIndex(t => t.id === taskId);
+            if (taskIndex !== -1) {
+                previousStatus = tasks[taskIndex].status;
+                tasks[taskIndex] = {
+                    ...tasks[taskIndex],
+                    name,
+                    startTime,
+                    endTime,
+                    status,
+                    modifiedAt: new Date().toISOString()
+                };
+                updatedTask = tasks[taskIndex];
+                taskFound = true;
+                break;
+            }
+        }
+        
+        if (taskFound) {
+            // Save back to localStorage
+            localStorage.setItem('hourlyGanttData', JSON.stringify(data));
+            
+            // Log the modification
+            if (typeof taskLogger !== 'undefined' && updatedTask) {
+                taskLogger.logEvent('modified', updatedTask, { previousStatus });
+                
+                // If status changed to completed, log completion
+                if (status === 'completed' && previousStatus !== 'completed') {
+                    taskLogger.logEvent('completed', updatedTask, { 
+                        completedAt: new Date().toISOString(),
+                        completedBy: 'admin'
+                    });
+                }
+            }
+            
+            // Close modal
+            document.getElementById('editHourlyTaskModal').style.display = 'none';
+            
+            // Refresh hourly gantt if open
+            if (currentHourlyGantt) {
+                await currentHourlyGantt.render();
+            }
+            
+            alert('✅ Task updated successfully!');
+        } else {
+            alert('❌ Task not found');
+        }
+    }
+    
+    async function deleteHourlyTask() {
+        const taskId = parseInt(document.getElementById('editHourlyTaskId').value);
+        
+        // Get hourly gantt data
+        const data = JSON.parse(localStorage.getItem('hourlyGanttData') || '{"tasks":{}}');
+        
+        // Find and remove the task
+        let taskFound = false;
+        for (const date in data.tasks) {
+            const tasks = data.tasks[date];
+            const taskIndex = tasks.findIndex(t => t.id === taskId);
+            if (taskIndex !== -1) {
+                tasks.splice(taskIndex, 1);
+                taskFound = true;
+                break;
+            }
+        }
+        
+        if (taskFound) {
+            // Save back to localStorage
+            localStorage.setItem('hourlyGanttData', JSON.stringify(data));
+            
+            // Close modal
+            document.getElementById('editHourlyTaskModal').style.display = 'none';
+            
+            // Refresh hourly gantt if open
+            if (currentHourlyGantt) {
+                await currentHourlyGantt.render();
+            }
+            
+            alert('✅ Task deleted successfully!');
+        } else {
+            alert('❌ Task not found');
+        }
+    }
+    
+    async function updateShift() {
+        const employeeId = parseInt(document.getElementById('editShiftEmployeeId').value);
+        const date = document.getElementById('editShiftDate').value;
+        const shiftId = document.getElementById('editShiftId').value;
+        const startTime = document.getElementById('editShiftStartTime').value + ':00';
+        const endTime = document.getElementById('editShiftEndTime').value + ':00';
+        
+        if (!supabaseService || !supabaseService.isReady()) {
+            alert('Supabase not connected');
+            return;
+        }
+        
+        try {
+            if (shiftId) {
+                // Update existing shift
+                await supabaseService.updateEmployeeShift(parseInt(shiftId), {
+                    start_time: startTime,
+                    end_time: endTime
+                });
+                alert('✅ Shift time updated successfully!');
+            } else {
+                // Create new shift
+                await supabaseService.createEmployeeShift({
+                    employee_id: employeeId,
+                    shift_date: date,
+                    start_time: startTime,
+                    end_time: endTime
+                });
+                alert('✅ New shift created successfully!');
+            }
+            
+            document.getElementById('editShiftModal').style.display = 'none';
+            
+            // Refresh hourly gantt if open
+            if (currentHourlyGantt) {
+                await currentHourlyGantt.render();
+            }
+        } catch (error) {
+            console.error('Error updating shift:', error);
+            alert('❌ Failed to update shift: ' + error.message);
+        }
     }
 });

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Tasks - MAGROC</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/employee-tasks.css">
+</head>
+<body>
+    <div class="container">
+        <header class="page-header">
+            <div class="header-content">
+                <h1>📋 My Tasks</h1>
+                <div class="header-actions">
+                    <div class="current-time" id="currentTime"></div>
+                    <button class="btn btn-secondary" id="refreshBtn">🔄 Refresh</button>
+                    <button class="btn btn-danger" id="logoutBtn">Logout</button>
+                </div>
+            </div>
+        </header>
+
+        <div class="employee-info" id="employeeInfo">
+            <div class="info-card">
+                <h2 id="employeeName">Loading...</h2>
+                <p id="currentShift">No shift scheduled</p>
+            </div>
+        </div>
+
+        <div class="tasks-container">
+            <div class="upcoming-tasks section-card">
+                <h2>⏰ Upcoming Tasks (Next 2 Hours)</h2>
+                <div id="upcomingTasksList" class="tasks-list">
+                    <div class="empty-state">
+                        <p>No upcoming tasks</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="current-tasks section-card">
+                <h2>🎯 Current Tasks</h2>
+                <div id="currentTasksList" class="tasks-list">
+                    <div class="empty-state">
+                        <p>No active tasks</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="completed-tasks section-card">
+                <h2>✅ Completed Today</h2>
+                <div id="completedTasksList" class="tasks-list">
+                    <div class="empty-state">
+                        <p>No completed tasks</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="scripts/config.js"></script>
+    <script src="scripts/supabase.js"></script>
+    <script src="scripts/task-logger.js"></script>
+    <script src="scripts/employee-tasks.js"></script>
+</body>
+</html>
