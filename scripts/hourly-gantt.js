@@ -4,16 +4,16 @@ class HourlyGanttChart {
         this.container = document.getElementById(containerId);
         this.selectedDate = new Date(selectedDate);
         this.isEditable = isEditable;
-        this.data = this.loadData();
         this.hourWidth = 80; // Width per hour
         this.timeIndicatorInterval = null;
         this.workAreas = ['day-off', 'free', 'united', 'autozone'];
+        this.tasks = [];
         
         this.init();
     }
     
-    init() {
-        this.render();
+    async init() {
+        await this.render();
         this.startTimeIndicator();
     }
     
@@ -64,58 +64,15 @@ class HourlyGanttChart {
         });
     }
     
-    loadData() {
-        const savedData = localStorage.getItem('hourlyGanttData');
-        if (savedData) {
-            const data = JSON.parse(savedData);
-            // Ensure workAreas exists for backward compatibility
-            if (!data.workAreas) {
-                data.workAreas = {};
-            }
-            return data;
+    async getEmployees() {
+        // Get employees from Supabase
+        if (!supabaseService || !supabaseService.isReady()) {
+            console.error('Supabase not available');
+            return [];
         }
         
-        return {
-            tasks: {}, // Organized by date: { 'YYYY-MM-DD': [tasks] }
-            workAreas: {}, // Organized by date and employee: { 'YYYY-MM-DD': { employeeId: 'area' } }
-            nextTaskId: 1
-        };
-    }
-    
-    saveData() {
-        localStorage.setItem('hourlyGanttData', JSON.stringify(this.data));
-    }
-    
-    getEmployeeWorkArea(employeeId, dateKey) {
-        if (!this.data.workAreas[dateKey]) {
-            return null;
-        }
-        return this.data.workAreas[dateKey][employeeId] || null;
-    }
-    
-    setEmployeeWorkArea(employeeId, dateKey, area) {
-        if (!this.data.workAreas[dateKey]) {
-            this.data.workAreas[dateKey] = {};
-        }
-        
-        // Toggle: if clicking the same area, deselect it
-        if (this.data.workAreas[dateKey][employeeId] === area) {
-            delete this.data.workAreas[dateKey][employeeId];
-        } else {
-            this.data.workAreas[dateKey][employeeId] = area;
-        }
-        
-        this.saveData();
-    }
-    
-    getEmployees() {
-        // Get employees from main gantt data
-        const ganttData = localStorage.getItem('ganttData');
-        if (ganttData) {
-            const data = JSON.parse(ganttData);
-            return data.employees || [];
-        }
-        return [];
+        const employees = await supabaseService.getEmployees();
+        return employees || [];
     }
     
     async getEmployeeShift(employeeId, date) {
@@ -179,15 +136,26 @@ class HourlyGanttChart {
     async render() {
         if (!this.container) return;
         
-        const employees = this.getEmployees();
+        const employees = await this.getEmployees();
         
         if (employees.length === 0) {
             this.renderEmptyState();
             return;
         }
         
+        // Fetch tasks from Supabase
+        const dateStr = this.formatDate(this.selectedDate);
+        console.log('Fetching tasks for date:', dateStr);
+        
+        if (supabaseService && supabaseService.isReady()) {
+            this.tasks = await supabaseService.getHourlyTasks(dateStr, dateStr) || [];
+            console.log('Loaded tasks from Supabase:', this.tasks);
+        } else {
+            console.warn('Supabase not available, no tasks loaded');
+            this.tasks = [];
+        }
+        
         // Fetch shift data for all employees
-        console.log('Fetching shifts for date:', this.formatDate(this.selectedDate));
         const employeesWithShifts = await Promise.all(
             employees.map(async (emp) => {
                 const shift = await this.getEmployeeShift(emp.id, this.selectedDate);
@@ -261,8 +229,7 @@ class HourlyGanttChart {
         const bodyScroll = document.createElement('div');
         bodyScroll.className = 'hourly-gantt-body-scroll';
         
-        const dateKey = this.formatDate(this.selectedDate);
-        const tasksForDate = this.getTasksForDate(this.selectedDate);
+        // Tasks are already loaded in this.tasks from render()
         
         const workAreaLabels = {
             'day-off': 'Day Off',
@@ -333,8 +300,8 @@ class HourlyGanttChart {
                 }
                 
                 // Draw tasks for this employee and work area
-                const employeeTasks = tasksForDate.filter(task => 
-                    task.employeeId === employee.id && task.workArea === area
+                const employeeTasks = this.tasks.filter(task => 
+                    task.employee_id === employee.id && task.work_area === area
                 );
                 
                 employeeTasks.forEach(task => {
@@ -407,8 +374,12 @@ class HourlyGanttChart {
         const taskBar = document.createElement('div');
         taskBar.className = `hourly-gantt-task status-${task.status}`;
         
-        const startMinutes = this.timeToMinutes(task.startTime);
-        const endMinutes = this.timeToMinutes(task.endTime);
+        // Handle both Supabase format (start_time) and old format (startTime)
+        const startTime = task.start_time || task.startTime;
+        const endTime = task.end_time || task.endTime;
+        
+        const startMinutes = this.timeToMinutes(startTime);
+        const endMinutes = this.timeToMinutes(endTime);
         const durationMinutes = endMinutes - startMinutes;
         
         const leftPosition = (startMinutes / 60) * this.hourWidth;
@@ -421,14 +392,16 @@ class HourlyGanttChart {
         taskContent.className = 'hourly-gantt-task-content';
         
         // Add acknowledged badge if task is acknowledged
+        const acknowledgedBy = task.acknowledged_by || task.acknowledgedBy;
+        const acknowledgedAt = task.acknowledged_at || task.acknowledgedAt;
         const acknowledgedBadge = task.acknowledged 
-            ? `<span class="acknowledged-icon" title="Acknowledged by ${task.acknowledgedBy || 'employee'} at ${task.acknowledgedAt ? new Date(task.acknowledgedAt).toLocaleTimeString() : 'unknown time'}">✓</span>`
+            ? `<span class="acknowledged-icon" title="Acknowledged by ${acknowledgedBy || 'employee'} at ${acknowledgedAt ? new Date(acknowledgedAt).toLocaleTimeString() : 'unknown time'}">✓</span>`
             : '';
         
         taskContent.innerHTML = `
             ${acknowledgedBadge}
             <strong>${this.escapeHtml(task.name)}</strong>
-            <span>${task.startTime} - ${task.endTime}</span>
+            <span>${startTime.substring(0,5)} - ${endTime.substring(0,5)}</span>
         `;
         taskBar.appendChild(taskContent);
         
@@ -472,71 +445,57 @@ class HourlyGanttChart {
         }
     }
     
-    addTask(employeeId, taskName, startTime, endTime, status = 'pending', workArea = 'free') {
+    async addTask(employeeId, taskName, startTime, endTime, status = 'pending', workArea = 'free') {
         const dateKey = this.formatDate(this.selectedDate);
         
-        if (!this.data.tasks[dateKey]) {
-            this.data.tasks[dateKey] = [];
-        }
-        
-        // Get employee name from gantt data
-        const ganttData = JSON.parse(localStorage.getItem('ganttData') || '{"employees":[]}');
-        const employee = ganttData.employees.find(emp => emp.id === employeeId);
+        // Get employee name from Supabase
+        const employees = await supabaseService.getEmployees();
+        const employee = employees.find(emp => emp.id === employeeId);
         const employeeName = employee ? employee.name : 'Unknown';
         
-        const newTask = {
-            id: this.data.nextTaskId++,
-            employeeId: employeeId,
-            employeeName: employeeName,
+        const taskData = {
+            employee_id: employeeId,
+            employee_name: employeeName,
             name: taskName,
-            startTime: startTime,
-            endTime: endTime,
+            start_time: startTime,
+            end_time: endTime,
             status: status,
-            workArea: workArea,
-            date: dateKey,
-            createdAt: new Date().toISOString()
+            work_area: workArea,
+            task_date: dateKey
         };
         
-        this.data.tasks[dateKey].push(newTask);
-        this.saveData();
-        this.render();
+        const newTask = await supabaseService.createHourlyTask(taskData);
         
-        // Log the task creation
-        if (typeof taskLogger !== 'undefined') {
-            taskLogger.logEvent('created', newTask);
-        }
+        // Re-render to show the new task
+        await this.render();
         
         return newTask;
     }
     
-    deleteTask(taskId) {
-        const dateKey = this.formatDate(this.selectedDate);
+    async deleteTask(taskId) {
+        await supabaseService.deleteHourlyTask(taskId);
         
-        if (this.data.tasks[dateKey]) {
-            // Find the task before deleting to log it
-            const task = this.data.tasks[dateKey].find(t => t.id === taskId);
-            
-            if (task && typeof taskLogger !== 'undefined') {
-                taskLogger.logEvent('deleted', task, { deletedAt: new Date().toISOString() });
-            }
-            
-            this.data.tasks[dateKey] = this.data.tasks[dateKey].filter(task => task.id !== taskId);
-            this.saveData();
-            this.render();
-        }
+        // Re-render to show the task removed
+        await this.render();
     }
     
-    updateTask(taskId, updates) {
-        const dateKey = this.formatDate(this.selectedDate);
-        
-        if (this.data.tasks[dateKey]) {
-            const task = this.data.tasks[dateKey].find(t => t.id === taskId);
-            if (task) {
-                Object.assign(task, updates);
-                this.saveData();
-                this.render();
-            }
+    async updateTask(taskId, updates) {
+        // Convert camelCase keys to snake_case if needed
+        const snakeCaseUpdates = {};
+        for (const [key, value] of Object.entries(updates)) {
+            if (key === 'startTime') snakeCaseUpdates.start_time = value;
+            else if (key === 'endTime') snakeCaseUpdates.end_time = value;
+            else if (key === 'employeeId') snakeCaseUpdates.employee_id = value;
+            else if (key === 'employeeName') snakeCaseUpdates.employee_name = value;
+            else if (key === 'workArea') snakeCaseUpdates.work_area = value;
+            else if (key === 'taskDate') snakeCaseUpdates.task_date = value;
+            else snakeCaseUpdates[key] = value;
         }
+        
+        await supabaseService.updateHourlyTask(taskId, snakeCaseUpdates);
+        
+        // Re-render to show the updates
+        await this.render();
     }
     
     escapeHtml(text) {

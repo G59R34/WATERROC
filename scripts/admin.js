@@ -797,9 +797,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
         
         // Add hourly task form submission
-        document.getElementById('addHourlyTaskForm')?.addEventListener('submit', (e) => {
+        document.getElementById('addHourlyTaskForm')?.addEventListener('submit', async (e) => {
             e.preventDefault();
-            addHourlyTask();
+            await addHourlyTask();
         });
     }
     
@@ -841,7 +841,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
     
-    function addHourlyTask() {
+    async function addHourlyTask() {
         const employeeId = parseInt(document.getElementById('hourlyTaskEmployee').value);
         const name = document.getElementById('hourlyTaskName').value;
         const startTime = document.getElementById('hourlyTaskStartTime').value;
@@ -862,7 +862,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         
         if (currentHourlyGantt) {
-            currentHourlyGantt.addTask(employeeId, name, startTime, endTime, status, workArea);
+            await currentHourlyGantt.addTask(employeeId, name, startTime, endTime, status, workArea);
             document.getElementById('addHourlyTaskModal').style.display = 'none';
             document.getElementById('addHourlyTaskForm').reset();
             delete form.dataset.workArea;
@@ -889,11 +889,15 @@ document.addEventListener('DOMContentLoaded', async function() {
     window.editHourlyTask = function(task) {
         console.log('Edit task:', task);
         
+        // Handle both Supabase format (start_time) and old format (startTime)
+        const startTime = task.start_time || task.startTime;
+        const endTime = task.end_time || task.endTime;
+        
         // Populate the form
         document.getElementById('editHourlyTaskId').value = task.id;
         document.getElementById('editHourlyTaskName').value = task.name;
-        document.getElementById('editHourlyTaskStartTime').value = task.startTime;
-        document.getElementById('editHourlyTaskEndTime').value = task.endTime;
+        document.getElementById('editHourlyTaskStartTime').value = startTime.substring(0, 5);
+        document.getElementById('editHourlyTaskEndTime').value = endTime.substring(0, 5);
         document.getElementById('editHourlyTaskStatus').value = task.status;
         
         // Show the modal
@@ -955,49 +959,18 @@ document.addEventListener('DOMContentLoaded', async function() {
         const endTime = document.getElementById('editHourlyTaskEndTime').value;
         const status = document.getElementById('editHourlyTaskStatus').value;
         
-        // Get hourly gantt data
-        const data = JSON.parse(localStorage.getItem('hourlyGanttData') || '{"tasks":{}}');
-        
-        // Find and update the task
-        let taskFound = false;
-        let previousStatus = null;
-        let updatedTask = null;
-        
-        for (const date in data.tasks) {
-            const tasks = data.tasks[date];
-            const taskIndex = tasks.findIndex(t => t.id === taskId);
-            if (taskIndex !== -1) {
-                previousStatus = tasks[taskIndex].status;
-                tasks[taskIndex] = {
-                    ...tasks[taskIndex],
-                    name,
-                    startTime,
-                    endTime,
-                    status,
-                    modifiedAt: new Date().toISOString()
-                };
-                updatedTask = tasks[taskIndex];
-                taskFound = true;
-                break;
-            }
+        if (!supabaseService || !supabaseService.isReady()) {
+            alert('Supabase not connected');
+            return;
         }
         
-        if (taskFound) {
-            // Save back to localStorage
-            localStorage.setItem('hourlyGanttData', JSON.stringify(data));
-            
-            // Log the modification
-            if (typeof taskLogger !== 'undefined' && updatedTask) {
-                taskLogger.logEvent('modified', updatedTask, { previousStatus });
-                
-                // If status changed to completed, log completion
-                if (status === 'completed' && previousStatus !== 'completed') {
-                    taskLogger.logEvent('completed', updatedTask, { 
-                        completedAt: new Date().toISOString(),
-                        completedBy: 'admin'
-                    });
-                }
-            }
+        try {
+            await supabaseService.updateHourlyTask(taskId, {
+                name,
+                start_time: startTime,
+                end_time: endTime,
+                status
+            });
             
             // Close modal
             document.getElementById('editHourlyTaskModal').style.display = 'none';
@@ -1008,32 +981,22 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
             
             alert('✅ Task updated successfully!');
-        } else {
-            alert('❌ Task not found');
+        } catch (error) {
+            console.error('Error updating task:', error);
+            alert('❌ Failed to update task: ' + error.message);
         }
     }
     
     async function deleteHourlyTask() {
         const taskId = parseInt(document.getElementById('editHourlyTaskId').value);
         
-        // Get hourly gantt data
-        const data = JSON.parse(localStorage.getItem('hourlyGanttData') || '{"tasks":{}}');
-        
-        // Find and remove the task
-        let taskFound = false;
-        for (const date in data.tasks) {
-            const tasks = data.tasks[date];
-            const taskIndex = tasks.findIndex(t => t.id === taskId);
-            if (taskIndex !== -1) {
-                tasks.splice(taskIndex, 1);
-                taskFound = true;
-                break;
-            }
+        if (!supabaseService || !supabaseService.isReady()) {
+            alert('Supabase not connected');
+            return;
         }
         
-        if (taskFound) {
-            // Save back to localStorage
-            localStorage.setItem('hourlyGanttData', JSON.stringify(data));
+        try {
+            await supabaseService.deleteHourlyTask(taskId);
             
             // Close modal
             document.getElementById('editHourlyTaskModal').style.display = 'none';
@@ -1044,8 +1007,9 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
             
             alert('✅ Task deleted successfully!');
-        } else {
-            alert('❌ Task not found');
+        } catch (error) {
+            console.error('Error deleting task:', error);
+            alert('❌ Failed to delete task: ' + error.message);
         }
     }
     

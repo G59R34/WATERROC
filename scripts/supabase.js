@@ -1072,6 +1072,213 @@ class SupabaseService {
     }
 
     // ==========================================
+    // HOURLY TASKS
+    // ==========================================
+
+    /**
+     * Get hourly tasks for a specific date range
+     */
+    async getHourlyTasks(startDate, endDate, employeeId = null) {
+        if (!this.isReady()) return null;
+
+        let query = this.client
+            .from('hourly_tasks')
+            .select(`
+                *,
+                employees:employee_id (
+                    id,
+                    name
+                )
+            `)
+            .gte('task_date', startDate)
+            .lte('task_date', endDate)
+            .order('task_date', { ascending: true })
+            .order('start_time', { ascending: true });
+
+        if (employeeId) {
+            query = query.eq('employee_id', employeeId);
+        }
+
+        const { data, error} = await query;
+
+        if (error) {
+            console.error('Error fetching hourly tasks:', error);
+            return null;
+        }
+
+        return data;
+    }
+
+    /**
+     * Create a new hourly task
+     */
+    async createHourlyTask(taskData) {
+        if (!this.isReady()) return null;
+
+        const { data, error } = await this.client
+            .from('hourly_tasks')
+            .insert([{
+                employee_id: taskData.employee_id,
+                task_date: taskData.task_date,
+                name: taskData.name,
+                start_time: taskData.start_time,
+                end_time: taskData.end_time,
+                work_area: taskData.work_area,
+                status: taskData.status || 'pending',
+                created_by: taskData.created_by
+            }])
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error creating hourly task:', error);
+            return null;
+        }
+
+        console.log('✅ Hourly task created:', data);
+        return data;
+    }
+
+    /**
+     * Update an existing hourly task
+     */
+    async updateHourlyTask(taskId, updates) {
+        if (!this.isReady()) return null;
+
+        const { data, error } = await this.client
+            .from('hourly_tasks')
+            .update(updates)
+            .eq('id', taskId)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error updating hourly task:', error);
+            return null;
+        }
+
+        console.log('✅ Hourly task updated:', data);
+        return data;
+    }
+
+    /**
+     * Delete an hourly task
+     */
+    async deleteHourlyTask(taskId) {
+        if (!this.isReady()) return false;
+
+        const { error } = await this.client
+            .from('hourly_tasks')
+            .delete()
+            .eq('id', taskId);
+
+        if (error) {
+            console.error('Error deleting hourly task:', error);
+            return false;
+        }
+
+        console.log('✅ Hourly task deleted');
+        return true;
+    }
+
+    /**
+     * Acknowledge a task (employee action)
+     */
+    async acknowledgeTask(taskId, employeeName) {
+        if (!this.isReady()) return null;
+
+        return await this.updateHourlyTask(taskId, {
+            acknowledged: true,
+            acknowledged_at: new Date().toISOString(),
+            acknowledged_by: employeeName
+        });
+    }
+
+    /**
+     * Get task logs with optional filtering
+     */
+    async getTaskLogs(filters = {}) {
+        if (!this.isReady()) return null;
+
+        let query = this.client
+            .from('task_logs')
+            .select('*')
+            .order('timestamp', { ascending: false });
+
+        if (filters.action) query = query.eq('action', filters.action);
+        if (filters.employeeId) query = query.eq('employee_id', filters.employeeId);
+        if (filters.workArea) query = query.eq('work_area', filters.workArea);
+        if (filters.startDate) query = query.gte('task_date', filters.startDate);
+        if (filters.endDate) query = query.lte('task_date', filters.endDate);
+        if (filters.limit) query = query.limit(filters.limit);
+
+        const { data, error } = await query;
+
+        if (error) {
+            console.error('Error fetching task logs:', error);
+            return null;
+        }
+
+        return data;
+    }
+
+    /**
+     * Get task statistics for an employee
+     */
+    async getTaskStatistics(employeeId, startDate = null, endDate = null) {
+        if (!this.isReady()) return null;
+
+        let query = this.client
+            .from('task_statistics')
+            .select('*')
+            .eq('employee_id', employeeId)
+            .order('date', { ascending: false });
+
+        if (startDate) query = query.gte('date', startDate);
+        if (endDate) query = query.lte('date', endDate);
+
+        const { data, error } = await query;
+
+        if (error) {
+            console.error('Error fetching task statistics:', error);
+            return null;
+        }
+
+        return data;
+    }
+
+    /**
+     * Get all employee task statistics for leaderboard
+     */
+    async getAllEmployeeStatistics(date = null) {
+        if (!this.isReady()) return null;
+
+        let query = this.client
+            .from('task_statistics')
+            .select(`
+                *,
+                employees:employee_id (
+                    id,
+                    name
+                )
+            `)
+            .order('completion_rate', { ascending: false });
+
+        if (date) {
+            query = query.eq('date', date);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            console.error('Error fetching all employee statistics:', error);
+            return null;
+        }
+
+        return data;
+    }
+
+    // ==========================================
     // TIME OFF REQUESTS
     // ==========================================
 

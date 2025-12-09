@@ -76,14 +76,17 @@ document.addEventListener('DOMContentLoaded', async function() {
         setupEventListeners();
         updateEmployeeInfo();
         updateCurrentTime();
+        
+        // Load employee ID first, then load shift and tasks
+        await loadEmployeeId();
         await loadTodayShift();
         await loadTasks();
 
         // Auto-refresh every 30 seconds
         refreshInterval = setInterval(async () => {
+            await loadTodayShift(); // Reload shift data from Supabase
             await loadTasks();
             updateCurrentTime();
-            updateShiftDisplay(); // Update shift countdown
         }, 30000);
 
         // Update time and shift display every second
@@ -134,6 +137,31 @@ document.addEventListener('DOMContentLoaded', async function() {
         document.getElementById('currentTime').textContent = timeString;
     }
 
+    async function loadEmployeeId() {
+        try {
+            if (typeof supabaseService === 'undefined' || !supabaseService.isReady()) {
+                console.warn('Supabase not available for loading employee ID');
+                return;
+            }
+
+            // Get employee record by matching name
+            const { data: employees } = await supabaseService.client
+                .from('employees')
+                .select('*')
+                .eq('name', currentEmployee.name);
+            
+            if (employees && employees.length > 0) {
+                const employeeId = employees[0].id;
+                console.log('Employee ID loaded:', employeeId);
+                currentEmployee.employeeId = employeeId;
+            } else {
+                console.warn('No employee record found for', currentEmployee.name);
+            }
+        } catch (error) {
+            console.error('Error loading employee ID:', error);
+        }
+    }
+
     async function loadTodayShift() {
         try {
             if (typeof supabaseService === 'undefined' || !supabaseService.isReady()) {
@@ -142,29 +170,16 @@ document.addEventListener('DOMContentLoaded', async function() {
                 return;
             }
 
-            const today = new Date().toISOString().split('T')[0];
-            
-            // Get employee record by matching username
-            const { data: employees } = await supabaseService.client
-                .from('employees')
-                .select('*')
-                .eq('name', currentEmployee.name);
-            
-            if (!employees || employees.length === 0) {
-                console.warn('No employee record found');
+            if (!currentEmployee.employeeId) {
+                console.warn('Employee ID not set, cannot load shift');
                 document.getElementById('currentShift').textContent = 'No employee record found';
                 return;
             }
-            
-            const employeeId = employees[0].id;
-            console.log('Employee ID:', employeeId);
-            
-            // Store employee ID for later use
-            currentEmployee.employeeId = employeeId;
-            
+
+            const today = new Date().toISOString().split('T')[0];
             const shifts = await supabaseService.getEmployeeShifts(today, today);
             console.log('All shifts for today:', shifts);
-            currentShift = shifts.find(s => s.employee_id === employeeId);
+            currentShift = shifts.find(s => s.employee_id === currentEmployee.employeeId);
             console.log('Current employee shift:', currentShift);
 
             if (currentShift) {
@@ -232,33 +247,30 @@ document.addEventListener('DOMContentLoaded', async function() {
             // Get today's date
             const today = new Date().toISOString().split('T')[0];
             
-            // Load hourly tasks from localStorage (same as hourly gantt)
-            const hourlyData = localStorage.getItem('hourlyGanttData');
-            console.log('hourlyGanttData from localStorage:', hourlyData);
+            console.log('Loading tasks from Supabase for employeeId:', currentEmployee.employeeId);
             
-            if (hourlyData) {
-                const data = JSON.parse(hourlyData);
-                const todayTasks = data.tasks[today] || [];
-                console.log('Tasks for today:', todayTasks);
-                console.log('Looking for employeeId:', currentEmployee.employeeId);
-                
-                // Filter tasks for current employee using the employeeId we got from the employees table
-                if (currentEmployee.employeeId) {
-                    tasks = todayTasks.filter(task => task.employeeId === currentEmployee.employeeId);
-                } else {
-                    console.warn('No employeeId set, cannot filter tasks');
-                    tasks = [];
-                }
-                console.log('Filtered tasks for employee:', tasks);
-                
-                renderTasks();
-            } else {
-                console.log('No hourlyGanttData found in localStorage');
+            if (!supabaseService || !supabaseService.isReady()) {
+                console.error('Supabase not connected');
                 tasks = [];
                 renderTasks();
+                return;
             }
+            
+            // Filter tasks for current employee using the employeeId we got from the employees table
+            if (currentEmployee.employeeId) {
+                // Fetch tasks from Supabase for this employee and today's date
+                tasks = await supabaseService.getHourlyTasks(today, today, currentEmployee.employeeId);
+                console.log('Tasks loaded from Supabase:', tasks);
+            } else {
+                console.warn('No employeeId set, cannot filter tasks');
+                tasks = [];
+            }
+            
+            renderTasks();
         } catch (error) {
             console.error('Error loading tasks:', error);
+            tasks = [];
+            renderTasks();
         }
     }
 
@@ -273,8 +285,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         const completedTasks = [];
 
         tasks.forEach(task => {
-            const [startHour, startMin] = task.startTime.split(':').map(Number);
-            const [endHour, endMin] = task.endTime.split(':').map(Number);
+            // Handle both Supabase format (start_time) and old format (startTime)
+            const startTime = task.start_time || task.startTime;
+            const endTime = task.end_time || task.endTime;
+            
+            const [startHour, startMin] = startTime.split(':').map(Number);
+            const [endHour, endMin] = endTime.split(':').map(Number);
             const taskStartTime = startHour * 60 + startMin;
             const taskEndTime = endHour * 60 + endMin;
 
@@ -292,8 +308,18 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         // Sort by start time
         upcomingTasks.sort((a, b) => a.minutesUntil - b.minutesUntil);
-        currentTasks.sort((a, b) => a.startTime.localeCompare(b.startTime));
-        completedTasks.sort((a, b) => b.startTime.localeCompare(a.startTime));
+        
+        // Sort using snake_case or camelCase field names
+        currentTasks.sort((a, b) => {
+            const aStart = a.start_time || a.startTime;
+            const bStart = b.start_time || b.startTime;
+            return aStart.localeCompare(bStart);
+        });
+        completedTasks.sort((a, b) => {
+            const aStart = a.start_time || a.startTime;
+            const bStart = b.start_time || b.startTime;
+            return bStart.localeCompare(aStart);
+        });
 
         // Render each category
         renderTaskList('upcomingTasksList', upcomingTasks, true);
@@ -310,6 +336,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
 
         container.innerHTML = taskList.map(task => {
+            // Handle both Supabase format (start_time) and old format (startTime)
+            const startTime = task.start_time || task.startTime;
+            const endTime = task.end_time || task.endTime;
+            const workArea = task.work_area || task.workArea;
+            const acknowledgedAt = task.acknowledged_at || task.acknowledgedAt;
+            
             const urgentClass = task.minutesUntil && task.minutesUntil <= 30 ? 'urgent' : '';
             const statusClass = task.status === 'completed' ? 'completed' : 
                                task.status === 'in-progress' ? 'in-progress' : '';
@@ -323,7 +355,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
 
             const acknowledgedHtml = task.acknowledged 
-                ? `<div class="acknowledged-badge">✅ Acknowledged ${task.acknowledgedAt ? 'at ' + new Date(task.acknowledgedAt).toLocaleTimeString() : ''}</div>`
+                ? `<div class="acknowledged-badge">✅ Acknowledged ${acknowledgedAt ? 'at ' + new Date(acknowledgedAt).toLocaleTimeString() : ''}</div>`
                 : '';
             
             const acknowledgeBtn = !task.acknowledged && task.status !== 'completed'
@@ -338,10 +370,10 @@ document.addEventListener('DOMContentLoaded', async function() {
                     </div>
                     <div class="task-details">
                         <div class="task-time">
-                            <strong>🕐 Time:</strong> ${task.startTime} - ${task.endTime}
+                            <strong>🕐 Time:</strong> ${startTime.substring(0,5)} - ${endTime.substring(0,5)}
                         </div>
-                        <div class="task-location ${task.workArea || 'free'}">
-                            📍 ${formatWorkArea(task.workArea)}
+                        <div class="task-location ${workArea || 'free'}">
+                            📍 ${formatWorkArea(workArea)}
                         </div>
                         ${timeUntilHtml}
                         ${acknowledgedHtml}
@@ -371,37 +403,18 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Make acknowledgeTask available globally
     window.acknowledgeTask = async function(taskId) {
         try {
-            const today = new Date().toISOString().split('T')[0];
-            
-            // Load hourly gantt data
-            const hourlyData = JSON.parse(localStorage.getItem('hourlyGanttData') || '{"tasks":{}}');
-            const todayTasks = hourlyData.tasks[today] || [];
-            
-            // Find and update the task
-            const taskIndex = todayTasks.findIndex(t => t.id === taskId);
-            if (taskIndex !== -1) {
-                todayTasks[taskIndex].acknowledged = true;
-                todayTasks[taskIndex].acknowledgedAt = new Date().toISOString();
-                todayTasks[taskIndex].acknowledgedBy = currentEmployee.name;
-                
-                const updatedTask = todayTasks[taskIndex];
-                
-                // Save back to localStorage
-                hourlyData.tasks[today] = todayTasks;
-                localStorage.setItem('hourlyGanttData', JSON.stringify(hourlyData));
-                
-                // Log the acknowledgment
-                if (typeof taskLogger !== 'undefined') {
-                    taskLogger.logEvent('acknowledged', updatedTask);
-                }
-                
-                // Reload tasks to update display
-                await loadTasks();
-                
-                showNotification('✅ Task acknowledged!');
-            } else {
-                showNotification('❌ Task not found');
+            if (!supabaseService || !supabaseService.isReady()) {
+                showNotification('❌ Supabase not connected');
+                return;
             }
+            
+            // Acknowledge the task in the database
+            await supabaseService.acknowledgeTask(taskId, currentEmployee.name);
+            
+            // Reload tasks to update display
+            await loadTasks();
+            
+            showNotification('✅ Task acknowledged!');
         } catch (error) {
             console.error('Error acknowledging task:', error);
             showNotification('❌ Error acknowledging task');
