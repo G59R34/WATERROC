@@ -7,11 +7,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
     
-    // Initialize check-in system
-    if (typeof checkInSystem !== 'undefined') {
-        checkInSystem.init();
-    }
-    
     // Initialize notification system if available
     if (typeof notificationSystem !== 'undefined') {
         await notificationSystem.init();
@@ -53,13 +48,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Sync from Supabase AFTER gantt is initialized
         await syncFromSupabase();
     }
-    
-    // Show check-in dialog after everything is loaded
-    setTimeout(() => {
-        if (typeof checkInSystem !== 'undefined' && checkInSystem.shouldShowCheckIn()) {
-            checkInSystem.show('admin');
-        }
-    }, 500);
     
     // Sync data from Supabase
     async function syncFromSupabase() {
@@ -126,6 +114,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Shift Scheduling navigation
     document.getElementById('manageShiftsBtn').addEventListener('click', function() {
         window.location.href = 'shifts.html';
+    });
+    
+    // Task Templates navigation
+    document.getElementById('manageTaskTemplatesBtn').addEventListener('click', function() {
+        window.location.href = 'task-templates.html';
     });
     
     // Setup notification panel

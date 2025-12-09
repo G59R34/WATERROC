@@ -6,13 +6,12 @@
     <title>WaterROC - Admin Dashboard</title>
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/gantt.css">
-    <link rel="stylesheet" href="styles/checkin.css">
 </head>
 <body>
     <div class="dashboard">
         <header class="dashboard-header">
             <div class="header-left">
-                <h1>💧 WaterROC</h1>
+                <h1>WaterROC</h1>
             </div>
             <div class="header-right">
                 <button id="notificationBtn" class="notification-btn">
@@ -32,12 +31,12 @@
                 <div class="controls-section">
                     <h3>Gantt Chart Controls</h3>
                     <div class="control-group">
-                        <button id="addEmployeeBtn" class="btn-primary">+ Add Employee</button>
-                        <button id="addTaskBtn" class="btn-primary">+ Add Task</button>
-                        <button id="sendAnnouncementBtn" class="btn-warning">📢 Send Announcement</button>
-                        <button id="viewAnalyticsBtn" class="btn-success">📊 View Analytics</button>
-                        <button id="saveDataBtn" class="btn-success">💾 Save Changes</button>
-                        <button id="resetViewBtn" class="btn-secondary">🔄 Reset View</button>
+                        <button id="addEmployeeBtn" class="btn-primary">Add Employee</button>
+                        <button id="addTaskBtn" class="btn-primary">Add Task</button>
+                        <button id="sendAnnouncementBtn" class="btn-warning">Send Announcement</button>
+                        <button id="viewAnalyticsBtn" class="btn-success">View Analytics</button>
+                        <button id="saveDataBtn" class="btn-success">Save Changes</button>
+                        <button id="resetViewBtn" class="btn-secondary">Reset View</button>
                     </div>
                 </div>
                 
@@ -54,8 +53,9 @@
                 <div class="controls-section">
                     <h3>Advanced Features</h3>
                     <div class="control-group">
-                        <button id="manageProfilesBtn" class="btn-primary">👤 Employee Profiles</button>
-                        <button id="manageShiftsBtn" class="btn-primary">📅 Shift Scheduling</button>
+                        <button id="manageProfilesBtn" class="btn-primary">Employee Profiles</button>
+                        <button id="manageShiftsBtn" class="btn-primary">Shift Scheduling</button>
+                        <button id="manageTaskTemplatesBtn" class="btn-primary">Task Templates</button>
                     </div>
                 </div>
                 
@@ -276,7 +276,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="scripts/supabase.js"></script>
     <script src="scripts/config.js"></script>
-    <script src="scripts/checkin.js"></script>
     <script src="scripts/notifications.js"></script>
     <script src="scripts/announcement-banner.js"></script>
     <script src="scripts/gantt.js"></script>

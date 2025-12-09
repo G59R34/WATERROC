@@ -305,6 +305,9 @@ document.addEventListener('DOMContentLoaded', async function() {
             const result = await supabaseService.createEmployeeShift(shiftData);
             
             if (result) {
+                // Auto-generate tasks from templates
+                await autoGenerateTasksForShift(shiftData);
+                
                 alert('✅ Shift assigned successfully!');
                 shiftModal.style.display = 'none';
                 await loadShifts();
@@ -316,6 +319,69 @@ document.addEventListener('DOMContentLoaded', async function() {
             alert('❌ Error saving shift. Please try again.');
         }
     });
+
+    // Auto-generate tasks from templates when a shift is created
+    async function autoGenerateTasksForShift(shiftData) {
+        if (!supabaseService.isReady()) return;
+
+        try {
+            // Get all task templates with auto_assign enabled
+            const { data: templates, error } = await supabaseService.client
+                .from('task_templates')
+                .select('*')
+                .eq('auto_assign', true)
+                .order('created_at', { ascending: true });
+
+            if (error) throw error;
+            if (!templates || templates.length === 0) return;
+
+            // Get employee details
+            const employee = employees.find(e => e.id === shiftData.employee_id);
+            if (!employee) return;
+
+            // Calculate shift start datetime
+            const shiftDate = new Date(shiftData.shift_date + 'T' + shiftData.start_time);
+            const shiftEndTime = new Date(shiftData.shift_date + 'T' + shiftData.end_time);
+            
+            let currentTaskStart = shiftDate;
+
+            // Generate tasks for each template
+            for (const template of templates) {
+                const durationMs = template.duration_hours * 60 * 60 * 1000;
+                const taskEnd = new Date(currentTaskStart.getTime() + durationMs);
+
+                // Only create task if it fits within the shift
+                if (taskEnd <= shiftEndTime) {
+                    // Create task in Gantt system (localStorage)
+                    const ganttData = JSON.parse(localStorage.getItem('ganttData') || '{"employees":[],"tasks":[]}');
+                    
+                    const newTask = {
+                        id: Date.now() + Math.random(),
+                        employeeId: employee.id,
+                        name: template.title,
+                        description: template.description || '',
+                        startDate: currentTaskStart.toISOString().split('T')[0],
+                        endDate: taskEnd.toISOString().split('T')[0],
+                        status: 'not_started',
+                        priority: template.priority,
+                        acknowledged: false
+                    };
+
+                    ganttData.tasks.push(newTask);
+                    localStorage.setItem('ganttData', JSON.stringify(ganttData));
+
+                    // Move to next task start time
+                    currentTaskStart = taskEnd;
+                } else {
+                    break; // Stop if task doesn't fit
+                }
+            }
+
+            console.log(`Auto-generated ${templates.length} tasks for shift`);
+        } catch (error) {
+            console.error('Error auto-generating tasks:', error);
+        }
+    }
 
     async function loadTimeOffRequests() {
         const list = document.getElementById('timeOffList');

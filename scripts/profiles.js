@@ -98,14 +98,28 @@ document.addEventListener('DOMContentLoaded', async function() {
             grid.innerHTML = employees.map(emp => {
                 const profile = profileMap[emp.id] || {};
                 const initials = emp.name.split(' ').map(n => n[0]).join('').toUpperCase();
+                const status = profile.employment_status || 'active';
+                const statusColors = {
+                    'active': '#059669',
+                    'administrative_leave': '#d97706',
+                    'terminated': '#dc2626'
+                };
+                const statusLabels = {
+                    'active': 'Active',
+                    'administrative_leave': 'Admin Leave',
+                    'terminated': 'Terminated'
+                };
                 
                 return `
-                    <div class="profile-card" data-employee-id="${emp.id}">
+                    <div class="profile-card ${status !== 'active' ? 'status-' + status : ''}" data-employee-id="${emp.id}">
                         <div class="profile-header">
                             <div class="profile-avatar">${initials}</div>
                             <div class="profile-info">
                                 <h3 class="profile-name">${escapeHtml(emp.name)}</h3>
                                 <p class="profile-role">${escapeHtml(emp.role)}</p>
+                                <span style="display: inline-block; margin-top: 4px; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 500; background: ${statusColors[status]}; color: white;">
+                                    ${statusLabels[status]}
+                                </span>
                             </div>
                         </div>
                         
@@ -189,6 +203,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         document.getElementById('profileSkills').value = profile.skills ? profile.skills.join(', ') : '';
         document.getElementById('profileCertifications').value = profile.certifications ? profile.certifications.join(', ') : '';
         document.getElementById('profileNotes').value = profile.notes || '';
+        document.getElementById('profileStatus').value = profile.employment_status || 'active';
 
         profileModal.style.display = 'block';
     }
@@ -196,6 +211,23 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Save profile
     profileForm.addEventListener('submit', async function(e) {
         e.preventDefault();
+
+        const newStatus = document.getElementById('profileStatus').value;
+        const currentProfile = profiles?.find(p => p.employee_id === currentEmployeeId) || {};
+        const oldStatus = currentProfile.employment_status || 'active';
+
+        // Confirm if changing to terminated or admin leave
+        if (newStatus !== oldStatus) {
+            if (newStatus === 'terminated') {
+                if (!confirm('Are you sure you want to terminate this employee? This action will remove their access.')) {
+                    return;
+                }
+            } else if (newStatus === 'administrative_leave') {
+                if (!confirm('Are you sure you want to place this employee on administrative leave?')) {
+                    return;
+                }
+            }
+        }
 
         const profileData = {
             phone: document.getElementById('profilePhone').value.trim() || null,
@@ -209,14 +241,21 @@ document.addEventListener('DOMContentLoaded', async function() {
                 .split(',')
                 .map(s => s.trim())
                 .filter(s => s.length > 0),
-            notes: document.getElementById('profileNotes').value.trim() || null
+            notes: document.getElementById('profileNotes').value.trim() || null,
+            employment_status: newStatus,
+            status_changed_at: newStatus !== oldStatus ? new Date().toISOString() : currentProfile.status_changed_at
         };
 
         try {
             const result = await supabaseService.createOrUpdateEmployeeProfile(currentEmployeeId, profileData);
             
             if (result) {
-                alert('✅ Profile saved successfully!');
+                const statusMessages = {
+                    'active': 'Profile saved successfully!',
+                    'administrative_leave': 'Employee placed on administrative leave.',
+                    'terminated': 'Employee has been terminated.'
+                };
+                alert('✅ ' + statusMessages[newStatus]);
                 profileModal.style.display = 'none';
                 await loadProfiles();
             } else {

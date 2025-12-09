@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WaterROC - Task Templates</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/shifts.css">
+</head>
+<body>
+    <div class="dashboard">
+        <header class="dashboard-header">
+            <div class="header-left">
+                <h1>WaterROC</h1>
+            </div>
+            <div class="header-right">
+                <button id="notificationBtn" class="notification-btn">
+                    🔔
+                    <span id="notificationBadge" class="notification-badge">0</span>
+                </button>
+                <span class="user-info">Admin - Task Templates</span>
+                <button id="backBtn" class="btn-secondary">Back to Dashboard</button>
+                <button id="logoutBtn" class="btn-secondary">Logout</button>
+            </div>
+        </header>
+
+        <div class="dashboard-content">
+            <div class="shifts-container">
+                <div class="shifts-header">
+                    <h2>Task Templates</h2>
+                    <button id="addTemplateBtn" class="btn-primary">Add Task Template</button>
+                </div>
+
+                <div class="info-card" style="margin-bottom: 20px;">
+                    <h3>About Task Templates</h3>
+                    <p>Task templates are automatically assigned to employees based on their scheduled shifts. When an employee has a shift, these tasks will be created for them on the Gantt chart for that day.</p>
+                </div>
+
+                <div id="templatesList" class="templates-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Template Modal -->
+    <div id="templateModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeTemplateModal">&times;</span>
+            <h2 id="templateModalTitle">Add Task Template</h2>
+            <form id="templateForm">
+                <div class="form-group">
+                    <label for="templateTitle">Task Title</label>
+                    <input type="text" id="templateTitle" required placeholder="e.g., Morning Inspection">
+                </div>
+
+                <div class="form-group">
+                    <label for="templateDescription">Description</label>
+                    <textarea id="templateDescription" rows="3" placeholder="Task details..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="templateDuration">Duration (hours)</label>
+                    <input type="number" id="templateDuration" min="0.5" max="24" step="0.5" value="2" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="templatePriority">Priority</label>
+                    <select id="templatePriority" required>
+                        <option value="low">Low</option>
+                        <option value="normal" selected>Normal</option>
+                        <option value="high">High</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="templateAutoAssign" checked>
+                        Auto-assign to employees with shifts
+                    </label>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="cancelTemplateBtn">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Template</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="scripts/supabase.js"></script>
+    <script src="scripts/config.js"></script>
+    <script src="scripts/notifications.js"></script>
+    <script src="scripts/task-templates.js"></script>
+</body>
+</html>

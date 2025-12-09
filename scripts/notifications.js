@@ -68,8 +68,7 @@ class NotificationSystem {
             this.showBrowserNotification(title, message);
         }
         
-        // Play sound
-        this.playNotificationSound();
+      
         
         // Add to check-in system if available
         if (typeof checkInSystem !== 'undefined') {
