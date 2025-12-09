@@ -7,6 +7,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
     
+    // Initialize check-in system
+    if (typeof checkInSystem !== 'undefined') {
+        checkInSystem.init();
+    }
+    
     // Initialize notification system if available
     if (typeof notificationSystem !== 'undefined') {
         await notificationSystem.init();
@@ -43,6 +48,13 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Sync from Supabase AFTER gantt is initialized
         await syncFromSupabase();
     }
+    
+    // Show check-in dialog after everything is loaded
+    setTimeout(() => {
+        if (typeof checkInSystem !== 'undefined' && checkInSystem.shouldShowCheckIn()) {
+            checkInSystem.show('admin');
+        }
+    }, 500);
     
     // Sync data from Supabase
     async function syncFromSupabase() {
@@ -186,6 +198,74 @@ document.addEventListener('DOMContentLoaded', async function() {
         gantt.setDateRange(start, end);
         startDateInput.valueAsDate = gantt.startDate;
         endDateInput.valueAsDate = gantt.endDate;
+    });
+    
+    // Announcement Modal
+    const announcementModal = document.getElementById('announcementModal');
+    const sendAnnouncementBtn = document.getElementById('sendAnnouncementBtn');
+    const announcementForm = document.getElementById('announcementForm');
+    const cancelAnnouncementBtn = document.getElementById('cancelAnnouncementBtn');
+    
+    // Open announcement modal
+    sendAnnouncementBtn.addEventListener('click', function() {
+        announcementModal.style.display = 'block';
+        document.getElementById('announcementTitle').value = '';
+        document.getElementById('announcementMessage').value = '';
+        document.getElementById('announcementPriority').value = 'normal';
+    });
+    
+    // Close announcement modal
+    announcementModal.querySelectorAll('.close')[0].addEventListener('click', function() {
+        announcementModal.style.display = 'none';
+    });
+    
+    cancelAnnouncementBtn.addEventListener('click', function() {
+        announcementModal.style.display = 'none';
+    });
+    
+    // Submit announcement
+    announcementForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const title = document.getElementById('announcementTitle').value;
+        const message = document.getElementById('announcementMessage').value;
+        const priority = document.getElementById('announcementPriority').value;
+        
+        if (!title || !message) {
+            alert('Please fill in all fields');
+            return;
+        }
+        
+        // Show loading state
+        const submitBtn = announcementForm.querySelector('button[type="submit"]');
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = 'Sending...';
+        submitBtn.disabled = true;
+        
+        if (supabaseService.isReady()) {
+            const result = await supabaseService.createAnnouncement(title, message, priority);
+            
+            if (result) {
+                alert('✅ Announcement sent to all employees!');
+                announcementModal.style.display = 'none';
+                
+                // Add to notification system
+                if (typeof notificationSystem !== 'undefined') {
+                    notificationSystem.addNotification(
+                        'announcement-sent',
+                        `Your announcement "${title}" has been sent to all employees`
+                    );
+                }
+            } else {
+                alert('❌ Failed to send announcement. Please try again.');
+            }
+        } else {
+            alert('❌ Announcements require Supabase connection');
+        }
+        
+        // Reset button
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
     });
     
     // Save data manually

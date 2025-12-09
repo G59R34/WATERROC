@@ -7,6 +7,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
     
+    // Initialize check-in system
+    if (typeof checkInSystem !== 'undefined') {
+        checkInSystem.init();
+    }
+    
     // Initialize notification system if available
     if (typeof notificationSystem !== 'undefined') {
         await notificationSystem.init();
@@ -52,6 +57,13 @@ document.addEventListener('DOMContentLoaded', async function() {
         await supabaseService.loadCurrentUser();
         await syncFromSupabase();
     }
+    
+    // Show check-in dialog after everything is loaded
+    setTimeout(() => {
+        if (typeof checkInSystem !== 'undefined' && checkInSystem.shouldShowCheckIn()) {
+            checkInSystem.show('employee');
+        }
+    }, 500);
     
     // Sync data from Supabase
     async function syncFromSupabase() {

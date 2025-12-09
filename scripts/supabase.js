@@ -669,6 +669,147 @@ class SupabaseService {
     }
     
     // ==========================================
+    // ANNOUNCEMENT OPERATIONS
+    // ==========================================
+    
+    /**
+     * Create a new announcement
+     */
+    async createAnnouncement(title, message, priority = 'normal') {
+        if (!this.isReady() || !this.currentUser) return false;
+        
+        try {
+            const { data, error } = await this.client
+                .from('announcements')
+                .insert({
+                    title: title,
+                    message: message,
+                    priority: priority,
+                    created_by: this.currentUser.id
+                })
+                .select()
+                .single();
+            
+            if (error) throw error;
+            console.log('✅ Announcement created successfully');
+            return data;
+        } catch (error) {
+            console.error('Error creating announcement:', error);
+            return false;
+        }
+    }
+    
+    /**
+     * Get all announcements (ordered by newest first)
+     */
+    async getAnnouncements(limit = 50) {
+        if (!this.isReady()) return null;
+        
+        try {
+            const { data, error } = await this.client
+                .from('announcements')
+                .select(`
+                    *,
+                    creator:users!created_by(
+                        full_name,
+                        username
+                    )
+                `)
+                .order('created_at', { ascending: false })
+                .limit(limit);
+            
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('Error fetching announcements:', error);
+            return null;
+        }
+    }
+    
+    /**
+     * Get unread announcements for current user
+     */
+    async getUnreadAnnouncements() {
+        if (!this.isReady() || !this.currentUser) return null;
+        
+        try {
+            const { data, error } = await this.client
+                .from('announcements')
+                .select(`
+                    *,
+                    creator:users!created_by(
+                        full_name,
+                        username
+                    ),
+                    reads:announcement_reads(user_id)
+                `)
+                .order('created_at', { ascending: false });
+            
+            if (error) throw error;
+            
+            // Filter out announcements that current user has read
+            const unread = data.filter(announcement => {
+                const hasRead = announcement.reads?.some(
+                    read => read.user_id === this.currentUser.id
+                );
+                return !hasRead;
+            });
+            
+            return unread;
+        } catch (error) {
+            console.error('Error fetching unread announcements:', error);
+            return null;
+        }
+    }
+    
+    /**
+     * Mark announcement as read
+     */
+    async markAnnouncementAsRead(announcementId) {
+        if (!this.isReady() || !this.currentUser) return false;
+        
+        try {
+            const { error } = await this.client
+                .from('announcement_reads')
+                .insert({
+                    announcement_id: announcementId,
+                    user_id: this.currentUser.id
+                });
+            
+            if (error) throw error;
+            return true;
+        } catch (error) {
+            // Ignore duplicate key errors (already marked as read)
+            if (error.code === '23505') {
+                return true;
+            }
+            console.error('Error marking announcement as read:', error);
+            return false;
+        }
+    }
+    
+    /**
+     * Delete an announcement (admin only)
+     */
+    async deleteAnnouncement(announcementId) {
+        if (!this.isReady() || !this.isAdmin()) return false;
+        
+        try {
+            const { error } = await this.client
+                .from('announcements')
+                .delete()
+                .eq('id', announcementId);
+            
+            if (error) throw error;
+            console.log('✅ Announcement deleted successfully');
+            return true;
+        } catch (error) {
+            console.error('Error deleting announcement:', error);
+            return false;
+        }
+    }
+    
+    // ==========================================
     // SYNC OPERATIONS
     // ==========================================
     

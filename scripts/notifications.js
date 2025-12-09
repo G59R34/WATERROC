@@ -49,26 +49,58 @@ class NotificationSystem {
     addNotification(type, message, taskId = null) {
         const notification = {
             id: Date.now(),
-            type: type, // 'new_task', 'task_acknowledged', 'task_updated', 'task_deleted'
+            type: type,
             message: message,
             taskId: taskId,
-            timestamp: new Date().toISOString(),
+            timestamp: Date.now(),
             read: false
         };
         
         this.notifications.unshift(notification);
         this.unreadCount++;
         
+        // Update badge
+        this.updateBadge();
+        
+        // Show browser notification
+        if (type !== 'system') {
+            const title = this.getNotificationTitle(type);
+            this.showBrowserNotification(title, message);
+        }
+        
+        // Play sound
+        this.playNotificationSound();
+        
+        // Add to check-in system if available
+        if (typeof checkInSystem !== 'undefined') {
+            checkInSystem.addNotification(type, message);
+        }
+        
         // Keep only last 50 notifications
         if (this.notifications.length > 50) {
             this.notifications = this.notifications.slice(0, 50);
         }
-        
-        // Update UI
+    }
+    
+    /**
+     * Get notification title based on type
+     */
+    getNotificationTitle(type) {
+        const titles = {
+            'new-task': '📋 New Task Assigned',
+            'acknowledgement': '✅ Task Acknowledged',
+            'message': '💬 New Message',
+            'system': '🔔 System Notification',
+            'task-update': '📝 Task Updated'
+        };
+        return titles[type] || '🔔 Notification';
+    }
+    
+    /**
+     * Update badge (alias for updateNotificationBadge for compatibility)
+     */
+    updateBadge() {
         this.updateNotificationBadge();
-        this.renderNotifications();
-        
-        return notification;
     }
     
     /**

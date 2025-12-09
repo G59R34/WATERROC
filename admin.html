@@ -6,6 +6,7 @@
     <title>WaterROC - Admin Dashboard</title>
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/gantt.css">
+    <link rel="stylesheet" href="styles/checkin.css">
 </head>
 <body>
     <div class="dashboard">
@@ -30,6 +31,7 @@
                     <div class="control-group">
                         <button id="addEmployeeBtn" class="btn-primary">+ Add Employee</button>
                         <button id="addTaskBtn" class="btn-primary">+ Add Task</button>
+                        <button id="sendAnnouncementBtn" class="btn-warning">📢 Send Announcement</button>
                         <button id="saveDataBtn" class="btn-success">💾 Save Changes</button>
                         <button id="resetViewBtn" class="btn-secondary">🔄 Reset View</button>
                     </div>
@@ -213,6 +215,36 @@
         </div>
     </div>
     
+    <!-- Announcement Modal -->
+    <div id="announcementModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>📢 Send Global Announcement</h2>
+            <form id="announcementForm">
+                <div class="form-group">
+                    <label for="announcementTitle">Announcement Title</label>
+                    <input type="text" id="announcementTitle" placeholder="e.g., Team Meeting Tomorrow" required>
+                </div>
+                <div class="form-group">
+                    <label for="announcementMessage">Message</label>
+                    <textarea id="announcementMessage" rows="6" placeholder="Enter your announcement message..." required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="announcementPriority">Priority</label>
+                    <select id="announcementPriority">
+                        <option value="normal">Normal</option>
+                        <option value="important">Important</option>
+                        <option value="urgent">Urgent</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Send to All Employees</button>
+                    <button type="button" class="btn-secondary" id="cancelAnnouncementBtn">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
     <!-- Notification Panel -->
     <div class="notification-overlay" id="notificationOverlay"></div>
     <div class="notification-panel" id="notificationPanel">
@@ -232,6 +264,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="scripts/supabase.js"></script>
     <script src="scripts/config.js"></script>
+    <script src="scripts/checkin.js"></script>
     <script src="scripts/notifications.js"></script>
     <script src="scripts/gantt.js"></script>
     <script src="scripts/admin.js"></script>

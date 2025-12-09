@@ -153,6 +153,15 @@ body {
     background: #dc2626;
 }
 
+.btn-warning {
+    background: var(--warning-color);
+    color: white;
+}
+
+.btn-warning:hover {
+    background: #d97706;
+}
+
 .toggle-form {
     text-align: center;
     margin-top: 20px;
