@@ -1,3 +1,6 @@
+-- Drop the foreign key constraint if it exists (from previous schema)
+ALTER TABLE IF EXISTS task_logs DROP CONSTRAINT IF EXISTS task_logs_task_id_fkey;
+
 -- Tasks table to store all hourly tasks
 CREATE TABLE IF NOT EXISTS hourly_tasks (
     id BIGSERIAL PRIMARY KEY,
@@ -20,7 +23,7 @@ CREATE TABLE IF NOT EXISTS hourly_tasks (
 -- Task logs table for tracking all task events
 CREATE TABLE IF NOT EXISTS task_logs (
     id BIGSERIAL PRIMARY KEY,
-    task_id BIGINT REFERENCES hourly_tasks(id) ON DELETE SET NULL,
+    task_id BIGINT, -- No foreign key constraint to allow logging deleted tasks
     action TEXT NOT NULL CHECK (action IN ('created', 'modified', 'completed', 'deleted', 'acknowledged')),
     employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
     employee_name TEXT NOT NULL,
@@ -68,6 +71,11 @@ CREATE INDEX IF NOT EXISTS idx_task_statistics_date ON task_statistics(date);
 -- RLS Policies for hourly_tasks
 ALTER TABLE hourly_tasks ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Admins full access to hourly_tasks" ON hourly_tasks;
+DROP POLICY IF EXISTS "Employees view own hourly_tasks" ON hourly_tasks;
+DROP POLICY IF EXISTS "Employees update own hourly_tasks" ON hourly_tasks;
+
 -- Admins can do everything
 CREATE POLICY "Admins full access to hourly_tasks" ON hourly_tasks
     FOR ALL
@@ -104,6 +112,11 @@ CREATE POLICY "Employees update own hourly_tasks" ON hourly_tasks
 -- RLS Policies for task_logs
 ALTER TABLE task_logs ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Admins view all task_logs" ON task_logs;
+DROP POLICY IF EXISTS "Employees view own task_logs" ON task_logs;
+DROP POLICY IF EXISTS "Authenticated users insert task_logs" ON task_logs;
+
 -- Admins can view all logs
 CREATE POLICY "Admins view all task_logs" ON task_logs
     FOR SELECT
@@ -133,6 +146,11 @@ CREATE POLICY "Authenticated users insert task_logs" ON task_logs
 
 -- RLS Policies for task_statistics
 ALTER TABLE task_statistics ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Admins view all task_statistics" ON task_statistics;
+DROP POLICY IF EXISTS "Employees view own task_statistics" ON task_statistics;
+DROP POLICY IF EXISTS "Authenticated users update task_statistics" ON task_statistics;
 
 -- Admins can view all statistics
 CREATE POLICY "Admins view all task_statistics" ON task_statistics
@@ -171,6 +189,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to update modified_at on hourly_tasks
+DROP TRIGGER IF EXISTS update_hourly_tasks_modified_at ON hourly_tasks;
 CREATE TRIGGER update_hourly_tasks_modified_at
     BEFORE UPDATE ON hourly_tasks
     FOR EACH ROW
@@ -228,16 +247,19 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Triggers to automatically log task events
+DROP TRIGGER IF EXISTS log_task_insert ON hourly_tasks;
 CREATE TRIGGER log_task_insert
     AFTER INSERT ON hourly_tasks
     FOR EACH ROW
     EXECUTE FUNCTION log_task_event();
 
+DROP TRIGGER IF EXISTS log_task_update ON hourly_tasks;
 CREATE TRIGGER log_task_update
     AFTER UPDATE ON hourly_tasks
     FOR EACH ROW
     EXECUTE FUNCTION log_task_event();
 
+DROP TRIGGER IF EXISTS log_task_delete ON hourly_tasks;
 CREATE TRIGGER log_task_delete
     AFTER DELETE ON hourly_tasks
     FOR EACH ROW

@@ -990,12 +990,15 @@ document.addEventListener('DOMContentLoaded', async function() {
     async function deleteHourlyTask() {
         const taskId = parseInt(document.getElementById('editHourlyTaskId').value);
         
+        console.log('Attempting to delete task with ID:', taskId);
+        
         if (!supabaseService || !supabaseService.isReady()) {
-            alert('Supabase not connected');
+            alert('❌ Supabase not connected');
             return;
         }
         
         try {
+            console.log('Calling supabaseService.deleteHourlyTask...');
             await supabaseService.deleteHourlyTask(taskId);
             
             // Close modal
@@ -1003,6 +1006,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             // Refresh hourly gantt if open
             if (currentHourlyGantt) {
+                console.log('Re-rendering hourly gantt...');
                 await currentHourlyGantt.render();
             }
             

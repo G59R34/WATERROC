@@ -1165,7 +1165,11 @@ class SupabaseService {
      * Delete an hourly task
      */
     async deleteHourlyTask(taskId) {
-        if (!this.isReady()) return false;
+        if (!this.isReady()) {
+            throw new Error('Supabase client not initialized');
+        }
+
+        console.log('🗑️ Deleting hourly task:', taskId);
 
         const { error } = await this.client
             .from('hourly_tasks')
@@ -1173,11 +1177,11 @@ class SupabaseService {
             .eq('id', taskId);
 
         if (error) {
-            console.error('Error deleting hourly task:', error);
-            return false;
+            console.error('❌ Error deleting hourly task:', error);
+            throw error;
         }
 
-        console.log('✅ Hourly task deleted');
+        console.log('✅ Hourly task deleted:', taskId);
         return true;
     }
 
