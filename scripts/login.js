@@ -52,6 +52,23 @@ document.addEventListener('DOMContentLoaded', async function() {
             await supabaseService.loadCurrentUser();
             const user = supabaseService.getCurrentUser();
             if (user) {
+                // Check employment status before allowing access
+                const { data: profile } = await supabaseService.client
+                    .from('employee_profiles')
+                    .select('employment_status')
+                    .eq('employee_id', user.id)
+                    .single();
+                
+                const employmentStatus = profile?.employment_status || 'active';
+                
+                if (employmentStatus === 'terminated' || employmentStatus === 'administrative_leave') {
+                    // Revoke access and force re-login
+                    await supabaseService.signOut();
+                    sessionStorage.clear();
+                    alert('Your account access has been revoked. Please contact an administrator.');
+                    return;
+                }
+                
                 redirectToApp(user.is_admin);
                 return;
             }
@@ -162,6 +179,55 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             if (error) {
                 throw new Error(error);
+            }
+            
+            // Check employment status IMMEDIATELY after sign in, before loading user
+            const session = await supabaseService.getSession();
+            if (session?.user) {
+                // Get the user record first to find the associated employee
+                const { data: userData, error: userError } = await supabaseService.client
+                    .from('users')
+                    .select('id')
+                    .eq('auth_id', session.user.id)
+                    .single();
+                
+                console.log('User data:', userData, 'Error:', userError);
+                
+                if (userData) {
+                    // Get the employee record
+                    const { data: employeeData, error: empError } = await supabaseService.client
+                        .from('employees')
+                        .select('id, role')
+                        .eq('user_id', userData.id)
+                        .single();
+                    
+                    console.log('Employee data:', employeeData, 'Error:', empError);
+                    
+                    if (employeeData) {
+                        // Check the employee_profiles for employment status
+                        const { data: profile, error: profileError } = await supabaseService.client
+                            .from('employee_profiles')
+                            .select('employment_status')
+                            .eq('employee_id', employeeData.id)
+                            .maybeSingle();
+                        
+                        console.log('Profile data:', profile, 'Error:', profileError);
+                        
+                        const employmentStatus = profile?.employment_status || 'active';
+                        
+                        console.log('Employment status:', employmentStatus);
+                        
+                        if (employmentStatus === 'terminated') {
+                            await supabaseService.signOut();
+                            throw new Error('Your employment has been terminated. Access denied.');
+                        }
+                        
+                        if (employmentStatus === 'administrative_leave') {
+                            await supabaseService.signOut();
+                            throw new Error('You are currently on administrative leave. Access denied.');
+                        }
+                    }
+                }
             }
             
             const user = supabaseService.getCurrentUser();

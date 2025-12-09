@@ -60,6 +60,27 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         
         await supabaseService.loadCurrentUser();
+        const currentUser = supabaseService.getCurrentUser();
+        
+        // Check employment status
+        if (currentUser) {
+            const { data: profile } = await supabaseService.client
+                .from('employee_profiles')
+                .select('employment_status')
+                .eq('employee_id', currentUser.id)
+                .single();
+            
+            const employmentStatus = profile?.employment_status || 'active';
+            
+            if (employmentStatus === 'terminated' || employmentStatus === 'administrative_leave') {
+                alert('Your account access has been revoked. Please contact an administrator.');
+                await supabaseService.signOut();
+                sessionStorage.clear();
+                window.location.href = 'index.html';
+                return;
+            }
+        }
+        
         await syncFromSupabase();
     }
     

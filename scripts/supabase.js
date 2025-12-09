@@ -906,6 +906,8 @@ class SupabaseService {
                 employee_id: employeeId,
                 ...profileData,
                 updated_at: new Date().toISOString()
+            }, {
+                onConflict: 'employee_id'
             })
             .select()
             .single();
