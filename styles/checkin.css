@@ -283,14 +283,99 @@
 @media (max-width: 768px) {
     .checkin-dialog {
         width: 95%;
+        max-width: 95%;
         max-height: 90vh;
+    }
+    
+    .checkin-header {
+        padding: 20px;
     }
     
     .checkin-header h2 {
         font-size: 1.5rem;
     }
     
+    .checkin-header .welcome-text {
+        font-size: 1rem;
+    }
+    
+    .checkin-header .date-time {
+        font-size: 0.85rem;
+    }
+    
+    .checkin-body {
+        padding: 20px;
+    }
+    
+    .checkin-section h3 {
+        font-size: 1rem;
+    }
+    
     .checkin-stats {
         grid-template-columns: 1fr;
+    }
+    
+    .task-item {
+        padding: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .checkin-dialog {
+        width: 100%;
+        max-width: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+    }
+    
+    .checkin-header {
+        padding: 15px;
+    }
+    
+    .checkin-header h2 {
+        font-size: 1.25rem;
+    }
+    
+    .checkin-header .welcome-text {
+        font-size: 0.9rem;
+    }
+    
+    .checkin-header .date-time {
+        font-size: 0.8rem;
+    }
+    
+    .checkin-body {
+        padding: 15px;
+        max-height: calc(100vh - 200px);
+    }
+    
+    .checkin-section {
+        margin-bottom: 20px;
+    }
+    
+    .checkin-section h3 {
+        font-size: 0.95rem;
+    }
+    
+    .checkin-button {
+        padding: 14px;
+        font-size: 0.95rem;
+    }
+    
+    .task-item {
+        padding: 10px;
+        font-size: 0.85rem;
+    }
+    
+    .stat-card {
+        padding: 12px;
+    }
+    
+    .stat-value {
+        font-size: 1.5rem;
+    }
+    
+    .stat-label {
+        font-size: 0.8rem;
     }
 }
