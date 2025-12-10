@@ -59,6 +59,25 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Immediate authentication check - runs before page loads
+        (function() {
+            const employmentStatus = sessionStorage.getItem('employmentStatus');
+            const userRole = sessionStorage.getItem('userRole');
+            
+            // Check if user is on extended leave
+            if (employmentStatus === 'extended_leave') {
+                window.location.href = 'extended-leave.html';
+                return;
+            }
+            
+            // Check if user is authenticated
+            if (!userRole || userRole !== 'employee') {
+                window.location.href = 'index.html';
+                return;
+            }
+        })();
+    </script>
     <script src="scripts/config.js"></script>
     <script src="scripts/supabase.js"></script>
     <script src="scripts/task-logger.js"></script>

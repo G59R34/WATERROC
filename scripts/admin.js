@@ -64,6 +64,11 @@ document.addEventListener('DOMContentLoaded', async function() {
                 window.location.href = 'index.html';
                 return;
             }
+            
+            if (employmentStatus === 'extended_leave') {
+                window.location.href = 'extended-leave.html';
+                return;
+            }
         }
         
         // Sync from Supabase AFTER gantt is initialized

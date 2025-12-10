@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WaterROC - Extended Leave Status</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <style>
+        .extended-leave-container {
+            max-width: 1000px;
+            margin: 50px auto;
+            padding: 30px;
+        }
+        .status-banner {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 40px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .status-banner h1 {
+            margin: 0 0 10px 0;
+            font-size: 32px;
+        }
+        .status-banner p {
+            margin: 0;
+            font-size: 18px;
+            opacity: 0.95;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+        .info-card {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .info-card h3 {
+            margin: 0 0 15px 0;
+            color: #1f2937;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .info-card .icon {
+            font-size: 24px;
+        }
+        .info-card p {
+            margin: 8px 0;
+            color: #6b7280;
+            line-height: 1.6;
+        }
+        .announcements-section {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        .announcements-section h2 {
+            margin: 0 0 20px 0;
+            color: #1f2937;
+        }
+        .announcement-item {
+            padding: 15px;
+            background: #f9fafb;
+            border-left: 4px solid var(--primary-color);
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+        .announcement-item h4 {
+            margin: 0 0 8px 0;
+            color: #1f2937;
+        }
+        .announcement-item p {
+            margin: 0;
+            color: #6b7280;
+            font-size: 14px;
+        }
+        .announcement-date {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-top: 8px;
+        }
+        .contact-section {
+            background: #f0f9ff;
+            border: 2px solid #bfdbfe;
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+        }
+        .contact-section h3 {
+            margin: 0 0 15px 0;
+            color: #1e40af;
+        }
+        .contact-section p {
+            margin: 8px 0;
+            color: #1e3a8a;
+        }
+        .logout-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 30px;
+        }
+        .logout-btn:hover {
+            background: #dc2626;
+        }
+    </style>
+</head>
+<body>
+    <div class="extended-leave-container">
+        <div class="status-banner">
+            <h1>🏖️ Extended Leave Status</h1>
+            <p>Welcome back! You are currently on extended leave. Here's what you need to know:</p>
+        </div>
+
+        <div class="info-grid">
+            <div class="info-card">
+                <h3><span class="icon">👤</span> Your Status</h3>
+                <p><strong>Name:</strong> <span id="employeeName">Loading...</span></p>
+                <p><strong>Status:</strong> Extended Leave</p>
+                <p><strong>Access Level:</strong> View Only</p>
+            </div>
+
+            <div class="info-card">
+                <h3><span class="icon">📅</span> Important Dates</h3>
+                <p><strong>Today:</strong> <span id="currentDate"></span></p>
+                <p id="returnDateInfo" style="display: none;"><strong>Expected Return:</strong> <span id="returnDate"></span></p>
+            </div>
+
+            <div class="info-card">
+                <h3><span class="icon">ℹ️</span> Access Information</h3>
+                <p>While on extended leave, you have limited access to the system.</p>
+                <p>You can view company announcements and contact information only.</p>
+            </div>
+        </div>
+
+        <div class="announcements-section">
+            <h2>📢 Company Announcements</h2>
+            <div id="announcementsList">
+                <div style="text-align: center; color: #9ca3af; padding: 20px;">
+                    Loading announcements...
+                </div>
+            </div>
+        </div>
+
+        <div class="contact-section">
+            <h3>📞 Need Assistance?</h3>
+            <p>If you have questions about your leave status or need to make changes, please contact:</p>
+            <p><strong>HR Department</strong></p>
+            <p>Email: mrsirmaam34@gmail.com</p>
+            
+        </div>
+
+        <div style="text-align: center;">
+            <button id="logoutBtn" class="logout-btn">Logout</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="scripts/config.js"></script>
+    <script src="scripts/supabase.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Set current date
+            const today = new Date();
+            document.getElementById('currentDate').textContent = today.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+
+            // Check authentication
+            if (typeof supabaseService === 'undefined') {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            // Wait for Supabase to initialize
+            let attempts = 0;
+            while (!supabaseService.isReady() && attempts < 50) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+
+            if (!supabaseService.isReady()) {
+                alert('Connection error. Please refresh the page.');
+                return;
+            }
+
+            // Load current user
+            await supabaseService.loadCurrentUser();
+            const user = await supabaseService.getCurrentUser();
+
+            if (!user) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            // Display user name
+            document.getElementById('employeeName').textContent = user.full_name || user.username;
+
+            // Load announcements
+            await loadAnnouncements();
+
+            // Logout handler
+            document.getElementById('logoutBtn').addEventListener('click', async () => {
+                await supabaseService.signOut();
+                sessionStorage.clear();
+                window.location.href = 'index.html';
+            });
+        });
+
+        async function loadAnnouncements() {
+            try {
+                const { data: announcements, error } = await supabaseService.client
+                    .from('announcements')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+
+                const announcementsList = document.getElementById('announcementsList');
+
+                if (error) {
+                    console.error('Error loading announcements:', error);
+                    announcementsList.innerHTML = '<p style="text-align: center; color: #9ca3af;">Unable to load announcements</p>';
+                    return;
+                }
+
+                if (!announcements || announcements.length === 0) {
+                    announcementsList.innerHTML = '<p style="text-align: center; color: #9ca3af;">No announcements at this time</p>';
+                    return;
+                }
+
+                announcementsList.innerHTML = announcements.map(announcement => {
+                    const date = new Date(announcement.created_at).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                    });
+                    
+                    return `
+                        <div class="announcement-item">
+                            <h4>${announcement.title}</h4>
+                            <p>${announcement.message}</p>
+                            <div class="announcement-date">Posted on ${date}</div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Error loading announcements:', error);
+                document.getElementById('announcementsList').innerHTML = 
+                    '<p style="text-align: center; color: #9ca3af;">Error loading announcements</p>';
+            }
+        }
+    </script>
+</body>
+</html>

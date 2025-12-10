@@ -69,6 +69,12 @@ document.addEventListener('DOMContentLoaded', async function() {
                     return;
                 }
                 
+                if (employmentStatus === 'extended_leave') {
+                    // Redirect to extended leave page
+                    window.location.href = 'extended-leave.html';
+                    return;
+                }
+                
                 redirectToApp(user.is_admin);
                 return;
             }
@@ -225,6 +231,16 @@ document.addEventListener('DOMContentLoaded', async function() {
                         if (employmentStatus === 'administrative_leave') {
                             await supabaseService.signOut();
                             throw new Error('You are currently on administrative leave. Access denied.');
+                        }
+                        
+                        if (employmentStatus === 'extended_leave') {
+                            // Allow login but redirect to extended leave page
+                            sessionStorage.setItem('employmentStatus', 'extended_leave');
+                            sessionStorage.setItem('userRole', role);
+                            sessionStorage.setItem('username', username);
+                            sessionStorage.setItem('userId', userData.id);
+                            window.location.href = 'extended-leave.html';
+                            return;
                         }
                     }
                 }

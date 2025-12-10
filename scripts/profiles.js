@@ -226,6 +226,10 @@ document.addEventListener('DOMContentLoaded', async function() {
                 if (!confirm('Are you sure you want to place this employee on administrative leave?')) {
                     return;
                 }
+            } else if (newStatus === 'extended_leave') {
+                if (!confirm('Are you sure you want to place this employee on extended leave? They will have limited access.')) {
+                    return;
+                }
             }
         }
 
@@ -253,9 +257,10 @@ document.addEventListener('DOMContentLoaded', async function() {
                 const statusMessages = {
                     'active': 'Profile saved successfully!',
                     'administrative_leave': 'Employee placed on administrative leave.',
+                    'extended_leave': 'Employee placed on extended leave.',
                     'terminated': 'Employee has been terminated.'
                 };
-                alert('✅ ' + statusMessages[newStatus]);
+                alert('✅ ' + (statusMessages[newStatus] || 'Profile saved successfully!'));
                 profileModal.style.display = 'none';
                 await loadProfiles();
             } else {
