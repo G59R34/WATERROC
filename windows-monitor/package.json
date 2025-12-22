@@ -1,0 +1,14 @@
+{
+  "name": "waterroc-windows-monitor",
+  "version": "0.1.0",
+  "description": "Windows activity monitor for WaterROC (scaffold). Sends activity logs to Supabase.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "active-win": "^7.5.0",
+    "@supabase/supabase-js": "^2.0.0",
+    "electron": "^25.0.0"
+  }
+}

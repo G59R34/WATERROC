@@ -165,16 +165,33 @@ document.addEventListener('DOMContentLoaded', async function() {
                 console.warn('Supabase not available for loading employee ID');
                 return;
             }
+            // Prefer lookup by linked user_id (more reliable). currentEmployee.id is the users.id UUID.
+            const userId = currentEmployee.id;
+            if (userId) {
+                const { data: employees } = await supabaseService.client
+                    .from('employees')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .limit(1);
 
-            // Get employee record by matching name
-            const { data: employees } = await supabaseService.client
+                if (employees && employees.length > 0) {
+                    const employeeId = employees[0].id;
+                    console.log('Employee ID loaded by user_id:', employeeId);
+                    currentEmployee.employeeId = employeeId;
+                    return;
+                }
+            }
+
+            // Fallback: match by name if no user link
+            const { data: employeesByName } = await supabaseService.client
                 .from('employees')
                 .select('*')
-                .eq('name', currentEmployee.name);
-            
-            if (employees && employees.length > 0) {
-                const employeeId = employees[0].id;
-                console.log('Employee ID loaded:', employeeId);
+                .eq('name', currentEmployee.name)
+                .limit(1);
+
+            if (employeesByName && employeesByName.length > 0) {
+                const employeeId = employeesByName[0].id;
+                console.log('Employee ID loaded by name fallback:', employeeId);
                 currentEmployee.employeeId = employeeId;
             } else {
                 console.warn('No employee record found for', currentEmployee.name);
@@ -320,11 +337,22 @@ document.addEventListener('DOMContentLoaded', async function() {
             // Filter tasks for current employee using the employeeId we got from the employees table
             if (currentEmployee.employeeId) {
                 // Fetch tasks from Supabase for this employee and today's date
-                tasks = await supabaseService.getHourlyTasks(today, today, currentEmployee.employeeId);
-                console.log('Tasks loaded from Supabase:', tasks);
+                tasks = await supabaseService.getHourlyTasks(today, today, currentEmployee.employeeId) || [];
+                console.log('Tasks loaded for employeeId from Supabase:', currentEmployee.employeeId, tasks.length);
             } else {
-                console.warn('No employeeId set, cannot filter tasks');
-                tasks = [];
+                console.warn('No employeeId set, attempting fallback fetch for all hourly tasks and matching by name');
+                // Fetch all hourly tasks for the date and try to find matching by employee name
+                const allTasks = await supabaseService.getHourlyTasks(today, today, null) || [];
+                console.log('Fetched all tasks for date (fallback):', allTasks.length);
+                tasks = allTasks.filter(t => {
+                    // Supabase returns related employee as `employees` per getHourlyTasks
+                    const emp = t.employees || t.employee || null;
+                    if (!emp) return false;
+                    if (emp.id && currentEmployee.employeeId && emp.id === currentEmployee.employeeId) return true;
+                    if (emp.name && currentEmployee.name && emp.name === currentEmployee.name) return true;
+                    return false;
+                });
+                console.log('Tasks after name/id matching fallback:', tasks.length);
             }
             
             renderTasks();

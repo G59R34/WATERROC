@@ -205,7 +205,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         e.preventDefault();
         
         try {
-            // Sign out from Supabase first
+            // Clean up employee status monitoring first
+            if (typeof employeeStatusMonitor !== 'undefined') {
+                employeeStatusMonitor.cleanup();
+            }
+            
+            // Sign out from Supabase
             if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
                 console.log('Signing out from Supabase...');
                 await supabaseService.signOut();

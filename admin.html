@@ -166,6 +166,23 @@
             </form>
         </div>
     </div>
+
+    <!-- Shift Scheduling / Attendance Modal -->
+    <div id="shiftSchedulingModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2>🕒 Shift Scheduling & Attendance</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p>Below are clock-in/out sessions grouped by employee. Shows recent sessions.</p>
+                <div id="attendanceByEmployee">Loading attendance...</div>
+            </div>
+            <div class="modal-actions">
+                <button id="closeShiftScheduling" class="btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
     
     <!-- Edit Task Modal -->
     <div id="editTaskModal" class="modal">
@@ -446,7 +463,9 @@
     </script>
     <script src="scripts/supabase.js"></script>
     <script src="scripts/config.js"></script>
-    <script src="scripts/task-logger.js"></script>
+    <script src="scripts/employee-status-monitor.js"></script>
+    <script src="scripts/checkin.js"></script>
+    <script src="scripts/time-admin.js"></script>
     <script src="scripts/notifications.js"></script>
     <script src="scripts/announcement-banner.js"></script>
     <script src="scripts/gantt.js"></script>

@@ -1,0 +1,396 @@
+<!-- Test Page for Employee Status Monitoring -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Status Monitor Test</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <style>
+        .test-container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        
+        .status-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 15px 0;
+        }
+        
+        .status-btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .btn-terminated { background-color: #dc2626; }
+        .btn-admin-leave { background-color: #ea580c; }
+        .btn-suspended { background-color: #7c2d12; }
+        .btn-active { background-color: #16a34a; }
+        .btn-extended-leave { background-color: #ca8a04; }
+        
+        .monitor-status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        .status-active { background-color: #dcfce7; color: #166534; }
+        .status-inactive { background-color: #fecaca; color: #991b1b; }
+        .status-warning { background-color: #fef3c7; color: #92400e; }
+        
+        .log-area {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            margin-top: 15px;
+        }
+        
+        .current-user-info {
+            background: #e0f2fe;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        
+        /* Debug panel styles */
+        #debugPanel {
+            background: #222;
+            color: #eee;
+            padding: 10px;
+            border-radius: 8px;
+            min-height: 80px;
+            font-family: monospace;
+            font-size: 13px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🔍 Employee Status Monitor Test</h1>
+        <p>This page demonstrates the real-time employee status monitoring system with "womp womp" logout functionality.</p>
+        
+        <div class="current-user-info">
+            <h3>Current User Info</h3>
+            <div id="userInfo">Loading user information...</div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Monitor Status</h3>
+            <div id="monitorStatus" class="monitor-status status-warning">
+                🔄 Initializing monitoring system...
+            </div>
+            <p><strong>Current Employment Status:</strong> <span id="currentStatus">Checking...</span></p>
+        </div>
+        
+        <div class="test-section">
+            <h3>🧪 Test Status Changes</h3>
+            <p>Click these buttons to simulate employee status changes and trigger the "womp womp" logout:</p>
+            <div class="status-buttons">
+                <button class="status-btn btn-terminated" onclick="testStatusChange('terminated')">
+                    🚪 Terminate Employee
+                </button>
+                <button class="status-btn btn-admin-leave" onclick="testStatusChange('administrative_leave')">
+                    ⚠️ Administrative Leave
+                </button>
+                <button class="status-btn btn-suspended" onclick="testStatusChange('suspended')">
+                    🚫 Suspend Employee
+                </button>
+                <button class="status-btn btn-extended-leave" onclick="testStatusChange('extended_leave')">
+                    😴 Extended Leave
+                </button>
+                <button class="status-btn btn-active" onclick="testStatusChange('active')">
+                    ✅ Reactivate Employee
+                </button>
+            </div>
+            <p class="text-sm text-gray-600">
+                <strong>Note:</strong> Status changes that result in inactive status (terminated, administrative_leave, suspended) 
+                will trigger the "womp womp" logout after a 3-second countdown.
+            </p>
+        </div>
+        
+        <div class="test-section">
+            <h3>🔧 Manual Testing</h3>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <button onclick="window.testEmployeeStatusMonitor?.checkStatus()" class="btn-primary">
+                    🔍 Check Status Now
+                </button>
+                <button onclick="window.testEmployeeStatusChange?.()" class="btn-warning">
+                    🧪 Run Full Test
+                </button>
+                <button onclick="console.log('Monitor Info:', window.testEmployeeStatusMonitor?.getInfo())" class="btn-secondary">
+                    ℹ️ Show Monitor Info
+                </button>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>📊 Real-time Monitoring Log</h3>
+            <button onclick="clearLog()" class="btn-secondary" style="margin-bottom: 10px;">Clear Log</button>
+            <div id="logArea" class="log-area">
+                <div class="log-entry">🔄 Monitoring system starting up...</div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>🪲 Debug Panel</h3>
+            <div id="debugPanel"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>ℹ️ How It Works</h3>
+            <ul>
+                <li><strong>Real-time Database Subscription:</strong> Monitors the employee_profiles table for status changes</li>
+                <li><strong>Backup Polling:</strong> Falls back to periodic status checks every 30 seconds if real-time fails</li>
+                <li><strong>Immediate Logout:</strong> Users with inactive status are logged out with a dramatic "womp womp" message</li>
+                <li><strong>Status Categories:</strong>
+                    <ul>
+                        <li><span style="color: #dc2626;">Terminated/Suspended/Admin Leave:</span> Immediate logout with womp womp</li>
+                        <li><span style="color: #ca8a04;">Extended Leave:</span> Redirect to extended leave page</li>
+                        <li><span style="color: #16a34a;">Active:</span> Normal system access</li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        
+        <div class="test-section">
+            <a href="employee.html" class="btn-secondary">← Back to Employee Dashboard</a>
+            <a href="admin.html" class="btn-primary">Admin Dashboard</a>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="scripts/supabase.js"></script>
+    <script src="scripts/config.js"></script>
+    <script src="scripts/employee-status-monitor.js"></script>
+    <script src="test-status-script.js"></script>
+    
+    <script>
+        let currentEmployeeId = null;
+        let currentUserId = null;
+        
+        // Initialize test page
+        document.addEventListener('DOMContentLoaded', async function() {
+            await initializeTestPage();
+        });
+        
+        async function initializeTestPage() {
+            logMessage('🚀 Initializing test page...');
+            
+            // Load current user info
+            await loadUserInfo();
+            
+            // Check monitor status
+            setTimeout(checkMonitorStatus, 2000);
+            
+            // Set up periodic status checks
+            setInterval(checkCurrentEmploymentStatus, 5000);
+        }
+        
+        async function loadUserInfo() {
+            try {
+                if (!window.supabaseService || !window.supabaseService.isReady()) {
+                    document.getElementById('userInfo').innerHTML = '⚠️ Supabase not connected - using demo mode';
+                    return;
+                }
+                
+                const session = await window.supabaseService.getSession();
+                if (!session?.user) {
+                    document.getElementById('userInfo').innerHTML = '❌ No active session found';
+                    return;
+                }
+                
+                // Get user data
+                const { data: userData, error: userError } = await window.supabaseService.client
+                    .from('users')
+                    .select('id, username, email')
+                    .eq('auth_id', session.user.id)
+                    .single();
+                
+                if (userError || !userData) {
+                    document.getElementById('userInfo').innerHTML = '❌ Failed to load user data';
+                    return;
+                }
+                
+                currentUserId = userData.id;
+                
+                // Get employee data
+                const { data: employeeData, error: empError } = await window.supabaseService.client
+                    .from('employees')
+                    .select('id, name, role')
+                    .eq('user_id', userData.id)
+                    .single();
+                
+                if (empError || !employeeData) {
+                    document.getElementById('userInfo').innerHTML = '❌ Failed to load employee data';
+                    return;
+                }
+                
+                currentEmployeeId = employeeData.id;
+                
+                document.getElementById('userInfo').innerHTML = `
+                    <strong>User:</strong> ${userData.username} (${userData.email})<br>
+                    <strong>Employee:</strong> ${employeeData.name} (${employeeData.role})<br>
+                    <strong>Employee ID:</strong> ${currentEmployeeId}
+                `;
+                
+                logMessage(`✅ User loaded: ${userData.username} (Employee ID: ${currentEmployeeId})`);
+                
+            } catch (error) {
+                console.error('Error loading user info:', error);
+                document.getElementById('userInfo').innerHTML = '❌ Error loading user information';
+            }
+        }
+        
+        function checkMonitorStatus() {
+            const monitor = window.employeeStatusMonitor;
+            const statusElement = document.getElementById('monitorStatus');
+            
+            if (monitor && monitor.isActive) {
+                statusElement.className = 'monitor-status status-active';
+                statusElement.innerHTML = '✅ Real-time monitoring ACTIVE';
+                logMessage('✅ Monitoring system is active and working');
+            } else if (monitor) {
+                statusElement.className = 'monitor-status status-warning';
+                statusElement.innerHTML = '⚠️ Monitor exists but not active';
+                logMessage('⚠️ Monitor exists but not active');
+            } else {
+                statusElement.className = 'monitor-status status-inactive';
+                statusElement.innerHTML = '❌ Monitor not found';
+                logMessage('❌ Employee status monitor not found');
+            }
+        }
+        
+        async function checkCurrentEmploymentStatus() {
+            if (!currentEmployeeId || !window.supabaseService || !window.supabaseService.isReady()) {
+                return;
+            }
+            
+            try {
+                const { data: profile, error } = await window.supabaseService.client
+                    .from('employee_profiles')
+                    .select('employment_status')
+                    .eq('employee_id', currentEmployeeId)
+                    .single();
+                
+                if (error) {
+                    document.getElementById('currentStatus').textContent = 'Error checking status';
+                    return;
+                }
+                
+                const status = profile?.employment_status || 'active';
+                document.getElementById('currentStatus').textContent = status;
+                
+            } catch (error) {
+                console.error('Error checking employment status:', error);
+            }
+        }
+        
+        async function testStatusChange(newStatus) {
+            if (!currentEmployeeId) {
+                alert('No employee ID available for testing');
+                return;
+            }
+            
+            if (!window.supabaseService || !window.supabaseService.isReady()) {
+                alert('Supabase not connected - cannot test status changes');
+                return;
+            }
+            
+            logMessage(`🧪 Testing status change to: ${newStatus}`);
+            
+            try {
+                // Update the employee status in the database
+                const { error } = await window.supabaseService.client
+                    .from('employee_profiles')
+                    .upsert({
+                        employee_id: currentEmployeeId,
+                        employment_status: newStatus,
+                        updated_at: new Date().toISOString()
+                    });
+                
+                if (error) {
+                    logMessage(`❌ Failed to update status: ${error.message}`);
+                    alert(`Failed to update status: ${error.message}`);
+                    return;
+                }
+                
+                logMessage(`✅ Status updated to: ${newStatus}`);
+                
+                // The real-time monitoring system should pick this up automatically
+                if (['terminated', 'administrative_leave', 'suspended'].includes(newStatus)) {
+                    logMessage('🚨 Inactive status detected - monitoring should trigger logout');
+                }
+                
+            } catch (error) {
+                console.error('Error updating status:', error);
+                logMessage(`❌ Error: ${error.message}`);
+                alert(`Error updating status: ${error.message}`);
+            }
+        }
+        
+        function logMessage(message) {
+            const logArea = document.getElementById('logArea');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.innerHTML = `<span style="color: #666;">[${timestamp}]</span> ${message}`;
+            logArea.appendChild(logEntry);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+        
+        function clearLog() {
+            document.getElementById('logArea').innerHTML = '<div class="log-entry">🔄 Log cleared...</div>';
+        }
+        
+        // Debug panel logging
+        function debugLog(msg) {
+            const panel = document.getElementById('debugPanel');
+            if (panel) {
+                const entry = document.createElement('div');
+                entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+                panel.appendChild(entry);
+                panel.scrollTop = panel.scrollHeight;
+            }
+            console.log('[DEBUG]', msg);
+        }
+        
+        // Patch monitor to use debugLog
+        if (window.employeeStatusMonitor) {
+            const origLog = console.log;
+            console.log = function(...args) {
+                debugLog(args.map(a => (typeof a === 'object' ? JSON.stringify(a) : a)).join(' '));
+                origLog.apply(console, args);
+            };
+        }
+        
+        // Listen for monitoring events
+        document.addEventListener('employeeStatusChanged', function(event) {
+            logMessage(`📢 Status change event: ${JSON.stringify(event.detail)}`);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>WaterROC Monitor</title>
+    <style>
+      body { font-family: Arial, sans-serif; padding: 20px; }
+      .status { margin-top: 10px; }
+    </style>
+  </head>
+  <body>
+    <h2>WaterROC Windows Monitor (scaffold)</h2>
+    <p>This app will capture active window/app and send periodic logs to Supabase.</p>
+    <div>
+      <button id="startBtn">Start</button>
+      <button id="stopBtn">Stop</button>
+    </div>
+    <div class="status" id="status">Idle</div>
+    <script>
+      const startBtn = document.getElementById('startBtn');
+      const stopBtn = document.getElementById('stopBtn');
+      const status = document.getElementById('status');
+
+      startBtn.addEventListener('click', () => {
+        status.textContent = 'Started - monitor running (see README for setup)';
+        // In a full implementation this would start periodic capture and send to supabase
+      });
+
+      stopBtn.addEventListener('click', () => {
+        status.textContent = 'Stopped';
+      });
+    </script>
+  </body>
+</html>
