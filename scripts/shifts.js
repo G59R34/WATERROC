@@ -502,10 +502,19 @@ document.addEventListener('DOMContentLoaded', async function() {
             document.querySelectorAll('.btn-approve').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     const requestId = parseInt(btn.dataset.requestId);
+                    const request = timeOffRequests.find(r => r.id === requestId);
+                    
+                    if (!request) {
+                        alert('Request not found.');
+                        return;
+                    }
+                    
                     const result = await supabaseService.updateTimeOffRequest(requestId, { status: 'approved' });
                     if (result) {
-                        alert('Time off request approved! Exception logs have been created to block scheduling during this period.');
+                        // Tasks and shifts are automatically deleted in updateTimeOffRequest
+                        alert('Time off request approved!\n\nAll tasks and shifts within this period have been deleted.\nException logs have been created to block scheduling during this period.');
                         await loadTimeOffRequests();
+                        await loadShifts(); // Refresh shifts to show deletions
                         // Refresh the calendar view if it exists
                         if (typeof renderCalendar === 'function') {
                             await renderCalendar();
@@ -573,6 +582,113 @@ document.addEventListener('DOMContentLoaded', async function() {
         return div.innerHTML;
     }
 
+    // ==========================================
+    // ADMIN: Assign Time Off Directly
+    // ==========================================
+    const assignTimeOffModal = document.getElementById('assignTimeOffModal');
+    const assignTimeOffBtn = document.getElementById('assignTimeOffBtn');
+    const assignTimeOffForm = document.getElementById('assignTimeOffForm');
+    const closeAssignTimeOffModal = document.getElementById('closeAssignTimeOffModal');
+    const cancelAssignTimeOffBtn = document.getElementById('cancelAssignTimeOffBtn');
+
+    // Open modal
+    assignTimeOffBtn.addEventListener('click', async () => {
+        // Populate employee dropdown
+        const employeeSelect = document.getElementById('assignTimeOffEmployee');
+        employeeSelect.innerHTML = '<option value="">Select Employee...</option>';
+        
+        employees.forEach(emp => {
+            const option = document.createElement('option');
+            option.value = emp.id;
+            option.textContent = emp.name;
+            employeeSelect.appendChild(option);
+        });
+
+        // Set default dates (today and tomorrow)
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
+        document.getElementById('assignTimeOffStartDate').value = today.toISOString().split('T')[0];
+        document.getElementById('assignTimeOffEndDate').value = tomorrow.toISOString().split('T')[0];
+        document.getElementById('assignTimeOffReason').value = '';
+
+        assignTimeOffModal.style.display = 'block';
+    });
+
+    // Close modal
+    closeAssignTimeOffModal.addEventListener('click', () => {
+        assignTimeOffModal.style.display = 'none';
+    });
+
+    cancelAssignTimeOffBtn.addEventListener('click', () => {
+        assignTimeOffModal.style.display = 'none';
+    });
+
+    window.addEventListener('click', (e) => {
+        if (e.target === assignTimeOffModal) {
+            assignTimeOffModal.style.display = 'none';
+        }
+    });
+
+    // Submit form
+    assignTimeOffForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const employeeId = parseInt(document.getElementById('assignTimeOffEmployee').value);
+        const startDate = document.getElementById('assignTimeOffStartDate').value;
+        const endDate = document.getElementById('assignTimeOffEndDate').value;
+        const reason = document.getElementById('assignTimeOffReason').value.trim() || 'Admin assigned time off';
+
+        // Validate dates
+        if (new Date(startDate) > new Date(endDate)) {
+            alert('Start date must be before end date!');
+            return;
+        }
+
+        if (!employeeId) {
+            alert('Please select an employee');
+            return;
+        }
+
+        const employee = employees.find(e => e.id === employeeId);
+        if (!employee) {
+            alert('Selected employee not found');
+            return;
+        }
+
+        if (confirm(`Assign time off to ${employee.name} from ${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}?\n\nThis will:\n- Delete all tasks and shifts during this period\n- Create VATO exception logs\n- Prevent future scheduling during this time`)) {
+            const submitBtn = assignTimeOffForm.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = '⏳ Assigning...';
+            submitBtn.disabled = true;
+
+            try {
+                const result = await supabaseService.assignTimeOffToEmployee(employeeId, startDate, endDate, reason);
+                
+                if (result) {
+                    alert(`✅ Time off assigned successfully to ${employee.name}!\n\nAll tasks and shifts during this period have been deleted.\nVATO exception logs have been created.`);
+                    assignTimeOffModal.style.display = 'none';
+                    assignTimeOffForm.reset();
+                    await loadTimeOffRequests();
+                    await loadShifts(); // Refresh shifts to show deletions
+                    if (typeof renderCalendar === 'function') {
+                        await renderCalendar();
+                    }
+                } else {
+                    alert('❌ Failed to assign time off. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error assigning time off:', error);
+                alert('❌ Error assigning time off: ' + error.message);
+            } finally {
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+            }
+        }
+    });
+
     // Initial load
     await loadShifts();
+    await loadTimeOffRequests();
 });

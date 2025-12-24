@@ -312,7 +312,13 @@ document.addEventListener('DOMContentLoaded', async function() {
             lastAnnouncementCount = announcements ? announcements.length : 0;
         });
         
+        // Check for overdue tasks immediately on load
+        supabaseService.checkAndMarkOverdueTasks();
+        
         setInterval(async () => {
+            // Check for overdue tasks and mark them (this creates NSFT exceptions automatically)
+            await supabaseService.checkAndMarkOverdueTasks();
+            
             // Check for new tasks if notification system is available
             if (typeof notificationSystem !== 'undefined') {
                 const currentUser = await supabaseService.getCurrentUser();

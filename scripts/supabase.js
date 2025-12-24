@@ -174,6 +174,35 @@ class SupabaseService {
     isAdmin() {
         return this.currentUser && this.currentUser.is_admin === true;
     }
+
+    /**
+     * Get current employee record based on logged-in user
+     * @returns {Promise<Object|null>} Employee record or null
+     */
+    async getCurrentEmployee() {
+        if (!this.isReady()) return null;
+
+        try {
+            const user = await this.getCurrentUser();
+            if (!user) return null;
+
+            const { data, error } = await this.client
+                .from('employees')
+                .select('*')
+                .eq('user_id', user.id)
+                .single();
+
+            if (error) {
+                console.error('Error getting current employee:', error);
+                return null;
+            }
+
+            return data;
+        } catch (error) {
+            console.error('Error getting current employee:', error);
+            return null;
+        }
+    }
     
     /**
      * Get current user (loads if not already loaded)
@@ -393,6 +422,20 @@ class SupabaseService {
         if (!this.isReady()) return null;
         
         try {
+            // If status is being set to 'overdue', get task details first to create NSFT exception
+            let taskData = null;
+            if (updates.status === 'overdue') {
+                const { data: task } = await this.client
+                    .from('tasks')
+                    .select('*')
+                    .eq('id', id)
+                    .single();
+                
+                if (task) {
+                    taskData = task;
+                }
+            }
+            
             const userId = this.currentUser ? this.currentUser.id : null;
             updates.updated_by = userId;
             
@@ -403,11 +446,98 @@ class SupabaseService {
                 .select();
             
             if (error) throw error;
+            
+            // If status was set to 'overdue', create NSFT exception
+            if (updates.status === 'overdue' && taskData) {
+                await this.createNSFTExceptionForTask(taskData);
+            }
+            
             console.log('✅ Task updated');
             return data[0];
         } catch (error) {
             console.error('Error updating task:', error);
             return null;
+        }
+    }
+    
+    /**
+     * Create an NSFT exception for a specific task
+     * @param {Object} task - The task object
+     */
+    async createNSFTExceptionForTask(task) {
+        if (!this.isReady()) return false;
+
+        try {
+            // Get employee name
+            const { data: employee } = await this.client
+                .from('employees')
+                .select('name')
+                .eq('id', task.employee_id)
+                .single();
+
+            const employeeName = employee?.name || 'Unknown';
+
+            // Convert time format (HHMM) to HH:MM:SS for database
+            const formatTime = (timeStr) => {
+                if (!timeStr) return '00:00:00';
+                if (timeStr.includes(':')) return timeStr.length === 5 ? timeStr + ':00' : timeStr;
+                // Format HHMM to HH:MM:SS
+                const hours = timeStr.substring(0, 2);
+                const minutes = timeStr.substring(2, 4);
+                return `${hours}:${minutes}:00`;
+            };
+
+            // Use end_date for the exception date (when task became overdue)
+            const exceptionDate = task.end_date;
+
+            // Check if NSFT exception already exists for this task
+            const { data: existingException } = await this.client
+                .from('exception_logs')
+                .select('id')
+                .eq('employee_id', task.employee_id)
+                .eq('exception_code', 'NSFT')
+                .eq('exception_date', exceptionDate)
+                .eq('task_id', task.id)
+                .single();
+
+            if (existingException) {
+                console.log(`NSFT exception already exists for task ${task.id}`);
+                return true;
+            }
+
+            // Create NSFT exception log
+            const { error: createError } = await this.client
+                .from('exception_logs')
+                .insert({
+                    employee_id: task.employee_id,
+                    employee_name: employeeName,
+                    exception_code: 'NSFT',
+                    exception_date: exceptionDate,
+                    start_time: formatTime(task.start_time),
+                    end_time: formatTime(task.end_time),
+                    reason: `Task overdue: ${task.name}`,
+                    approved_by: 'SYSTEM',
+                    approved_at: new Date().toISOString(),
+                    task_id: task.id,
+                    additional_data: {
+                        task_name: task.name,
+                        task_start_date: task.start_date,
+                        task_end_date: task.end_date,
+                        task_start_time: task.start_time,
+                        task_end_time: task.end_time
+                    }
+                });
+
+            if (createError) {
+                console.error('Error creating NSFT exception for task:', createError);
+                return false;
+            }
+
+            console.log(`✅ Created NSFT exception for overdue task: ${task.name} (Employee: ${employeeName})`);
+            return true;
+        } catch (error) {
+            console.error('Error creating NSFT exception for task:', error);
+            return false;
         }
     }
     
@@ -546,6 +676,97 @@ class SupabaseService {
         }
     }
     
+    /**
+     * Check for overdue tasks and automatically mark them as overdue, creating NSFT exceptions
+     * This should be called periodically to catch tasks that have passed their end time
+     */
+    async checkAndMarkOverdueTasks() {
+        if (!this.isReady()) return { marked: 0, exceptions: 0 };
+
+        try {
+            const now = new Date();
+            const today = now.toISOString().split('T')[0];
+            
+            // Get all tasks that are not completed and not already overdue
+            const { data: tasks, error: tasksError } = await this.client
+                .from('tasks')
+                .select('*')
+                .in('status', ['pending', 'in-progress', 'on-hold'])
+                .lte('end_date', today); // Tasks that have ended on or before today
+
+            if (tasksError) {
+                console.error('Error fetching tasks for overdue check:', tasksError);
+                return { marked: 0, exceptions: 0 };
+            }
+
+            if (!tasks || tasks.length === 0) {
+                return { marked: 0, exceptions: 0 };
+            }
+
+            let markedCount = 0;
+            let exceptionCount = 0;
+
+            // Helper function to convert HHMM to minutes
+            const timeToMinutes = (timeStr) => {
+                if (!timeStr) return 1439; // 23:59
+                if (timeStr.includes(':')) {
+                    const [hours, minutes] = timeStr.split(':').map(Number);
+                    return hours * 60 + minutes;
+                }
+                // Format HHMM
+                const hours = parseInt(timeStr.substring(0, 2));
+                const minutes = parseInt(timeStr.substring(2, 4));
+                return hours * 60 + minutes;
+            };
+
+            // Check each task
+            for (const task of tasks) {
+                const taskEndDate = new Date(task.end_date);
+                taskEndDate.setHours(0, 0, 0, 0);
+                const todayDate = new Date(today);
+                todayDate.setHours(0, 0, 0, 0);
+
+                // Check if task end date has passed
+                const datePassed = taskEndDate < todayDate;
+                
+                // Check if task end time has passed (for today's tasks)
+                const taskEndMinutes = timeToMinutes(task.end_time);
+                const currentMinutes = now.getHours() * 60 + now.getMinutes();
+                const timePassed = taskEndDate.getTime() === todayDate.getTime() && currentMinutes > taskEndMinutes;
+
+                if (datePassed || timePassed) {
+                    // Mark task as overdue
+                    const { error: updateError } = await this.client
+                        .from('tasks')
+                        .update({ status: 'overdue' })
+                        .eq('id', task.id);
+
+                    if (updateError) {
+                        console.error(`Error marking task ${task.id} as overdue:`, updateError);
+                        continue;
+                    }
+
+                    markedCount++;
+
+                    // Create NSFT exception (this will be handled by updateTask, but we'll call it directly to ensure it happens)
+                    const exceptionCreated = await this.createNSFTExceptionForTask(task);
+                    if (exceptionCreated) {
+                        exceptionCount++;
+                    }
+                }
+            }
+
+            if (markedCount > 0) {
+                console.log(`✅ Marked ${markedCount} task(s) as overdue and created ${exceptionCount} NSFT exception(s)`);
+            }
+
+            return { marked: markedCount, exceptions: exceptionCount };
+        } catch (error) {
+            console.error('Error checking for overdue tasks:', error);
+            return { marked: 0, exceptions: 0 };
+        }
+    }
+
     /**
      * Get all tasks with acknowledgement status
      */
@@ -927,6 +1148,47 @@ class SupabaseService {
 
         console.log('✅ Employee profile saved');
         return data;
+    }
+
+    /**
+     * Set employee to extended leave status
+     * @param {number} employeeId - The employee ID
+     * @param {string} expectedReturnDate - Expected return date (YYYY-MM-DD)
+     * @returns {Promise<Object|null>} Updated profile or null on error
+     */
+    async setEmployeeExtendedLeave(employeeId, expectedReturnDate = null) {
+        if (!this.isReady()) return null;
+
+        try {
+            const profileData = {
+                employment_status: 'extended_leave',
+                status_reason: `Automatic extended leave due to time off exceeding 7 days${expectedReturnDate ? ` (Expected return: ${expectedReturnDate})` : ''}`,
+                status_changed_by: this.currentUser?.id,
+                updated_at: new Date().toISOString()
+            };
+
+            const { data, error } = await this.client
+                .from('employee_profiles')
+                .upsert({
+                    employee_id: employeeId,
+                    ...profileData
+                }, {
+                    onConflict: 'employee_id'
+                })
+                .select()
+                .single();
+
+            if (error) {
+                console.error('Error setting employee to extended leave:', error);
+                return null;
+            }
+
+            console.log(`✅ Employee ${employeeId} set to extended leave status`);
+            return data;
+        } catch (error) {
+            console.error('Error setting employee to extended leave:', error);
+            return null;
+        }
     }
 
     async getAllEmployeeProfiles() {
@@ -1373,6 +1635,69 @@ class SupabaseService {
         return data;
     }
 
+    /**
+     * Admin function: Directly assign time off to an employee (auto-approved)
+     * This bypasses the request/approval process and immediately:
+     * - Creates an approved time off request
+     * - Deletes all tasks and shifts during the period
+     * - Creates VATO exception logs
+     * @param {number} employeeId - The employee ID
+     * @param {string} startDate - Start date (YYYY-MM-DD)
+     * @param {string} endDate - End date (YYYY-MM-DD)
+     * @param {string} reason - Reason for time off
+     * @returns {Promise<Object|null>} The created time off request or null on error
+     */
+    async assignTimeOffToEmployee(employeeId, startDate, endDate, reason = 'Admin assigned time off') {
+        if (!this.isReady()) return null;
+
+        try {
+            // First, delete all tasks and shifts for this period
+            await this.deleteTasksForTimeOff(employeeId, startDate, endDate);
+            await this.deleteShiftsForTimeOff(employeeId, startDate, endDate);
+
+            // Create the time off request with approved status
+            const requestData = {
+                employee_id: employeeId,
+                start_date: startDate,
+                end_date: endDate,
+                reason: reason,
+                status: 'approved',
+                requested_at: new Date().toISOString(),
+                reviewed_by: this.currentUser?.id,
+                reviewed_at: new Date().toISOString()
+            };
+
+            const { data, error } = await this.client
+                .from('time_off_requests')
+                .insert([requestData])
+                .select()
+                .single();
+
+            if (error) {
+                console.error('Error creating admin-assigned time off:', error);
+                return null;
+            }
+
+            // Create VATO exception logs for each day
+            await this.createTimeOffExceptions(data);
+
+            // Check if time off is more than 7 days, if so set extended_leave status
+            const startDateObj = new Date(startDate);
+            const endDateObj = new Date(endDate);
+            const daysDiff = Math.ceil((endDateObj - startDateObj) / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end days
+            
+            if (daysDiff > 7) {
+                await this.setEmployeeExtendedLeave(employeeId, endDate);
+            }
+
+            console.log(`✅ Time off assigned to employee ${employeeId} from ${startDate} to ${endDate}`);
+            return data;
+        } catch (error) {
+            console.error('Error assigning time off to employee:', error);
+            return null;
+        }
+    }
+
     async updateTimeOffRequest(requestId, updates) {
         if (!this.isReady()) return null;
 
@@ -1406,9 +1731,25 @@ class SupabaseService {
             return null;
         }
 
-        // If approved, create exception logs for each day
+        // If approved, delete existing tasks and shifts, then create exception logs
         if (updates.status === 'approved' && requestData) {
+            // Delete all tasks for this employee within the time off period
+            await this.deleteTasksForTimeOff(requestData.employee_id, requestData.start_date, requestData.end_date);
+            
+            // Delete all shifts for this employee within the time off period
+            await this.deleteShiftsForTimeOff(requestData.employee_id, requestData.start_date, requestData.end_date);
+            
+            // Create exception logs for each day
             await this.createTimeOffExceptions(requestData);
+
+            // Check if time off is more than 7 days, if so set extended_leave status
+            const startDate = new Date(requestData.start_date);
+            const endDate = new Date(requestData.end_date);
+            const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end days
+            
+            if (daysDiff > 7) {
+                await this.setEmployeeExtendedLeave(requestData.employee_id, requestData.end_date);
+            }
         }
 
         console.log('✅ Time off request updated');
@@ -1476,6 +1817,77 @@ class SupabaseService {
         } catch (error) {
             console.error('Error deleting time off request:', error);
             return false;
+        }
+    }
+
+    /**
+     * Delete all tasks for an employee within a time off period
+     * @param {number} employeeId - The employee ID
+     * @param {string} startDate - Start date (YYYY-MM-DD)
+     * @param {string} endDate - End date (YYYY-MM-DD)
+     */
+    async deleteTasksForTimeOff(employeeId, startDate, endDate) {
+        if (!this.isReady()) return { deleted: 0, error: null };
+
+        try {
+            // Delete tasks where the task date range overlaps with the time off period
+            // A task overlaps if: task.start_date <= endDate AND task.end_date >= startDate
+            const { data: deletedTasks, error } = await this.client
+                .from('tasks')
+                .delete()
+                .eq('employee_id', employeeId)
+                .lte('start_date', endDate)
+                .gte('end_date', startDate)
+                .select('id');
+
+            if (error) {
+                console.error('Error deleting tasks for time off:', error);
+                return { deleted: 0, error };
+            }
+
+            const deletedCount = deletedTasks?.length || 0;
+            if (deletedCount > 0) {
+                console.log(`✅ Deleted ${deletedCount} task(s) for employee ${employeeId} during time off period`);
+            }
+            return { deleted: deletedCount, error: null };
+        } catch (error) {
+            console.error('Error deleting tasks for time off:', error);
+            return { deleted: 0, error };
+        }
+    }
+
+    /**
+     * Delete all shifts for an employee within a time off period
+     * @param {number} employeeId - The employee ID
+     * @param {string} startDate - Start date (YYYY-MM-DD)
+     * @param {string} endDate - End date (YYYY-MM-DD)
+     */
+    async deleteShiftsForTimeOff(employeeId, startDate, endDate) {
+        if (!this.isReady()) return { deleted: 0, error: null };
+
+        try {
+            // Delete shifts where the shift_date falls within the time off period
+            const { data: deletedShifts, error } = await this.client
+                .from('employee_shifts')
+                .delete()
+                .eq('employee_id', employeeId)
+                .gte('shift_date', startDate)
+                .lte('shift_date', endDate)
+                .select('id');
+
+            if (error) {
+                console.error('Error deleting shifts for time off:', error);
+                return { deleted: 0, error };
+            }
+
+            const deletedCount = deletedShifts?.length || 0;
+            if (deletedCount > 0) {
+                console.log(`✅ Deleted ${deletedCount} shift(s) for employee ${employeeId} during time off period`);
+            }
+            return { deleted: deletedCount, error: null };
+        } catch (error) {
+            console.error('Error deleting shifts for time off:', error);
+            return { deleted: 0, error };
         }
     }
 

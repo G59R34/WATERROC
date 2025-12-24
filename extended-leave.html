@@ -148,6 +148,15 @@
             </div>
         </div>
 
+        <div class="schedule-overview-section">
+            <h2>📅 Schedule Overview</h2>
+            <div id="scheduleOverview">
+                <div style="text-align: center; color: #9ca3af; padding: 20px;">
+                    Loading schedule...
+                </div>
+            </div>
+        </div>
+
         <div class="announcements-section">
             <h2>📢 Company Announcements</h2>
             <div id="announcementsList">
@@ -215,6 +224,9 @@
             // Display user name
             document.getElementById('employeeName').textContent = user.full_name || user.username;
 
+            // Load schedule overview
+            await loadScheduleOverview();
+
             // Load announcements
             await loadAnnouncements();
 
@@ -225,6 +237,141 @@
                 window.location.href = 'index.html';
             });
         });
+
+        async function loadScheduleOverview() {
+            try {
+                // Get current employee
+                const employee = await supabaseService.getCurrentEmployee();
+                if (!employee) {
+                    document.getElementById('scheduleOverview').innerHTML = 
+                        '<div class="schedule-empty">Unable to load employee information</div>';
+                    return;
+                }
+
+                const employeeId = employee.id;
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                // Get upcoming shifts (next 30 days)
+                const { data: shifts, error: shiftsError } = await supabaseService.client
+                    .from('employee_shifts')
+                    .select('*')
+                    .eq('employee_id', employeeId)
+                    .gte('shift_date', today.toISOString().split('T')[0])
+                    .order('shift_date', { ascending: true })
+                    .limit(20);
+
+                // Get upcoming tasks (next 30 days)
+                const { data: tasks, error: tasksError } = await supabaseService.client
+                    .from('tasks')
+                    .select('*')
+                    .eq('employee_id', employeeId)
+                    .gte('end_date', today.toISOString().split('T')[0])
+                    .order('start_date', { ascending: true })
+                    .limit(20);
+
+                // Get time off requests
+                const { data: timeOffRequests, error: timeOffError } = await supabaseService.client
+                    .from('time_off_requests')
+                    .select('*')
+                    .eq('employee_id', employeeId)
+                    .eq('status', 'approved')
+                    .gte('end_date', today.toISOString().split('T')[0])
+                    .order('start_date', { ascending: true })
+                    .limit(5);
+
+                const scheduleOverview = document.getElementById('scheduleOverview');
+
+                if (shiftsError || tasksError || timeOffError) {
+                    console.error('Error loading schedule:', shiftsError || tasksError || timeOffError);
+                    scheduleOverview.innerHTML = '<div class="schedule-empty">Unable to load schedule information</div>';
+                    return;
+                }
+
+                let html = '';
+
+                // Time Off Section
+                if (timeOffRequests && timeOffRequests.length > 0) {
+                    html += '<h3 style="margin: 0 0 15px 0; color: #1f2937; font-size: 18px;">🏖️ Approved Time Off</h3>';
+                    timeOffRequests.forEach(req => {
+                        const startDate = new Date(req.start_date).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                        });
+                        const endDate = new Date(req.end_date).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                        });
+                        html += `
+                            <div class="schedule-item">
+                                <h4>Time Off</h4>
+                                <p class="schedule-date">${startDate} - ${endDate}</p>
+                                ${req.reason ? `<p>Reason: ${req.reason}</p>` : ''}
+                            </div>
+                        `;
+                    });
+                }
+
+                // Upcoming Shifts Section
+                if (shifts && shifts.length > 0) {
+                    html += '<h3 style="margin: 20px 0 15px 0; color: #1f2937; font-size: 18px;">📅 Upcoming Shifts</h3>';
+                    shifts.forEach(shift => {
+                        const shiftDate = new Date(shift.shift_date).toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                        });
+                        const startTime = shift.start_time ? shift.start_time.substring(0, 5) : 'N/A';
+                        const endTime = shift.end_time ? shift.end_time.substring(0, 5) : 'N/A';
+                        html += `
+                            <div class="schedule-item">
+                                <h4>${shiftDate}</h4>
+                                <p>Time: ${startTime} - ${endTime}</p>
+                                ${shift.work_area ? `<p>Area: ${shift.work_area}</p>` : ''}
+                                ${shift.notes ? `<p>Notes: ${shift.notes}</p>` : ''}
+                            </div>
+                        `;
+                    });
+                }
+
+                // Upcoming Tasks Section
+                if (tasks && tasks.length > 0) {
+                    html += '<h3 style="margin: 20px 0 15px 0; color: #1f2937; font-size: 18px;">✅ Upcoming Tasks</h3>';
+                    tasks.forEach(task => {
+                        const taskDate = new Date(task.start_date).toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                        });
+                        const startTime = task.start_time ? task.start_time.substring(0, 5) : 'N/A';
+                        const endTime = task.end_time ? task.end_time.substring(0, 5) : 'N/A';
+                        html += `
+                            <div class="schedule-item">
+                                <h4>${task.name || 'Task'}</h4>
+                                <p class="schedule-date">${taskDate}</p>
+                                <p>Time: ${startTime} - ${endTime}</p>
+                                ${task.work_area ? `<p>Area: ${task.work_area}</p>` : ''}
+                                ${task.description ? `<p>${task.description}</p>` : ''}
+                            </div>
+                        `;
+                    });
+                }
+
+                if (!html) {
+                    html = '<div class="schedule-empty">No upcoming schedule items</div>';
+                }
+
+                scheduleOverview.innerHTML = html;
+            } catch (error) {
+                console.error('Error loading schedule overview:', error);
+                document.getElementById('scheduleOverview').innerHTML = 
+                    '<div class="schedule-empty">Error loading schedule information</div>';
+            }
+        }
 
         async function loadAnnouncements() {
             try {

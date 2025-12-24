@@ -139,11 +139,18 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Auto-refresh from Supabase - less frequent to prevent visible flickering
     if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
         let isRefreshing = false;
+        
+        // Check for overdue tasks immediately on load
+        supabaseService.checkAndMarkOverdueTasks();
+        
         setInterval(async () => {
             // Only sync if page is visible and not already refreshing
             if (supabaseService.isReady() && document.visibilityState === 'visible' && !isRefreshing) {
                 isRefreshing = true;
                 try {
+                    // Check for overdue tasks and mark them
+                    await supabaseService.checkAndMarkOverdueTasks();
+                    
                     // Check for new acknowledgements if notification system is available
                     if (typeof notificationSystem !== 'undefined') {
                         const tasks = await supabaseService.getTasksWithAcknowledgements();

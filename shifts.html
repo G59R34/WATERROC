@@ -35,7 +35,12 @@
             </div>
 
             <div class="time-off-section">
-                <h3>🏖️ Time Off Requests</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="margin: 0;">🏖️ Time Off Requests</h3>
+                    <button id="assignTimeOffBtn" class="btn-primary" style="padding: 8px 16px; font-size: 14px;">
+                        ➕ Assign Time Off
+                    </button>
+                </div>
                 <div class="time-off-list" id="timeOffList">
                     <div class="loading-message">Loading time off requests...</div>
                 </div>
@@ -89,6 +94,45 @@
                 <div class="modal-actions">
                     <button type="button" class="btn-secondary" id="cancelShiftBtn">Cancel</button>
                     <button type="submit" class="btn-primary">💾 Save Shift</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Assign Time Off Modal (Admin Only) -->
+    <div id="assignTimeOffModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>➕ Assign Time Off</h2>
+                <span class="close" id="closeAssignTimeOffModal">&times;</span>
+            </div>
+            <form id="assignTimeOffForm">
+                <div class="form-group">
+                    <label for="assignTimeOffEmployee">Employee *</label>
+                    <select id="assignTimeOffEmployee" required>
+                        <option value="">Select Employee...</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="assignTimeOffStartDate">Start Date *</label>
+                        <input type="date" id="assignTimeOffStartDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="assignTimeOffEndDate">End Date *</label>
+                        <input type="date" id="assignTimeOffEndDate" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="assignTimeOffReason">Reason</label>
+                    <textarea id="assignTimeOffReason" rows="4" placeholder="Enter reason for time off (optional)"></textarea>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="cancelAssignTimeOffBtn">Cancel</button>
+                    <button type="submit" class="btn-primary">✅ Assign Time Off</button>
                 </div>
             </form>
         </div>
