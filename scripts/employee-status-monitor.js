@@ -14,6 +14,7 @@ class EmployeeStatusMonitor {
         this.statusMessages = {
             'terminated': '🚪 WOMP WOMP! Your employment has been terminated. You have been logged out.',
             'administrative_leave': '⚠️ WOMP WOMP! You have been placed on administrative leave. You have been logged out.',
+            'extended_leave': '🏖️ WOMP WOMP! You have been placed on extended leave. Redirecting to extended leave page...',
             'suspended': '🚫 WOMP WOMP! Your account has been suspended. You have been logged out.',
             'inactive': '😴 WOMP WOMP! Your account has been deactivated. You have been logged out.',
             'default': '🔒 WOMP WOMP! Your access has been revoked. You have been logged out.'
@@ -225,6 +226,13 @@ class EmployeeStatusMonitor {
             return;
         }
 
+        // If status changed to extended_leave, show womp womp and redirect
+        if (newStatus === 'extended_leave') {
+            console.log('🏖️ EXTENDED LEAVE STATUS DETECTED - SHOWING WOMP WOMP');
+            await this.handleExtendedLeave();
+            return;
+        }
+
         // For other status changes (e.g., extended_leave -> active, or admin updates), refresh the page
         try {
             console.log('🔁 Non-inactive status change detected, refreshing page to apply new profile state');
@@ -248,7 +256,22 @@ class EmployeeStatusMonitor {
         ];
         return inactiveStatuses.includes(status);
     }
-    
+
+    async handleExtendedLeave() {
+        console.log('🏖️ EXTENDED LEAVE DETECTED - SHOWING WOMP WOMP');
+        
+        // Stop monitoring to prevent multiple triggers
+        this.stopMonitoring();
+        
+        // Show womp womp message for extended leave
+        this.displayWompWompMessage('extended_leave');
+        
+        // Redirect to extended leave page after showing message
+        setTimeout(() => {
+            window.location.href = 'extended-leave.html';
+        }, 3000); // 3 second delay to show the womp womp message
+    }
+
     async bootUser(status) {
         console.log('👢 BOOTING USER - Status:', status);
         

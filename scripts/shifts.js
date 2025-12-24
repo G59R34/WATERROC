@@ -691,4 +691,13 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Initial load
     await loadShifts();
     await loadTimeOffRequests();
+
+    // Check for expired time off and restore employees to active
+    if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+        try {
+            await supabaseService.checkExpiredTimeOff();
+        } catch (error) {
+            console.error('Error checking expired time off on shifts page load:', error);
+        }
+    }
 });

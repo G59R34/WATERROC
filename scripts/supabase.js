@@ -1151,42 +1151,314 @@ class SupabaseService {
     }
 
     /**
+     * Check if employee should be restored to active status
+     * (if they have no approved time off that would keep them on extended leave)
+     * @param {number} employeeId - The employee ID
+     * @returns {Promise<boolean>} True if status was restored, false otherwise
+     */
+    async checkAndRestoreEmployeeStatus(employeeId) {
+        if (!this.isReady()) return false;
+
+        try {
+            // Get employee's current profile status
+            const { data: profile } = await this.client
+                .from('employee_profiles')
+                .select('employment_status')
+                .eq('employee_id', employeeId)
+                .maybeSingle();
+
+            // Only check if employee is currently on extended leave
+            if (!profile || profile.employment_status !== 'extended_leave') {
+                return false;
+            }
+
+            // Check if employee has any approved time off that exceeds 6 days
+            const today = new Date().toISOString().split('T')[0];
+            const { data: approvedTimeOff } = await this.client
+                .from('time_off_requests')
+                .select('start_date, end_date')
+                .eq('employee_id', employeeId)
+                .eq('status', 'approved')
+                .gte('end_date', today); // Only future or current time off
+
+            if (!approvedTimeOff || approvedTimeOff.length === 0) {
+                // No approved time off, restore to active
+                console.log(`🔄 No approved time off found for employee ${employeeId}, restoring to active status`);
+                return await this.setEmployeeActive(employeeId, 'Time off ended or was removed');
+            }
+
+            // Check if any approved time off exceeds 6 days
+            let hasExtendedLeave = false;
+            for (const timeOff of approvedTimeOff) {
+                const startDateObj = new Date(timeOff.start_date);
+                const endDateObj = new Date(timeOff.end_date);
+                const daysDiff = Math.ceil((endDateObj - startDateObj) / (1000 * 60 * 60 * 24)) + 1;
+                
+                if (daysDiff > 6) {
+                    hasExtendedLeave = true;
+                    break;
+                }
+            }
+
+            if (!hasExtendedLeave) {
+                // No time off exceeds 6 days, restore to active
+                console.log(`🔄 No extended time off found for employee ${employeeId}, restoring to active status`);
+                return await this.setEmployeeActive(employeeId, 'Time off no longer qualifies for extended leave');
+            }
+
+            return false;
+        } catch (error) {
+            console.error('Error checking employee status:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Set employee back to active status
+     * @param {number} employeeId - The employee ID
+     * @param {string} reason - Reason for status change
+     * @returns {Promise<Object|null>} Updated profile or null on error
+     */
+    async setEmployeeActive(employeeId, reason = 'Status restored to active') {
+        if (!this.isReady()) {
+            console.error('❌ Supabase not ready for setEmployeeActive');
+            return null;
+        }
+
+        try {
+            console.log(`🔄 Setting employee ${employeeId} back to active status...`);
+
+            // Get the current user's employee ID (not the user UUID)
+            let changedByEmployeeId = null;
+            if (this.currentUser?.id) {
+                const { data: currentEmployee } = await this.client
+                    .from('employees')
+                    .select('id')
+                    .eq('user_id', this.currentUser.id)
+                    .maybeSingle();
+                
+                if (currentEmployee) {
+                    changedByEmployeeId = currentEmployee.id;
+                }
+            }
+
+            const updateData = {
+                employment_status: 'active',
+                status_reason: reason,
+                status_changed_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
+
+            if (changedByEmployeeId) {
+                updateData.status_changed_by = changedByEmployeeId;
+            }
+
+            const { data, error } = await this.client
+                .from('employee_profiles')
+                .update(updateData)
+                .eq('employee_id', employeeId)
+                .select()
+                .single();
+
+            if (error) {
+                console.error('❌ Error setting employee to active:', error);
+                return null;
+            }
+
+            if (!data) {
+                console.error('❌ Update returned no data');
+                return null;
+            }
+
+            console.log(`✅ Employee ${employeeId} restored to active status:`, data);
+            return data;
+        } catch (error) {
+            console.error('❌ Error setting employee to active:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Check for expired time off and restore employees to active status
+     * This should be called periodically or on page load
+     * @returns {Promise<number>} Number of employees restored
+     */
+    async checkExpiredTimeOff() {
+        if (!this.isReady()) return 0;
+
+        try {
+            const today = new Date().toISOString().split('T')[0];
+            
+            // Get all employees on extended leave
+            const { data: extendedLeaveEmployees } = await this.client
+                .from('employee_profiles')
+                .select('employee_id')
+                .eq('employment_status', 'extended_leave');
+
+            if (!extendedLeaveEmployees || extendedLeaveEmployees.length === 0) {
+                return 0;
+            }
+
+            let restoredCount = 0;
+            
+            // Check each employee
+            for (const profile of extendedLeaveEmployees) {
+                const restored = await this.checkAndRestoreEmployeeStatus(profile.employee_id);
+                if (restored) {
+                    restoredCount++;
+                }
+            }
+
+            if (restoredCount > 0) {
+                console.log(`✅ Restored ${restoredCount} employee(s) to active status after checking expired time off`);
+            }
+
+            return restoredCount;
+        } catch (error) {
+            console.error('Error checking expired time off:', error);
+            return 0;
+        }
+    }
+
+    /**
      * Set employee to extended leave status
      * @param {number} employeeId - The employee ID
      * @param {string} expectedReturnDate - Expected return date (YYYY-MM-DD)
      * @returns {Promise<Object|null>} Updated profile or null on error
      */
     async setEmployeeExtendedLeave(employeeId, expectedReturnDate = null) {
-        if (!this.isReady()) return null;
+        if (!this.isReady()) {
+            console.error('❌ Supabase not ready for setEmployeeExtendedLeave');
+            return null;
+        }
 
         try {
-            const profileData = {
-                employment_status: 'extended_leave',
-                status_reason: `Automatic extended leave due to time off exceeding 7 days${expectedReturnDate ? ` (Expected return: ${expectedReturnDate})` : ''}`,
-                status_changed_by: this.currentUser?.id,
-                updated_at: new Date().toISOString()
-            };
+            const reason = `Automatic extended leave due to time off exceeding 6 days${expectedReturnDate ? ` (Expected return: ${expectedReturnDate})` : ''}`;
+            
+            console.log(`🔄 Setting employee ${employeeId} to extended leave...`);
 
-            const { data, error } = await this.client
+            // First, check if profile exists
+            const { data: existingProfile, error: checkError } = await this.client
                 .from('employee_profiles')
-                .upsert({
-                    employee_id: employeeId,
-                    ...profileData
-                }, {
-                    onConflict: 'employee_id'
-                })
-                .select()
-                .single();
+                .select('id, employment_status')
+                .eq('employee_id', employeeId)
+                .maybeSingle();
 
-            if (error) {
-                console.error('Error setting employee to extended leave:', error);
-                return null;
+            if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "not found" which is fine
+                console.error('❌ Error checking existing profile:', checkError);
             }
 
-            console.log(`✅ Employee ${employeeId} set to extended leave status`);
-            return data;
+            let result;
+            if (existingProfile) {
+                // Update existing profile
+                console.log(`📝 Updating existing profile for employee ${employeeId} (current status: ${existingProfile.employment_status})`);
+                
+                // Get the current user's employee ID (not the user UUID)
+                let changedByEmployeeId = null;
+                if (this.currentUser?.id) {
+                    const { data: currentEmployee } = await this.client
+                        .from('employees')
+                        .select('id')
+                        .eq('user_id', this.currentUser.id)
+                        .maybeSingle();
+                    
+                    if (currentEmployee) {
+                        changedByEmployeeId = currentEmployee.id;
+                    }
+                }
+                
+                const updateData = {
+                    employment_status: 'extended_leave',
+                    status_reason: reason,
+                    status_changed_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                
+                // Only add status_changed_by if we have an employee ID (bigint, not UUID)
+                if (changedByEmployeeId) {
+                    updateData.status_changed_by = changedByEmployeeId;
+                }
+                
+                const { data, error } = await this.client
+                    .from('employee_profiles')
+                    .update(updateData)
+                    .eq('employee_id', employeeId)
+                    .select()
+                    .single();
+
+                if (error) {
+                    console.error('❌ Error updating employee profile to extended leave:', error);
+                    console.error('   Update data:', updateData);
+                    console.error('   Employee ID:', employeeId);
+                    console.error('   Current user:', this.currentUser);
+                    return null;
+                }
+                
+                if (!data) {
+                    console.error('❌ Update returned no data');
+                    return null;
+                }
+                
+                console.log(`✅ Profile updated successfully. New status: ${data.employment_status}`);
+                result = data;
+            } else {
+                // Create new profile
+                console.log(`➕ Creating new profile for employee ${employeeId}`);
+                
+                // Get the current user's employee ID (not the user UUID)
+                let changedByEmployeeId = null;
+                if (this.currentUser?.id) {
+                    const { data: currentEmployee } = await this.client
+                        .from('employees')
+                        .select('id')
+                        .eq('user_id', this.currentUser.id)
+                        .maybeSingle();
+                    
+                    if (currentEmployee) {
+                        changedByEmployeeId = currentEmployee.id;
+                    }
+                }
+                
+                const insertData = {
+                    employee_id: employeeId,
+                    employment_status: 'extended_leave',
+                    status_reason: reason,
+                    status_changed_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                
+                // Only add status_changed_by if we have an employee ID (bigint, not UUID)
+                if (changedByEmployeeId) {
+                    insertData.status_changed_by = changedByEmployeeId;
+                }
+                
+                const { data, error } = await this.client
+                    .from('employee_profiles')
+                    .insert(insertData)
+                    .select()
+                    .single();
+
+                if (error) {
+                    console.error('❌ Error creating employee profile with extended leave:', error);
+                    console.error('   Insert data:', insertData);
+                    console.error('   Employee ID:', employeeId);
+                    console.error('   Current user:', this.currentUser);
+                    return null;
+                }
+                
+                if (!data) {
+                    console.error('❌ Insert returned no data');
+                    return null;
+                }
+                
+                console.log(`✅ Profile created successfully. Status: ${data.employment_status}`);
+                result = data;
+            }
+
+            console.log(`✅ Employee ${employeeId} set to extended leave status:`, result);
+            return result;
         } catch (error) {
-            console.error('Error setting employee to extended leave:', error);
+            console.error('❌ Error setting employee to extended leave:', error);
             return null;
         }
     }
@@ -1681,13 +1953,23 @@ class SupabaseService {
             // Create VATO exception logs for each day
             await this.createTimeOffExceptions(data);
 
-            // Check if time off is more than 7 days, if so set extended_leave status
+            // Check if time off is more than 6 days, if so set extended_leave status
             const startDateObj = new Date(startDate);
             const endDateObj = new Date(endDate);
             const daysDiff = Math.ceil((endDateObj - startDateObj) / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end days
             
-            if (daysDiff > 7) {
-                await this.setEmployeeExtendedLeave(employeeId, endDate);
+            console.log(`📅 Time off duration: ${daysDiff} days (start: ${startDate}, end: ${endDate})`);
+            
+            if (daysDiff > 6) {
+                console.log(`⏰ Time off exceeds 6 days (${daysDiff} days), setting employee to extended leave...`);
+                const result = await this.setEmployeeExtendedLeave(employeeId, endDate);
+                if (result) {
+                    console.log(`✅ Successfully set employee ${employeeId} to extended leave:`, result);
+                } else {
+                    console.error(`❌ Failed to set employee ${employeeId} to extended leave`);
+                }
+            } else {
+                console.log(`ℹ️ Time off is ${daysDiff} days (≤6 days), not setting extended leave`);
             }
 
             console.log(`✅ Time off assigned to employee ${employeeId} from ${startDate} to ${endDate}`);
@@ -1742,13 +2024,23 @@ class SupabaseService {
             // Create exception logs for each day
             await this.createTimeOffExceptions(requestData);
 
-            // Check if time off is more than 7 days, if so set extended_leave status
-            const startDate = new Date(requestData.start_date);
-            const endDate = new Date(requestData.end_date);
-            const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end days
+            // Check if time off is more than 6 days, if so set extended_leave status
+            const startDateObj = new Date(requestData.start_date);
+            const endDateObj = new Date(requestData.end_date);
+            const daysDiff = Math.ceil((endDateObj - startDateObj) / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end days
             
-            if (daysDiff > 7) {
-                await this.setEmployeeExtendedLeave(requestData.employee_id, requestData.end_date);
+            console.log(`📅 Time off duration: ${daysDiff} days (start: ${requestData.start_date}, end: ${requestData.end_date})`);
+            
+            if (daysDiff > 6) {
+                console.log(`⏰ Time off exceeds 6 days (${daysDiff} days), setting employee to extended leave...`);
+                const result = await this.setEmployeeExtendedLeave(requestData.employee_id, requestData.end_date);
+                if (result) {
+                    console.log(`✅ Successfully set employee ${requestData.employee_id} to extended leave:`, result);
+                } else {
+                    console.error(`❌ Failed to set employee ${requestData.employee_id} to extended leave`);
+                }
+            } else {
+                console.log(`ℹ️ Time off is ${daysDiff} days (≤6 days), not setting extended leave`);
             }
         }
 
@@ -1799,6 +2091,9 @@ class SupabaseService {
                 } else {
                     console.log(`✅ Deleted exception logs for time off request ${requestId}`);
                 }
+
+                // Check if employee should be set back to active
+                await this.checkAndRestoreEmployeeStatus(employeeId);
             }
 
             // Delete the time off request
@@ -2472,7 +2767,7 @@ class SupabaseService {
             // Get all active employees - simplified query
             const { data: employees, error: empError } = await this.client
                 .from('employees')
-                .select('id, name, status');
+                .select('id, name');
             
             if (empError) {
                 console.error('❌ Error fetching employees:', empError);
@@ -2490,7 +2785,7 @@ class SupabaseService {
             
             // For each employee, check if they have a shift or DO exception
             for (const emp of employees) {
-                console.log(`\n👤 Processing employee: ${emp.name} (ID: ${emp.id}, Status: ${emp.status})`);
+                console.log(`\n👤 Processing employee: ${emp.name} (ID: ${emp.id})`);
                 
                 // Check for existing shift
                 const { data: shifts, error: shiftError } = await this.client

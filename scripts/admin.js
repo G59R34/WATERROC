@@ -82,6 +82,13 @@ document.addEventListener('DOMContentLoaded', async function() {
         } catch (error) {
             console.error('Error ensuring DO exceptions on admin load:', error);
         }
+
+        // Check for expired time off and restore employees to active
+        try {
+            await supabaseService.checkExpiredTimeOff();
+        } catch (error) {
+            console.error('Error checking expired time off on admin load:', error);
+        }
     }
     
     // Sync data from Supabase

@@ -93,6 +93,13 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         await syncFromSupabase();
         
+        // Check for expired time off and restore employees to active
+        try {
+            await supabaseService.checkExpiredTimeOff();
+        } catch (error) {
+            console.error('Error checking expired time off on employee load:', error);
+        }
+        
         // Update summary after initial load
         setTimeout(async () => {
             await updateScheduleSummary();
