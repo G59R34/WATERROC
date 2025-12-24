@@ -1376,6 +1376,20 @@ class SupabaseService {
     async updateTimeOffRequest(requestId, updates) {
         if (!this.isReady()) return null;
 
+        // If approving, first get the request details
+        let requestData = null;
+        if (updates.status === 'approved') {
+            const { data: reqData } = await this.client
+                .from('time_off_requests')
+                .select('*')
+                .eq('id', requestId)
+                .single();
+            
+            if (reqData) {
+                requestData = reqData;
+            }
+        }
+
         const { data, error } = await this.client
             .from('time_off_requests')
             .update({
@@ -1392,8 +1406,218 @@ class SupabaseService {
             return null;
         }
 
+        // If approved, create exception logs for each day
+        if (updates.status === 'approved' && requestData) {
+            await this.createTimeOffExceptions(requestData);
+        }
+
         console.log('✅ Time off request updated');
         return data;
+    }
+
+    /**
+     * Delete a time off request and associated exception logs
+     * @param {number} requestId - The ID of the time off request to delete
+     */
+    async deleteTimeOffRequest(requestId) {
+        if (!this.isReady()) return false;
+
+        try {
+            // First, get the request to check if it was approved
+            const { data: request, error: fetchError } = await this.client
+                .from('time_off_requests')
+                .select('*')
+                .eq('id', requestId)
+                .single();
+
+            if (fetchError) {
+                console.error('Error fetching time off request:', fetchError);
+                return false;
+            }
+
+            // If the request was approved, delete associated VAUT exception logs
+            if (request.status === 'approved') {
+                const employeeId = request.employee_id;
+
+                // Delete exception logs that match this time off request
+                // We'll match by employee_id, date range, and VAUT code
+                // The additional_data should contain the time_off_request_id
+                // Note: We delete all VAUT exceptions for this employee in this date range
+                // since they should all be from this time off request
+                const { error: deleteExceptionsError } = await this.client
+                    .from('exception_logs')
+                    .delete()
+                    .eq('employee_id', employeeId)
+                    .eq('exception_code', 'VAUT')
+                    .gte('exception_date', request.start_date)
+                    .lte('exception_date', request.end_date);
+
+                if (deleteExceptionsError) {
+                    console.error('Error deleting exception logs:', deleteExceptionsError);
+                    // Continue with deleting the request even if exception deletion fails
+                } else {
+                    console.log(`✅ Deleted exception logs for time off request ${requestId}`);
+                }
+            }
+
+            // Delete the time off request
+            const { error: deleteError } = await this.client
+                .from('time_off_requests')
+                .delete()
+                .eq('id', requestId);
+
+            if (deleteError) {
+                console.error('Error deleting time off request:', deleteError);
+                return false;
+            }
+
+            console.log(`✅ Time off request ${requestId} deleted successfully`);
+            return true;
+        } catch (error) {
+            console.error('Error deleting time off request:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Create exception logs for approved time off
+     * @param {Object} timeOffRequest - The approved time off request
+     */
+    async createTimeOffExceptions(timeOffRequest) {
+        if (!this.isReady()) return;
+
+        const startDate = new Date(timeOffRequest.start_date);
+        const endDate = new Date(timeOffRequest.end_date);
+        const employeeId = timeOffRequest.employee_id;
+
+        // Get employee name
+        const { data: employee } = await this.client
+            .from('employees')
+            .select('name')
+            .eq('id', employeeId)
+            .single();
+
+        const employeeName = employee?.name || 'Unknown';
+
+        // Create exception log for each day
+        const exceptions = [];
+        const currentDate = new Date(startDate);
+        
+        while (currentDate <= endDate) {
+            const dateStr = currentDate.toISOString().split('T')[0];
+            
+            exceptions.push({
+                employee_id: employeeId,
+                employee_name: employeeName,
+                exception_code: 'VAUT',
+                exception_date: dateStr,
+                start_time: '00:00:00',
+                end_time: '23:59:59',
+                reason: `Time Off: ${timeOffRequest.reason || 'Approved time off'}`,
+                approved_by: this.currentUser?.full_name || this.currentUser?.username || 'Admin',
+                approved_at: new Date().toISOString(),
+                additional_data: {
+                    time_off_request_id: timeOffRequest.id
+                }
+            });
+
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        // Insert all exceptions
+        if (exceptions.length > 0) {
+            const { error } = await this.client
+                .from('exception_logs')
+                .insert(exceptions);
+
+            if (error) {
+                console.error('Error creating time off exceptions:', error);
+            } else {
+                console.log(`✅ Created ${exceptions.length} exception log(s) for time off`);
+            }
+        }
+    }
+
+    /**
+     * Get approved time off periods for an employee
+     * @param {number} employeeId - Employee ID
+     * @param {string} startDate - Start date (YYYY-MM-DD)
+     * @param {string} endDate - End date (YYYY-MM-DD)
+     * @returns {Promise<Array>} Array of approved time off periods
+     */
+    async getApprovedTimeOff(employeeId, startDate = null, endDate = null) {
+        if (!this.isReady()) return [];
+
+        let query = this.client
+            .from('time_off_requests')
+            .select('*')
+            .eq('employee_id', employeeId)
+            .eq('status', 'approved');
+
+        if (startDate && endDate) {
+            query = query.or(`start_date.lte.${endDate},end_date.gte.${startDate}`);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            console.error('Error fetching approved time off:', error);
+            return [];
+        }
+
+        return data || [];
+    }
+
+    /**
+     * Check if an employee has approved time off on a specific date
+     * @param {number} employeeId - Employee ID
+     * @param {string} date - Date to check (YYYY-MM-DD)
+     * @returns {Promise<boolean>} True if employee has time off on that date
+     */
+    async hasTimeOffOnDate(employeeId, date) {
+        if (!this.isReady()) return false;
+
+        const { data, error } = await this.client
+            .from('time_off_requests')
+            .select('id')
+            .eq('employee_id', employeeId)
+            .eq('status', 'approved')
+            .lte('start_date', date)
+            .gte('end_date', date)
+            .limit(1);
+
+        if (error) {
+            console.error('Error checking time off:', error);
+            return false;
+        }
+
+        return data && data.length > 0;
+    }
+
+    /**
+     * Check if an employee has approved time off that conflicts with a date range
+     * @param {number} employeeId - Employee ID
+     * @param {string} startDate - Start date (YYYY-MM-DD)
+     * @param {string} endDate - End date (YYYY-MM-DD)
+     * @returns {Promise<boolean>} True if there's a conflict
+     */
+    async checkTimeOffConflict(employeeId, startDate, endDate) {
+        if (!this.isReady()) return false;
+
+        const { data, error } = await this.client
+            .from('time_off_requests')
+            .select('id, start_date, end_date')
+            .eq('employee_id', employeeId)
+            .eq('status', 'approved')
+            .or(`start_date.lte.${endDate},end_date.gte.${startDate}`)
+            .limit(1);
+
+        if (error) {
+            console.error('Error checking time off conflict:', error);
+            return false;
+        }
+
+        return data && data.length > 0;
     }
 
     // ==========================================
@@ -1727,9 +1951,11 @@ class SupabaseService {
 
         if (error) {
             console.error('Error fetching exception logs:', error);
+            console.error('Error details:', JSON.stringify(error, null, 2));
             return [];
         }
 
+        console.log(`✅ Fetched ${data?.length || 0} exception log(s)`, data);
         return data || [];
     }
 

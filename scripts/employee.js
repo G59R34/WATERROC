@@ -274,11 +274,26 @@ document.addEventListener('DOMContentLoaded', async function() {
                 nextTaskId: Math.max(...allTasks.map(t => t.id), 0) + 1
             };
             
-            localStorage.setItem('ganttData', JSON.stringify(data));
-            gantt.data = data;
-            gantt.render();
+            // Only update if data actually changed to prevent unnecessary re-renders
+            const currentDataStr = JSON.stringify({
+                employees: gantt.data.employees,
+                tasks: gantt.data.tasks
+            });
+            const newDataStr = JSON.stringify({
+                employees: data.employees,
+                tasks: data.tasks
+            });
             
-            console.log(`📋 Loaded ${userTasks.length} task(s) for ${userEmployee.name}`);
+            if (currentDataStr !== newDataStr) {
+                localStorage.setItem('ganttData', JSON.stringify(data));
+                gantt.data = data;
+                // Use requestAnimationFrame to make render smoother
+                requestAnimationFrame(async () => {
+                    await gantt.render();
+                });
+                
+                console.log(`📋 Updated ${userTasks.length} task(s) for ${userEmployee.name}`);
+            }
             
             // Update summary after a short delay to ensure DOM is ready
             setTimeout(async () => {
@@ -333,10 +348,13 @@ document.addEventListener('DOMContentLoaded', async function() {
                 lastAnnouncementCount = unreadAnnouncements.length;
             }
             
-            await syncFromSupabase();
-        }, 2000); // Refresh every 2 seconds
+            // Only sync if page is visible (not in background tab)
+            if (document.visibilityState === 'visible') {
+                await syncFromSupabase();
+            }
+        }, 30000); // Refresh every 30 seconds instead of 2 (less disruptive)
         
-        console.log('🔄 Auto-refresh enabled (every 2 seconds)');
+        console.log('🔄 Auto-refresh enabled (every 30 seconds)');
     }
 
     // My Shifts and Profile functionality
@@ -408,13 +426,21 @@ document.addEventListener('DOMContentLoaded', async function() {
         );
 
         // Get exceptions for this employee for the week
+        console.log(`Fetching exceptions for employee ${employee.id} (${employee.name})`);
+        console.log(`Date range: ${formatDate(shiftsWeekStart)} to ${formatDate(weekEnd)}`);
+        
         const exceptions = await supabaseService.getExceptionLogs({
             employeeId: employee.id,
             startDate: formatDate(shiftsWeekStart),
             endDate: formatDate(weekEnd)
-        });
+        }) || [];
 
         console.log('Loaded exceptions for employee:', exceptions);
+        console.log('Exception count:', exceptions.length);
+        
+        if (exceptions.length > 0) {
+            console.log('Sample exception:', exceptions[0]);
+        }
 
         // Update week display
         document.getElementById('myShiftsWeekDisplay').textContent = 
@@ -434,31 +460,44 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Create shift map
         const shiftMap = {};
         myShifts.forEach(shift => {
-            if (!shiftMap[shift.shift_date]) {
-                shiftMap[shift.shift_date] = [];
+            // Normalize shift_date to YYYY-MM-DD format
+            let shiftDate = shift.shift_date;
+            if (shiftDate instanceof Date) {
+                shiftDate = formatDate(shiftDate);
+            } else if (typeof shiftDate === 'string') {
+                shiftDate = shiftDate.split('T')[0];
             }
-            shiftMap[shift.shift_date].push(shift);
+            
+            if (!shiftMap[shiftDate]) {
+                shiftMap[shiftDate] = [];
+            }
+            shiftMap[shiftDate].push(shift);
         });
 
         // Create exception map - normalize dates to YYYY-MM-DD format
         const exceptionMap = {};
-        exceptions.forEach(exc => {
-            // Normalize exception_date to YYYY-MM-DD format
-            let excDate = exc.exception_date;
-            if (excDate instanceof Date) {
-                excDate = formatDate(excDate);
-            } else if (typeof excDate === 'string') {
-                // If it's already a string, ensure it's in YYYY-MM-DD format
-                excDate = excDate.split('T')[0]; // Remove time portion if present
-            }
-            
-            if (!exceptionMap[excDate]) {
-                exceptionMap[excDate] = [];
-            }
-            exceptionMap[excDate].push(exc);
-        });
+        if (Array.isArray(exceptions) && exceptions.length > 0) {
+            exceptions.forEach(exc => {
+                // Normalize exception_date to YYYY-MM-DD format
+                let excDate = exc.exception_date;
+                if (excDate instanceof Date) {
+                    excDate = formatDate(excDate);
+                } else if (typeof excDate === 'string') {
+                    // If it's already a string, ensure it's in YYYY-MM-DD format
+                    excDate = excDate.split('T')[0]; // Remove time portion if present
+                }
+                
+                if (!exceptionMap[excDate]) {
+                    exceptionMap[excDate] = [];
+                }
+                exceptionMap[excDate].push(exc);
+            });
+        } else {
+            console.log('No exceptions found or exceptions is not an array');
+        }
 
         console.log('Exception map:', exceptionMap);
+        console.log('Exception map keys:', Object.keys(exceptionMap));
 
         // Exception colors
         const exceptionColors = {

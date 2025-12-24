@@ -75,10 +75,10 @@ class GanttChart {
     setDateRange(start, end) {
         this.startDate = new Date(start);
         this.endDate = new Date(end);
-        this.render();
+        this.render(); // render is now async but we don't await here for compatibility
     }
     
-    render() {
+    async render() {
         if (!this.container) return;
         
         if (this.data.employees.length === 0) {
@@ -92,8 +92,8 @@ class GanttChart {
         const header = this.createHeader();
         this.container.appendChild(header);
         
-        // Create body
-        const body = this.createBody();
+        // Create body (now async to load time off data)
+        const body = await this.createBody();
         this.container.appendChild(body);
         
         // Synchronize scroll between body and header timeline
@@ -167,19 +167,22 @@ class GanttChart {
         return header;
     }
     
-    createBody() {
+    async createBody() {
         const body = document.createElement('div');
         body.className = 'gantt-body';
         
-        this.data.employees.forEach(employee => {
-            const row = this.createEmployeeRow(employee);
+        // Create rows asynchronously to load time off data
+        const rowPromises = this.data.employees.map(employee => this.createEmployeeRow(employee));
+        const rows = await Promise.all(rowPromises);
+        
+        rows.forEach(row => {
             body.appendChild(row);
         });
         
         return body;
     }
     
-    createEmployeeRow(employee) {
+    async createEmployeeRow(employee) {
         const row = document.createElement('div');
         row.className = 'gantt-row';
         row.dataset.employeeId = employee.id;
@@ -216,6 +219,22 @@ class GanttChart {
             timelineCell.appendChild(dayCell);
         }
         
+        // Load time off periods for this employee
+        let timeOffPeriods = [];
+        if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+            const startDateStr = this.formatDate(this.startDate);
+            const endDateStr = this.formatDate(this.endDate);
+            timeOffPeriods = await supabaseService.getApprovedTimeOff(employee.id, startDateStr, endDateStr) || [];
+        }
+        
+        // Add time off periods first (so they appear behind tasks)
+        timeOffPeriods.forEach(timeOff => {
+            const timeOffElement = this.createTimeOffElement(timeOff, employee.id);
+            if (timeOffElement) {
+                timelineCell.appendChild(timeOffElement);
+            }
+        });
+        
         // Add tasks for this employee
         const employeeTasks = this.data.tasks.filter(task => task.employeeId === employee.id);
         
@@ -232,6 +251,53 @@ class GanttChart {
         
         row.appendChild(timelineCell);
         return row;
+    }
+    
+    createTimeOffElement(timeOff, employeeId) {
+        const timeOffDiv = document.createElement('div');
+        timeOffDiv.className = 'gantt-time-off';
+        timeOffDiv.dataset.employeeId = employeeId;
+        timeOffDiv.title = `Time Off: ${timeOff.reason || 'Approved time off'}`;
+        
+        const startDate = new Date(timeOff.start_date);
+        const endDate = new Date(timeOff.end_date);
+        
+        // Calculate position
+        const daysFromStart = this.getDaysBetween(this.startDate, startDate) - 1;
+        const duration = this.getDaysBetween(startDate, endDate);
+        
+        const left = daysFromStart * this.dayWidth + 4;
+        const width = duration * this.dayWidth - 8;
+        
+        timeOffDiv.style.cssText = `
+            position: absolute;
+            left: ${left}px;
+            width: ${width}px;
+            height: 60px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: repeating-linear-gradient(
+                45deg,
+                rgba(16, 185, 129, 0.15),
+                rgba(16, 185, 129, 0.15) 10px,
+                rgba(16, 185, 129, 0.25) 10px,
+                rgba(16, 185, 129, 0.25) 20px
+            );
+            border: 2px dashed #10b981;
+            border-radius: 6px;
+            z-index: 1;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #059669;
+            font-weight: 600;
+            font-size: 0.85rem;
+        `;
+        
+        timeOffDiv.textContent = '🏖️ Time Off';
+        
+        return timeOffDiv;
     }
     
     createTaskElement(task, taskLanes = []) {

@@ -179,11 +179,22 @@ body:not(.employee-page) .gantt-chart {
     border-right: 2px solid var(--primary-color);
 }
 
+/* Time Off Periods */
+.gantt-time-off {
+    position: absolute;
+    height: 60px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1;
+    pointer-events: none;
+}
+
 /* Task Bars */
 .gantt-task {
     position: absolute;
     height: 60px;
     top: 50%;
+    z-index: 2;
     transform: translateY(-50%);
     border-radius: 8px;
     padding: 10px 14px;

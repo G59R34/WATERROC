@@ -113,27 +113,53 @@ document.addEventListener('DOMContentLoaded', async function() {
                 nextTaskId: Math.max(...tasks.map(t => t.id), 0) + 1
             };
             
-            localStorage.setItem('ganttData', JSON.stringify(data));
-            gantt.data = data;
-            gantt.render();
+            // Only update if data actually changed to prevent unnecessary re-renders
+            const currentDataStr = JSON.stringify({
+                employees: gantt.data.employees,
+                tasks: gantt.data.tasks
+            });
+            const newDataStr = JSON.stringify({
+                employees: data.employees,
+                tasks: data.tasks
+            });
+            
+            if (currentDataStr !== newDataStr) {
+                localStorage.setItem('ganttData', JSON.stringify(data));
+                gantt.data = data;
+                // Use requestAnimationFrame to make render smoother
+                requestAnimationFrame(async () => {
+                    await gantt.render();
+                });
+                
+                console.log(`📋 Updated ${data.tasks.length} task(s) for ${data.employees.length} employee(s)`);
+            }
         }
     }
     
-    // Auto-refresh from Supabase every 2 seconds
+    // Auto-refresh from Supabase - less frequent to prevent visible flickering
     if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+        let isRefreshing = false;
         setInterval(async () => {
-            // Check for new acknowledgements if notification system is available
-            if (typeof notificationSystem !== 'undefined') {
-                const tasks = await supabaseService.getTasksWithAcknowledgements();
-                if (tasks) {
-                    const totalAcks = tasks.reduce((sum, task) => sum + (task.acknowledgements?.length || 0), 0);
-                    await notificationSystem.checkForNewAcknowledgements(totalAcks);
+            // Only sync if page is visible and not already refreshing
+            if (supabaseService.isReady() && document.visibilityState === 'visible' && !isRefreshing) {
+                isRefreshing = true;
+                try {
+                    // Check for new acknowledgements if notification system is available
+                    if (typeof notificationSystem !== 'undefined') {
+                        const tasks = await supabaseService.getTasksWithAcknowledgements();
+                        if (tasks) {
+                            const totalAcks = tasks.reduce((sum, task) => sum + (task.acknowledgements?.length || 0), 0);
+                            await notificationSystem.checkForNewAcknowledgements(totalAcks);
+                        }
+                    }
+                    await syncFromSupabase();
+                } finally {
+                    isRefreshing = false;
                 }
             }
-            await syncFromSupabase();
-        }, 2000); // Refresh every 2 seconds
+        }, 30000); // Refresh every 30 seconds instead of 2 (less disruptive)
         
-        console.log('🔄 Auto-refresh enabled (every 2 seconds)');
+        console.log('🔄 Auto-refresh enabled (every 30 seconds)');
     }
     
     // Analytics navigation
@@ -543,6 +569,24 @@ document.addEventListener('DOMContentLoaded', async function() {
         submitBtn.disabled = true;
         
         try {
+            // Check for time off conflicts before adding tasks
+            if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+                const conflicts = [];
+                for (const emp of targetEmployees) {
+                    const hasConflict = await supabaseService.checkTimeOffConflict(emp.id, startDate, endDate);
+                    if (hasConflict) {
+                        conflicts.push(emp.name);
+                    }
+                }
+                
+                if (conflicts.length > 0) {
+                    alert(`Cannot assign task: The following employee(s) have approved time off during this period:\n${conflicts.join(', ')}\n\nPlease adjust the task dates or select different employees.`);
+                    submitBtn.textContent = originalText;
+                    submitBtn.disabled = false;
+                    return;
+                }
+            }
+            
             // Add tasks to local Gantt chart
             targetEmployees.forEach(emp => {
                 gantt.addTask(emp.id, name, startDate, endDate, status, startTime, endTime);

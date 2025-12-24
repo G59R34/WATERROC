@@ -359,6 +359,15 @@ document.addEventListener('DOMContentLoaded', async function() {
             return;
         }
 
+        // Check for time off conflicts
+        if (supabaseService && supabaseService.isReady()) {
+            const hasTimeOff = await supabaseService.hasTimeOffOnDate(shiftData.employee_id, shiftData.shift_date);
+            if (hasTimeOff) {
+                alert('⚠️ Cannot assign shift: This employee has approved time off on this date.\n\nPlease select a different date or contact the employee.');
+                return;
+            }
+        }
+
         try {
             const result = await supabaseService.createEmployeeShift(shiftData);
             
@@ -472,6 +481,9 @@ document.addEventListener('DOMContentLoaded', async function() {
                             ${req.status === 'pending' ? `
                                 <button class="btn-approve" data-request-id="${req.id}">✓ Approve</button>
                                 <button class="btn-deny" data-request-id="${req.id}">✗ Deny</button>
+                            ` : req.status === 'approved' ? `
+                                <span class="time-off-status ${req.status}">${req.status}</span>
+                                <button class="btn-remove" data-request-id="${req.id}" title="Remove this approved time off">🗑️ Remove</button>
                             ` : `
                                 <span class="time-off-status ${req.status}">${req.status}</span>
                             `}
@@ -486,7 +498,12 @@ document.addEventListener('DOMContentLoaded', async function() {
                     const requestId = parseInt(btn.dataset.requestId);
                     const result = await supabaseService.updateTimeOffRequest(requestId, { status: 'approved' });
                     if (result) {
+                        alert('Time off request approved! Exception logs have been created to block scheduling during this period.');
                         await loadTimeOffRequests();
+                        // Refresh the calendar view if it exists
+                        if (typeof renderCalendar === 'function') {
+                            await renderCalendar();
+                        }
                     } else {
                         alert('Failed to approve request');
                     }
@@ -501,6 +518,39 @@ document.addEventListener('DOMContentLoaded', async function() {
                         await loadTimeOffRequests();
                     } else {
                         alert('Failed to deny request');
+                    }
+                });
+            });
+
+            // Add click handlers for remove button
+            document.querySelectorAll('.btn-remove').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const requestId = parseInt(btn.dataset.requestId);
+                    const request = timeOffRequests.find(r => r.id === requestId);
+                    
+                    if (!request) {
+                        alert('Request not found.');
+                        return;
+                    }
+
+                    const employeeName = request.employees?.name || request.employee_name || 'Employee';
+                    const startDate = new Date(request.start_date).toLocaleDateString();
+                    const endDate = new Date(request.end_date).toLocaleDateString();
+
+                    if (confirm(`Are you sure you want to remove this approved time off?\n\n${employeeName}\n${startDate} - ${endDate}\n\nThis will also remove the associated exception logs and allow scheduling during this period.`)) {
+                        const result = await supabaseService.deleteTimeOffRequest(requestId);
+                        if (result) {
+                            alert('✅ Time off request removed successfully. Exception logs have been deleted and scheduling is now allowed during this period.');
+                            await loadTimeOffRequests();
+                            // Refresh the calendar view if it exists
+                            if (typeof renderCalendar === 'function') {
+                                await renderCalendar();
+                            }
+                            // Refresh shifts to update availability
+                            await loadShifts();
+                        } else {
+                            alert('❌ Failed to remove time off request. Please try again.');
+                        }
                     }
                 });
             });
