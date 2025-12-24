@@ -8,8 +8,9 @@
     <link rel="stylesheet" href="styles/gantt.css">
     <link rel="stylesheet" href="styles/checkin.css">
     <link rel="stylesheet" href="styles/company-chat.css">
+    <link rel="stylesheet" href="styles/employee-layout-fix.css">
 </head>
-<body>
+<body class="employee-page">
     <div class="dashboard">
         <header class="dashboard-header">
             <div class="header-left">
@@ -71,14 +72,45 @@
                     </div>
                 </div>
                 
-                <div class="info-card readonly-notice">
-                    <h3>ℹ️ Read-Only Mode</h3>
-                    <p>You are viewing the schedule in read-only mode. Contact your administrator to make changes.</p>
-                </div>
             </div>
             
             <div class="gantt-container">
                 <div id="ganttChart" class="gantt-chart readonly"></div>
+                
+                <!-- Summary Section -->
+                <div id="scheduleSummary" class="schedule-summary">
+                    <h3>📊 Schedule Summary</h3>
+                    <div class="summary-grid">
+                        <div class="summary-card">
+                            <div class="summary-icon">📅</div>
+                            <div class="summary-content">
+                                <div class="summary-label">Upcoming Shifts</div>
+                                <div class="summary-value" id="upcomingShiftsCount">-</div>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-icon">✅</div>
+                            <div class="summary-content">
+                                <div class="summary-label">Active Tasks</div>
+                                <div class="summary-value" id="activeTasksCount">-</div>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-icon">⏰</div>
+                            <div class="summary-content">
+                                <div class="summary-label">Hours This Week</div>
+                                <div class="summary-value" id="weeklyHours">-</div>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-icon">📋</div>
+                            <div class="summary-content">
+                                <div class="summary-label">Tasks This Week</div>
+                                <div class="summary-value" id="weeklyTasksCount">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

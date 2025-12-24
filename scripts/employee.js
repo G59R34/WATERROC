@@ -92,6 +92,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         
         await syncFromSupabase();
+        
+        // Update summary after initial load
+        setTimeout(async () => {
+            await updateScheduleSummary();
+        }, 1500);
     }
     
     // Show check-in dialog after everything is loaded
@@ -100,6 +105,123 @@ document.addEventListener('DOMContentLoaded', async function() {
             checkInSystem.show('employee');
         }
     }, 500);
+    
+    // Update schedule summary
+    async function updateScheduleSummary() {
+        const upcomingShiftsEl = document.getElementById('upcomingShiftsCount');
+        const activeTasksEl = document.getElementById('activeTasksCount');
+        const weeklyHoursEl = document.getElementById('weeklyHours');
+        const weeklyTasksEl = document.getElementById('weeklyTasksCount');
+        
+        if (!upcomingShiftsEl || !activeTasksEl || !weeklyHoursEl || !weeklyTasksEl) {
+            console.warn('Summary elements not found');
+            return;
+        }
+        
+        if (!supabaseService || !supabaseService.isReady()) {
+            console.warn('Supabase not ready for summary');
+            return;
+        }
+        
+        const employee = await getCurrentEmployee();
+        if (!employee) {
+            console.warn('No employee found for summary');
+            return;
+        }
+        
+        try {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Reset to start of day
+            
+            const weekStart = new Date(today);
+            weekStart.setDate(today.getDate() - today.getDay()); // Start of week (Sunday)
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekStart.getDate() + 6); // End of week (Saturday)
+            
+            // Format dates for queries
+            const formatDate = (date) => date.toISOString().split('T')[0];
+            const startDate = formatDate(weekStart);
+            const endDate = formatDate(weekEnd);
+            
+            console.log('Updating summary for week:', startDate, 'to', endDate, 'employee:', employee.id);
+            
+            // Get shifts for this week
+            const shifts = await supabaseService.getEmployeeShifts(startDate, endDate);
+            console.log('Loaded shifts:', shifts);
+            const myShifts = shifts?.filter(s => s.employee_id === employee.id) || [];
+            console.log('My shifts:', myShifts);
+            
+            // Filter upcoming shifts (from today onwards)
+            const upcomingShifts = myShifts.filter(shift => {
+                const shiftDate = new Date(shift.shift_date);
+                shiftDate.setHours(0, 0, 0, 0);
+                return shiftDate >= today && (shift.status === 'scheduled' || !shift.status);
+            });
+            console.log('Upcoming shifts:', upcomingShifts);
+            
+            // Get tasks for this week
+            const allTasks = await supabaseService.getTasksWithAcknowledgements();
+            console.log('All tasks:', allTasks);
+            const myTasks = allTasks?.filter(t => t.employee_id === employee.id) || [];
+            console.log('My tasks:', myTasks);
+            
+            // Filter tasks in date range
+            const weekTasks = myTasks.filter(task => {
+                const taskStart = new Date(task.start_date);
+                const taskEnd = new Date(task.end_date);
+                return (taskStart <= weekEnd && taskEnd >= weekStart);
+            });
+            console.log('Week tasks:', weekTasks);
+            
+            // Count active tasks (not completed)
+            const activeTasks = weekTasks.filter(t => t.status !== 'completed');
+            console.log('Active tasks:', activeTasks);
+            
+            // Calculate weekly hours
+            let weeklyHours = 0;
+            myShifts.forEach(shift => {
+                if (shift.start_time && shift.end_time) {
+                    const start = shift.start_time.split(':').map(Number);
+                    const end = shift.end_time.split(':').map(Number);
+                    const startMinutes = start[0] * 60 + (start[1] || 0);
+                    const endMinutes = end[0] * 60 + (end[1] || 0);
+                    const hours = (endMinutes - startMinutes) / 60;
+                    if (hours > 0) weeklyHours += hours;
+                }
+            });
+            console.log('Weekly hours:', weeklyHours);
+            
+            // Update summary display
+            upcomingShiftsEl.textContent = upcomingShifts.length;
+            activeTasksEl.textContent = activeTasks.length;
+            weeklyHoursEl.textContent = Math.round(weeklyHours);
+            weeklyTasksEl.textContent = weekTasks.length;
+            
+            console.log('Summary updated:', {
+                upcomingShifts: upcomingShifts.length,
+                activeTasks: activeTasks.length,
+                weeklyHours: Math.round(weeklyHours),
+                weeklyTasks: weekTasks.length
+            });
+            
+        } catch (error) {
+            console.error('Error updating schedule summary:', error);
+            // Set to 0 on error
+            upcomingShiftsEl.textContent = '0';
+            activeTasksEl.textContent = '0';
+            weeklyHoursEl.textContent = '0';
+            weeklyTasksEl.textContent = '0';
+        }
+    }
+    
+    // Update summary when Gantt chart updates
+    if (typeof gantt !== 'undefined') {
+        const originalSync = syncFromSupabase;
+        syncFromSupabase = async function() {
+            await originalSync();
+            await updateScheduleSummary();
+        };
+    }
     
     // Sync data from Supabase
     async function syncFromSupabase() {
@@ -157,6 +279,11 @@ document.addEventListener('DOMContentLoaded', async function() {
             gantt.render();
             
             console.log(`📋 Loaded ${userTasks.length} task(s) for ${userEmployee.name}`);
+            
+            // Update summary after a short delay to ensure DOM is ready
+            setTimeout(async () => {
+                await updateScheduleSummary();
+            }, 500);
         }
     }
     
@@ -287,6 +414,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             endDate: formatDate(weekEnd)
         });
 
+        console.log('Loaded exceptions for employee:', exceptions);
+
         // Update week display
         document.getElementById('myShiftsWeekDisplay').textContent = 
             `${formatDateDisplay(shiftsWeekStart)} - ${formatDateDisplay(weekEnd)}`;
@@ -311,14 +440,25 @@ document.addEventListener('DOMContentLoaded', async function() {
             shiftMap[shift.shift_date].push(shift);
         });
 
-        // Create exception map
+        // Create exception map - normalize dates to YYYY-MM-DD format
         const exceptionMap = {};
         exceptions.forEach(exc => {
-            if (!exceptionMap[exc.exception_date]) {
-                exceptionMap[exc.exception_date] = [];
+            // Normalize exception_date to YYYY-MM-DD format
+            let excDate = exc.exception_date;
+            if (excDate instanceof Date) {
+                excDate = formatDate(excDate);
+            } else if (typeof excDate === 'string') {
+                // If it's already a string, ensure it's in YYYY-MM-DD format
+                excDate = excDate.split('T')[0]; // Remove time portion if present
             }
-            exceptionMap[exc.exception_date].push(exc);
+            
+            if (!exceptionMap[excDate]) {
+                exceptionMap[excDate] = [];
+            }
+            exceptionMap[excDate].push(exc);
         });
+
+        console.log('Exception map:', exceptionMap);
 
         // Exception colors
         const exceptionColors = {
@@ -343,7 +483,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             const dayName = day.toLocaleDateString('en-US', { weekday: 'short' });
             
             html += `
-                <div style="border: 2px solid var(--border-color); border-radius: 8px; padding: 15px; background: ${dayShifts.length > 0 ? '#f0f9ff' : 'white'};">
+                <div style="border: 2px solid var(--border-color); border-radius: 8px; padding: 15px; background: ${dayShifts.length > 0 || dayExceptions.length > 0 ? '#f0f9ff' : 'white'};">
                     <div style="font-weight: 600; margin-bottom: 10px; text-align: center; color: var(--text-primary);">
                         ${dayName}<br>${formatDateDisplay(day)}
                     </div>
@@ -361,9 +501,9 @@ document.addEventListener('DOMContentLoaded', async function() {
                                 ${shift.notes ? `<div style="font-size: 11px; margin-top: 5px; opacity: 0.9;">${shift.notes}</div>` : ''}
                             </div>
                         `;
-                    }).join('') : '<div style="text-align: center; color: var(--text-secondary); font-size: 13px; padding: 20px 0;">No shifts</div>'}
+                    }).join('') : ''}
                     ${dayExceptions.length > 0 ? dayExceptions.map(exc => `
-                        <div style="background: ${exceptionColors[exc.exception_code] || '#64748b'}; color: white; padding: 10px; border-radius: 6px; margin-top: 8px; font-size: 12px; border: 2px solid rgba(255,255,255,0.3);">
+                        <div style="background: ${exceptionColors[exc.exception_code] || '#64748b'}; color: white; padding: 10px; border-radius: 6px; margin-top: ${dayShifts.length > 0 ? '8px' : '0'}; font-size: 12px; border: 2px solid rgba(255,255,255,0.3);">
                             <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">${exc.exception_code}</div>
                             <div style="font-size: 11px; opacity: 0.95; margin-bottom: 3px;">${exceptionLabels[exc.exception_code] || exc.exception_code}</div>
                             ${exc.start_time && exc.end_time ? `<div style="font-size: 11px; opacity: 0.9;">⏰ ${exc.start_time.substring(0, 5)} - ${exc.end_time.substring(0, 5)}</div>` : ''}
@@ -371,6 +511,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                             ${exc.approved_by && exc.approved_by !== 'SYSTEM' ? `<div style="font-size: 10px; margin-top: 4px; opacity: 0.8;">✓ Approved by ${exc.approved_by}</div>` : ''}
                         </div>
                     `).join('') : ''}
+                    ${dayShifts.length === 0 && dayExceptions.length === 0 ? '<div style="text-align: center; color: var(--text-secondary); font-size: 13px; padding: 20px 0;">No shifts</div>' : ''}
                 </div>
             `;
         });

@@ -1,0 +1,48 @@
+/* Force horizontal layout for employee page */
+body.employee-page .dashboard-content {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: stretch !important;
+}
+
+body.employee-page .info-panel {
+    flex: 0 0 340px !important;
+    width: 340px !important;
+    min-width: 340px !important;
+    max-width: 340px !important;
+    order: 1 !important;
+}
+
+body.employee-page .gantt-container {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    order: 2 !important;
+}
+
+/* Override any media queries for employee page */
+@media (max-width: 1024px) {
+    body.employee-page .dashboard-content {
+        flex-direction: row !important;
+        display: flex !important;
+    }
+    
+    body.employee-page .info-panel {
+        flex: 0 0 340px !important;
+        width: 340px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    body.employee-page .dashboard-content {
+        flex-direction: column !important;
+    }
+    
+    body.employee-page .info-panel {
+        flex: 0 0 auto !important;
+        width: 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+    }
+}
+

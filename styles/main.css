@@ -538,8 +538,21 @@ a:hover {
 .dashboard-content {
     flex: 1;
     padding: var(--space-8) var(--space-10);
-    display: flex;
+    display: flex !important;
+    flex-direction: row !important;
     gap: var(--space-8);
+    min-height: 0;
+    overflow: visible;
+    align-items: flex-start;
+}
+
+/* Employee page - ensure content fits viewport and stays horizontal */
+body.employee-page .dashboard-content {
+    max-height: calc(100vh - 120px);
+    overflow: visible;
+    align-items: stretch !important;
+    flex-direction: row !important;
+    display: flex !important;
 }
 
 /* ============================================
@@ -650,10 +663,27 @@ a:hover {
     padding: var(--space-6);
     box-shadow: var(--shadow-xl);
     width: 340px;
+    min-width: 340px;
+    max-width: 340px;
+    flex-shrink: 0;
+    flex-grow: 0;
     display: flex;
     flex-direction: column;
     gap: var(--space-6);
     border: 1px solid var(--border-light);
+    align-self: stretch;
+    height: fit-content;
+    order: 1;
+}
+
+/* Employee page - ensure sidebar stays fixed width and appears first */
+body.employee-page .info-panel {
+    width: 340px !important;
+    min-width: 340px !important;
+    max-width: 340px !important;
+    flex: 0 0 340px !important;
+    order: 1 !important;
+    display: flex !important;
 }
 
 .info-card {
@@ -717,12 +747,109 @@ a:hover {
 .gantt-container {
     flex: 1;
     background: var(--bg-primary);
+    display: flex;
+    flex-direction: column;
     border-radius: var(--radius-2xl);
     padding: var(--space-8);
     box-shadow: var(--shadow-xl);
-    overflow: auto;
+    overflow: hidden;
     border: 1px solid var(--border-light);
-    min-height: 600px;
+    min-height: 0;
+    min-width: 0;
+    order: 2;
+}
+
+/* Employee page - ensure container fits viewport and takes remaining space */
+body.employee-page .gantt-container {
+    max-height: calc(100vh - 200px);
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    width: auto !important;
+    align-self: stretch !important;
+    order: 2 !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* Employee page specific - Gantt chart takes most space */
+body.employee-page .gantt-container > #ganttChart {
+    flex: 1;
+    min-height: 0;
+}
+
+/* Admin page - keep original behavior */
+body:not(.employee-page) .gantt-container > #ganttChart {
+    height: calc(100vh - 250px);
+}
+
+.schedule-summary {
+    background: white;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-top: 12px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+    flex-shrink: 0;
+    max-height: 120px;
+    overflow: hidden;
+}
+
+.schedule-summary h3 {
+    margin: 0 0 12px 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.summary-card {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid var(--border-color);
+    transition: all 0.2s ease;
+}
+
+.summary-card:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+    border-color: var(--primary-color);
+}
+
+.summary-icon {
+    font-size: 1.5rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.summary-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.summary-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.summary-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
 }
 
 /* ============================================
@@ -1441,10 +1568,36 @@ a:hover {
         flex-direction: column;
     }
     
-    .controls-panel,
-    .info-panel {
+    /* Keep employee page horizontal layout even on smaller screens if possible */
+    body.employee-page .dashboard-content {
+        flex-direction: row !important;
+        display: flex !important;
+    }
+    
+    .controls-panel {
         width: 100%;
         position: static;
+    }
+    
+    /* Don't override info-panel on employee page at 1024px */
+    body.employee-page .info-panel {
+        width: 340px !important;
+        min-width: 340px !important;
+        max-width: 340px !important;
+        flex: 0 0 340px !important;
+    }
+    
+    @media (max-width: 768px) {
+        body.employee-page .dashboard-content {
+            flex-direction: column !important;
+        }
+        
+        body.employee-page .info-panel {
+            width: 100% !important;
+            min-width: 100% !important;
+            max-width: 100% !important;
+            flex: 0 0 auto !important;
+        }
     }
 }
 
