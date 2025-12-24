@@ -1435,20 +1435,20 @@ class SupabaseService {
                 return false;
             }
 
-            // If the request was approved, delete associated VAUT exception logs
+            // If the request was approved, delete associated VATO exception logs
             if (request.status === 'approved') {
                 const employeeId = request.employee_id;
 
                 // Delete exception logs that match this time off request
-                // We'll match by employee_id, date range, and VAUT code
+                // We'll match by employee_id, date range, and VATO code
                 // The additional_data should contain the time_off_request_id
-                // Note: We delete all VAUT exceptions for this employee in this date range
+                // Note: We delete all VATO exceptions for this employee in this date range
                 // since they should all be from this time off request
                 const { error: deleteExceptionsError } = await this.client
                     .from('exception_logs')
                     .delete()
                     .eq('employee_id', employeeId)
-                    .eq('exception_code', 'VAUT')
+                    .eq('exception_code', 'VATO')
                     .gte('exception_date', request.start_date)
                     .lte('exception_date', request.end_date);
 
@@ -1509,7 +1509,7 @@ class SupabaseService {
             exceptions.push({
                 employee_id: employeeId,
                 employee_name: employeeName,
-                exception_code: 'VAUT',
+                exception_code: 'VATO',
                 exception_date: dateStr,
                 start_time: '00:00:00',
                 end_time: '23:59:59',
@@ -1819,7 +1819,7 @@ class SupabaseService {
     /**
      * Apply an exception code to an employee shift
      * @param {number} shiftId - The shift ID
-     * @param {string} exceptionCode - VAUT, DO, or UAEO
+     * @param {string} exceptionCode - VAUT, DO, UAEO, NSFT, VATO, or EMWM
      * @param {object} details - Exception details (reason, approvedBy, startTime, endTime)
      */
     async applyShiftException(shiftId, exceptionCode, details = {}) {

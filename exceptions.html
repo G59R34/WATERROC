@@ -58,6 +58,18 @@
                                 <h4 style="margin: 0 0 8px 0; font-size: 16px;">UAEO</h4>
                                 <p style="margin: 0; font-size: 13px; opacity: 0.9;">Unauthorized Absence from Expected Operations - No approval</p>
                             </div>
+                            <div class="info-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 15px;">
+                                <h4 style="margin: 0 0 8px 0; font-size: 16px;">NSFT</h4>
+                                <p style="margin: 0; font-size: 13px; opacity: 0.9;">No Show For Task - Employee didn't acknowledge a task</p>
+                            </div>
+                            <div class="info-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 15px;">
+                                <h4 style="margin: 0 0 8px 0; font-size: 16px;">VATO</h4>
+                                <p style="margin: 0; font-size: 13px; opacity: 0.9;">Verified Authorized Time Off - For approved time off requests</p>
+                            </div>
+                            <div class="info-card" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; padding: 15px;">
+                                <h4 style="margin: 0 0 8px 0; font-size: 16px;">EMWM</h4>
+                                <p style="margin: 0; font-size: 13px; opacity: 0.9;">Employee Meeting With Management - Employee in management meeting</p>
+                            </div>
                         </div>
 
                         <form id="applyExceptionForm">
@@ -80,9 +92,12 @@
                                     <label for="exceptionCode">Exception Code *</label>
                                     <select id="exceptionCode" required>
                                         <option value="">Select Exception Code</option>
-                                        <option value="VAUT">VAUT - Authorized Unavailable Time</option>
+                                        <option value="VAUT">VAUT - Verified Authorized Unavailable Time</option>
                                         <option value="DO">DO - Day Off</option>
                                         <option value="UAEO">UAEO - Unauthorized Absence</option>
+                                        <option value="NSFT">NSFT - No Show For Task</option>
+                                        <option value="VATO">VATO - Verified Authorized Time Off</option>
+                                        <option value="EMWM">EMWM - Employee Meeting With Management</option>
                                     </select>
                                 </div>
                             </div>

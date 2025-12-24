@@ -503,13 +503,19 @@ document.addEventListener('DOMContentLoaded', async function() {
         const exceptionColors = {
             'VAUT': 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
             'DO': 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-            'UAEO': 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+            'UAEO': 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+            'NSFT': 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+            'VATO': 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+            'EMWM': 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)'
         };
 
         const exceptionLabels = {
             'VAUT': 'Verified Authorized Unavailable Time',
             'DO': 'Day Off',
-            'UAEO': 'Unauthorized Absence'
+            'UAEO': 'Unauthorized Absence',
+            'NSFT': 'No Show For Task',
+            'VATO': 'Verified Authorized Time Off',
+            'EMWM': 'Employee Meeting With Management'
         };
 
         // Build display

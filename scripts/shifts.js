@@ -217,13 +217,19 @@ document.addEventListener('DOMContentLoaded', async function() {
         const exceptionColors = {
             'VAUT': '#10b981',
             'DO': '#3b82f6',
-            'UAEO': '#ef4444'
+            'UAEO': '#ef4444',
+            'NSFT': '#f59e0b',
+            'VATO': '#10b981',
+            'EMWM': '#8b5cf6'
         };
 
         const exceptionLabels = {
             'VAUT': 'Verified Authorized Unavailable Time',
             'DO': 'Day Off',
-            'UAEO': 'Unauthorized Absence'
+            'UAEO': 'Unauthorized Absence',
+            'NSFT': 'No Show For Task',
+            'VATO': 'Verified Authorized Time Off',
+            'EMWM': 'Employee Meeting With Management'
         };
 
         // Build calendar HTML
