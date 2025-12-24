@@ -166,6 +166,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                         ` : ''}
                         
                         <div class="profile-actions">
+                            <div class="profile-call-buttons" id="callButtons-${emp.id}" style="margin-bottom: 10px;"></div>
                             <button class="btn-profile btn-edit-profile" data-employee-id="${emp.id}">
                                 ✏️ Edit Profile
                             </button>
@@ -182,6 +183,16 @@ document.addEventListener('DOMContentLoaded', async function() {
                     openProfileModal(employeeId);
                 });
             });
+
+            // Add VOIP call buttons
+            if (typeof voipUI !== 'undefined') {
+                employees.forEach(emp => {
+                    const callButtonsContainer = document.getElementById(`callButtons-${emp.id}`);
+                    if (callButtonsContainer && voipUI) {
+                        voipUI.addCallButton(callButtonsContainer, emp);
+                    }
+                });
+            }
 
         } catch (error) {
             console.error('Error loading profiles:', error);

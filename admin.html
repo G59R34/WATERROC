@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="styles/gantt.css">
     <link rel="stylesheet" href="styles/hourly-gantt.css">
     <link rel="stylesheet" href="styles/company-chat.css">
+    <link rel="stylesheet" href="styles/voip.css">
 </head>
 <body>
     <div class="dashboard">
@@ -479,6 +480,15 @@
     <script src="scripts/hourly-gantt.js"></script>
     <script src="scripts/admin.js"></script>
     <script src="scripts/company-chat.js"></script>
-</script>
+    <script src="scripts/voip-call-manager.js"></script>
+    <script src="scripts/voip-ui.js"></script>
+    <script>
+        // Initialize VOIP on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (typeof voipUI !== 'undefined') {
+                await voipUI.initialize();
+            }
+        });
+    </script>
 </body>
 </html>

@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="styles/checkin.css">
     <link rel="stylesheet" href="styles/company-chat.css">
     <link rel="stylesheet" href="styles/employee-layout-fix.css">
+    <link rel="stylesheet" href="styles/voip.css">
 </head>
 <body class="employee-page">
     <div class="dashboard">
@@ -286,6 +287,16 @@
     <script src="scripts/gantt.js"></script>
     <script src="scripts/employee.js"></script>
     <script src="scripts/company-chat.js"></script>
+    <script src="scripts/voip-call-manager.js"></script>
+    <script src="scripts/voip-ui.js"></script>
+    <script>
+        // Initialize VOIP on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (typeof voipUI !== 'undefined') {
+                await voipUI.initialize();
+            }
+        });
+    </script>
 </script>
 </body>
 </html>

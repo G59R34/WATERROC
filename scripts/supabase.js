@@ -3178,6 +3178,237 @@ class SupabaseService {
             this.client.removeChannel(channel);
         };
     }
+
+    // ==========================================
+    // VOIP CALL METHODS
+    // ==========================================
+
+    /**
+     * Create a call log entry
+     * @param {number} receiverId - The employee ID of the receiver
+     * @param {string} callType - 'audio' or 'video'
+     * @returns {Promise<Object|null>} Call log entry or null on error
+     */
+    async createCallLog(callerId, receiverId, callerName, receiverName, callType = 'audio') {
+        if (!this.isReady()) return null;
+
+        try {
+            const { data, error } = await this.client
+                .from('call_logs')
+                .insert({
+                    caller_id: callerId,
+                    receiver_id: receiverId,
+                    caller_name: callerName,
+                    receiver_name: receiverName,
+                    call_status: 'initiated',
+                    call_type: callType
+                })
+                .select()
+                .single();
+
+            if (error) {
+                console.error('Error creating call log:', error);
+                return null;
+            }
+
+            return data;
+        } catch (error) {
+            console.error('Error creating call log:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Update call log status
+     * @param {number} callLogId - The call log ID
+     * @param {string} status - New status
+     * @param {number} durationSeconds - Call duration in seconds (optional)
+     * @returns {Promise<Object|null>} Updated call log or null on error
+     */
+    async updateCallLog(callLogId, status, durationSeconds = null) {
+        if (!this.isReady()) return null;
+
+        try {
+            const updateData = {
+                call_status: status,
+                updated_at: new Date().toISOString()
+            };
+
+            if (status === 'answered') {
+                updateData.answered_at = new Date().toISOString();
+            } else if (status === 'ended' || status === 'missed' || status === 'rejected') {
+                updateData.ended_at = new Date().toISOString();
+                if (durationSeconds !== null) {
+                    updateData.duration_seconds = durationSeconds;
+                }
+            }
+
+            const { data, error } = await this.client
+                .from('call_logs')
+                .update(updateData)
+                .eq('id', callLogId)
+                .select()
+                .single();
+
+            if (error) {
+                console.error('Error updating call log:', error);
+                return null;
+            }
+
+            return data;
+        } catch (error) {
+            console.error('Error updating call log:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Get call logs for current employee
+     * @param {number} limit - Number of logs to retrieve
+     * @returns {Promise<Array>} Array of call logs
+     */
+    async getCallLogs(limit = 50) {
+        if (!this.isReady()) return [];
+
+        try {
+            const employee = await this.getCurrentEmployee();
+            if (!employee) return [];
+
+            const { data, error } = await this.client
+                .from('call_logs')
+                .select('*')
+                .or(`caller_id.eq.${employee.id},receiver_id.eq.${employee.id}`)
+                .order('started_at', { ascending: false })
+                .limit(limit);
+
+            if (error) {
+                console.error('Error fetching call logs:', error);
+                return [];
+            }
+
+            return data || [];
+        } catch (error) {
+            console.error('Error fetching call logs:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Send WebRTC signaling data
+     * @param {string} callId - Unique call identifier
+     * @param {number} receiverId - Receiver employee ID
+     * @param {string} signalType - Type of signal
+     * @param {Object} signalData - Signal data (offer/answer/ICE candidate)
+     * @returns {Promise<boolean>} Success status
+     */
+    async sendCallSignal(callId, receiverId, signalType, signalData) {
+        if (!this.isReady()) return false;
+
+        try {
+            const employee = await this.getCurrentEmployee();
+            if (!employee) return false;
+
+            const { error } = await this.client
+                .from('call_signaling')
+                .insert({
+                    call_id: callId,
+                    caller_id: employee.id,
+                    receiver_id: receiverId,
+                    signal_type: signalType,
+                    signal_data: signalData
+                });
+
+            if (error) {
+                console.error('Error sending call signal:', error);
+                return false;
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Error sending call signal:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Subscribe to call signaling for a specific call
+     * @param {string} callId - Call identifier
+     * @param {Function} callback - Callback function for signals
+     * @returns {Function} Unsubscribe function
+     */
+    subscribeToCallSignaling(callId, callback) {
+        if (!this.isReady()) return () => {};
+
+        const channel = this.client
+            .channel(`call-signaling-${callId}`)
+            .on('postgres_changes', {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'call_signaling',
+                filter: `call_id=eq.${callId}`
+            }, (payload) => {
+                callback(payload.new);
+            })
+            .subscribe();
+
+        return () => {
+            this.client.removeChannel(channel);
+        };
+    }
+
+    /**
+     * Subscribe to incoming call requests
+     * @param {number} employeeId - Current employee ID
+     * @param {Function} callback - Callback function for incoming calls
+     * @returns {Function} Unsubscribe function
+     */
+    subscribeToIncomingCalls(employeeId, callback) {
+        if (!this.isReady()) return () => {};
+
+        const channel = this.client
+            .channel(`incoming-calls-${employeeId}`)
+            .on('postgres_changes', {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'call_signaling',
+                filter: `receiver_id=eq.${employeeId}`
+            }, (payload) => {
+                if (payload.new.signal_type === 'call-request') {
+                    callback(payload.new);
+                }
+            })
+            .subscribe();
+
+        return () => {
+            this.client.removeChannel(channel);
+        };
+    }
+
+    /**
+     * Delete call signaling data (cleanup)
+     * @param {string} callId - Call identifier
+     * @returns {Promise<boolean>} Success status
+     */
+    async deleteCallSignaling(callId) {
+        if (!this.isReady()) return false;
+
+        try {
+            const { error } = await this.client
+                .from('call_signaling')
+                .delete()
+                .eq('call_id', callId);
+
+            if (error) {
+                console.error('Error deleting call signaling:', error);
+                return false;
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Error deleting call signaling:', error);
+            return false;
+        }
+    }
 }
 
 // Create global instance

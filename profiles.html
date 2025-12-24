@@ -6,6 +6,7 @@
     <title>WaterROC - Employee Profiles</title>
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/profiles.css">
+    <link rel="stylesheet" href="styles/voip.css">
 </head>
 <body>
     <div class="dashboard">
@@ -105,6 +106,16 @@
     <script src="scripts/supabase.js"></script>
     <script src="scripts/config.js"></script>
     <script src="scripts/employee-status-monitor.js"></script>
+    <script src="scripts/voip-call-manager.js"></script>
+    <script src="scripts/voip-ui.js"></script>
     <script src="scripts/profiles.js"></script>
+    <script>
+        // Initialize VOIP on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (typeof voipUI !== 'undefined') {
+                await voipUI.initialize();
+            }
+        });
+    </script>
 </body>
 </html>
