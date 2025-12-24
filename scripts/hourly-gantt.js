@@ -2,7 +2,8 @@
 class HourlyGanttChart {
     constructor(containerId, selectedDate, isEditable = false) {
         this.container = document.getElementById(containerId);
-        this.selectedDate = new Date(selectedDate);
+        // Parse date string as local date to avoid timezone issues
+        this.selectedDate = this.parseLocalDate(selectedDate);
         this.isEditable = isEditable;
         this.hourWidth = 80; // Width per hour
         this.timeIndicatorInterval = null;
@@ -10,6 +11,24 @@ class HourlyGanttChart {
         this.tasks = [];
         
         this.init();
+    }
+    
+    // Helper function to parse date string as local date (not UTC)
+    parseLocalDate(dateStr) {
+        // If it's already a Date object, return it
+        if (dateStr instanceof Date) {
+            return dateStr;
+        }
+        // Parse YYYY-MM-DD format as local date
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+            const day = parseInt(parts[2], 10);
+            return new Date(year, month, day);
+        }
+        // Fallback to regular Date parsing
+        return new Date(dateStr);
     }
     
     async init() {
@@ -288,7 +307,7 @@ class HourlyGanttChart {
                 });
             }
             
-            employeeNameCell.style.gridRow = 'span 4';
+            employeeNameCell.style.gridRow = 'span 5';
             employeeSection.appendChild(employeeNameCell);
             
             // Create a row for each work area

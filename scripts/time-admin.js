@@ -2,30 +2,92 @@
 // Requires `supabaseService` and admin session
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // Wait a bit for Supabase to initialize
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     // Create a floating button to open admin time panel
     const btn = document.createElement('button');
-    btn.textContent = 'Attendance';
-    btn.className = 'btn-warning';
-    btn.style.position = 'fixed';
-    btn.style.right = '20px';
-    btn.style.bottom = '20px';
-    btn.style.zIndex = 99999;
+    btn.id = 'attendanceBtn';
+    btn.innerHTML = '<span style="font-size: 18px; margin-right: 6px;">🕒</span>Attendance';
+    btn.className = 'attendance-floating-btn';
+    btn.style.cssText = `
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+        z-index: 99999;
+        padding: 14px 20px;
+        border: none;
+        border-radius: 12px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 140px;
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+    `;
+    
+    // Add hover effect
+    btn.addEventListener('mouseenter', () => {
+        btn.style.transform = 'translateY(-2px)';
+        btn.style.boxShadow = '0 6px 20px rgba(245, 158, 11, 0.4)';
+    });
+    
+    btn.addEventListener('mouseleave', () => {
+        btn.style.transform = 'translateY(0)';
+        btn.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.15)';
+    });
+    
     document.body.appendChild(btn);
+    
+    // Update button status periodically
+    function updateButtonStatus() {
+        // Check both window.supabaseService and global supabaseService
+        const service = window.supabaseService || (typeof supabaseService !== 'undefined' ? supabaseService : null);
+        if (service && service.isReady()) {
+            btn.innerHTML = '<span style="font-size: 18px; margin-right: 6px;">🕒</span>Attendance';
+            btn.style.background = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+            btn.style.opacity = '1';
+        } else {
+            btn.innerHTML = '<span style="font-size: 18px; margin-right: 6px;">⏳</span>Attendance (Not Ready)';
+            btn.style.background = 'linear-gradient(135deg, #64748b 0%, #475569 100%)';
+            btn.style.opacity = '0.8';
+        }
+    }
+    
+    // Check status initially and periodically
+    updateButtonStatus();
+    const statusInterval = setInterval(() => {
+        updateButtonStatus();
+    }, 2000);
+    
+    // Clear interval when page unloads
+    window.addEventListener('beforeunload', () => {
+        clearInterval(statusInterval);
+    });
 
     const panel = document.createElement('div');
-    panel.style.position = 'fixed';
-    panel.style.right = '20px';
-    panel.style.bottom = '70px';
-    panel.style.width = '420px';
-    panel.style.maxHeight = '70vh';
-    panel.style.overflowY = 'auto';
-    panel.style.background = 'white';
-    panel.style.border = '1px solid #ddd';
-    panel.style.padding = '12px';
-    panel.style.borderRadius = '8px';
-    panel.style.boxShadow = '0 8px 20px rgba(0,0,0,0.12)';
-    panel.style.zIndex = 99999;
-    panel.style.display = 'none';
+    panel.id = 'attendancePanel';
+    panel.style.cssText = `
+        position: fixed;
+        right: 20px;
+        bottom: 80px;
+        width: 450px;
+        max-height: 75vh;
+        overflow-y: auto;
+        background: white;
+        border: none;
+        padding: 20px;
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        z-index: 99998;
+        display: none;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    `;
     document.body.appendChild(panel);
 
     btn.addEventListener('click', async () => {
@@ -39,7 +101,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     async function loadAttendance(container) {
-        if (!window.supabaseService || !window.supabaseService.isReady()) {
+        // Check both window.supabaseService and global supabaseService
+        const service = window.supabaseService || (typeof supabaseService !== 'undefined' ? supabaseService : null);
+        if (!service || !service.isReady()) {
             container.innerHTML = '<div class="muted">Supabase not ready</div>';
             return;
         }
@@ -47,7 +111,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         try {
             // Fetch latest sessions
-            const { data: sessions, error: sErr } = await window.supabaseService.client
+            const { data: sessions, error: sErr } = await service.client
                 .from('time_clocks')
                 .select('id, employee_id, session_id, clock_in, clock_out, device_info, employee:employee_id (id, name)')
                 .order('clock_in', { ascending: false })
@@ -61,7 +125,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (s.employee && s.employee.id) employeesById[s.employee.id] = s.employee.name || '';
             });
 
-            const { data: activities, error: aErr } = await window.supabaseService.client
+            const { data: activities, error: aErr } = await service.client
                 .from('activity_logs')
                 .select('id, employee_id, recorded_at, category, detail, idle_seconds, employee:employee_id (id, name)')
                 .order('recorded_at', { ascending: false })
@@ -121,7 +185,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Load attendance grouped by employee and render a table per employee
     async function loadAttendanceByEmployee(container) {
-        if (!window.supabaseService || !window.supabaseService.isReady()) {
+        // Check both window.supabaseService and global supabaseService
+        const service = window.supabaseService || (typeof supabaseService !== 'undefined' ? supabaseService : null);
+        if (!service || !service.isReady()) {
             container.innerHTML = '<div class="muted">Supabase not ready</div>';
             return;
         }
@@ -129,7 +195,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         container.innerHTML = '<div>Loading attendance by employee...</div>';
 
         try {
-            const { data: sessions, error } = await window.supabaseService.client
+            const { data: sessions, error } = await service.client
                 .from('time_clocks')
                 .select('id, employee_id, session_id, clock_in, clock_out, device_info, employee:employee_id (id, name)')
                 .order('employee_id', { ascending: true })
@@ -152,6 +218,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 grouped[key].push(s);
             });
 
+            const employeeIds = Object.keys(grouped);
             let html = '<h4>Attendance By Employee</h4>';
             html += `<div style="margin-bottom:8px;color:#64748b;font-size:13px;">Loaded ${sessions ? sessions.length : 0} sessions for ${employeeIds.length} employees</div>`;
             if (!sessions || sessions.length === 0) {

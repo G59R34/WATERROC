@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/gantt.css">
     <link rel="stylesheet" href="styles/hourly-gantt.css">
+    <link rel="stylesheet" href="styles/company-chat.css">
 </head>
 <body>
     <div class="dashboard">
@@ -129,6 +130,12 @@
             <h2>Add Task</h2>
             <form id="addTaskForm">
                 <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="taskSendToAll" style="margin-right: 8px;">
+                        Send to all employees
+                    </label>
+                </div>
+                <div class="form-group" id="taskEmployeeGroup">
                     <label for="taskEmployee">Employee</label>
                     <select id="taskEmployee" required></select>
                 </div>
@@ -471,6 +478,7 @@
     <script src="scripts/gantt.js"></script>
     <script src="scripts/hourly-gantt.js"></script>
     <script src="scripts/admin.js"></script>
+    <script src="scripts/company-chat.js"></script>
 </script>
 </body>
 </html>

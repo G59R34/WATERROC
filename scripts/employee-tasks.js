@@ -372,6 +372,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         const upcomingTasks = [];
         const currentTasks = [];
         const completedTasks = [];
+        const allDailyTasks = [];
 
         tasks.forEach(task => {
             // Handle both Supabase format (start_time) and old format (startTime)
@@ -382,6 +383,9 @@ document.addEventListener('DOMContentLoaded', async function() {
             const [endHour, endMin] = endTime.split(':').map(Number);
             const taskStartTime = startHour * 60 + startMin;
             const taskEndTime = endHour * 60 + endMin;
+
+            // Add to all daily tasks list
+            allDailyTasks.push({ ...task, taskStartTime, taskEndTime });
 
             if (task.status === 'completed') {
                 completedTasks.push(task);
@@ -410,19 +414,32 @@ document.addEventListener('DOMContentLoaded', async function() {
             return bStart.localeCompare(aStart);
         });
 
+        // Sort all daily tasks by start time
+        allDailyTasks.sort((a, b) => {
+            // Completed tasks go to the end
+            if (a.status === 'completed' && b.status !== 'completed') return 1;
+            if (a.status !== 'completed' && b.status === 'completed') return -1;
+            // Otherwise sort by start time
+            return a.taskStartTime - b.taskStartTime;
+        });
+
         // Render each category
         renderTaskList('upcomingTasksList', upcomingTasks, true);
         renderTaskList('currentTasksList', currentTasks, false);
         renderTaskList('completedTasksList', completedTasks, false);
+        renderTaskList('allDailyTasksList', allDailyTasks, false, true);
     }
 
-    function renderTaskList(containerId, taskList, showTimeUntil) {
+    function renderTaskList(containerId, taskList, showTimeUntil, showAllDaily = false) {
         const container = document.getElementById(containerId);
         
         if (taskList.length === 0) {
             container.innerHTML = '<div class="empty-state"><p>No tasks</p></div>';
             return;
         }
+
+        const now = new Date();
+        const currentTime = now.getHours() * 60 + now.getMinutes();
 
         container.innerHTML = taskList.map(task => {
             // Handle both Supabase format (start_time) and old format (startTime)
@@ -434,6 +451,27 @@ document.addEventListener('DOMContentLoaded', async function() {
             const urgentClass = task.minutesUntil && task.minutesUntil <= 30 ? 'urgent' : '';
             const statusClass = task.status === 'completed' ? 'completed' : 
                                task.status === 'in-progress' ? 'in-progress' : '';
+            
+            // For "All Daily Tasks" section, show time status
+            let timeStatusHtml = '';
+            if (showAllDaily) {
+                const taskStartTime = task.taskStartTime || 0;
+                const taskEndTime = task.taskEndTime || 0;
+                
+                if (task.status === 'completed') {
+                    timeStatusHtml = '<div class="time-status completed-time">✅ Completed</div>';
+                } else if (currentTime < taskStartTime) {
+                    const minutesUntil = taskStartTime - currentTime;
+                    const hours = Math.floor(minutesUntil / 60);
+                    const mins = minutesUntil % 60;
+                    const timeText = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+                    timeStatusHtml = `<div class="time-status upcoming-time">⏰ Starts in ${timeText}</div>`;
+                } else if (currentTime >= taskStartTime && currentTime <= taskEndTime) {
+                    timeStatusHtml = '<div class="time-status current-time">🟢 In Progress</div>';
+                } else {
+                    timeStatusHtml = '<div class="time-status past-time">⏪ Past</div>';
+                }
+            }
             
             let timeUntilHtml = '';
             if (showTimeUntil && task.minutesUntil !== undefined) {
@@ -465,6 +503,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                             📍 ${formatWorkArea(workArea)}
                         </div>
                         ${timeUntilHtml}
+                        ${timeStatusHtml}
                         ${acknowledgedHtml}
                     </div>
                     ${acknowledgeBtn}

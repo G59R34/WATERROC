@@ -394,6 +394,15 @@ document.addEventListener('DOMContentLoaded', async function() {
         updateEmployeeDropdown();
         addTaskModal.style.display = 'block';
         
+        // Reset "send to all" checkbox
+        const sendToAllCheckbox = document.getElementById('taskSendToAll');
+        const employeeGroup = document.getElementById('taskEmployeeGroup');
+        const employeeSelect = document.getElementById('taskEmployee');
+        
+        sendToAllCheckbox.checked = false;
+        employeeGroup.style.display = 'block';
+        employeeSelect.required = true;
+        
         // Set default dates
         const today = new Date();
         document.getElementById('taskStart').valueAsDate = today;
@@ -405,6 +414,20 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Set default times
         document.getElementById('taskStartTime').value = '09:00';
         document.getElementById('taskEndTime').value = '17:00';
+    });
+    
+    // Toggle employee dropdown when "send to all" is checked
+    document.getElementById('taskSendToAll')?.addEventListener('change', function(e) {
+        const employeeGroup = document.getElementById('taskEmployeeGroup');
+        const employeeSelect = document.getElementById('taskEmployee');
+        
+        if (e.target.checked) {
+            employeeGroup.style.display = 'none';
+            employeeSelect.required = false;
+        } else {
+            employeeGroup.style.display = 'block';
+            employeeSelect.required = true;
+        }
     });
     
     // Close modals
@@ -476,7 +499,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     document.getElementById('addTaskForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         
-        const employeeId = parseInt(document.getElementById('taskEmployee').value);
+        const sendToAll = document.getElementById('taskSendToAll').checked;
+        const employeeId = sendToAll ? null : parseInt(document.getElementById('taskEmployee').value);
         const name = document.getElementById('taskName').value;
         const startDate = document.getElementById('taskStart').value;
         const endDate = document.getElementById('taskEnd').value;
@@ -490,21 +514,67 @@ document.addEventListener('DOMContentLoaded', async function() {
             return;
         }
         
-        // Add to local Gantt chart
-        gantt.addTask(employeeId, name, startDate, endDate, status, startTime, endTime);
-        
-        // Sync to Supabase if enabled
-        if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
-            await supabaseService.addTask(employeeId, name, startDate, endDate, startTime, endTime, status);
-            
-            // Refresh from database
-            await syncFromSupabase();
+        // Validate employee selection if not sending to all
+        if (!sendToAll && !employeeId) {
+            alert('Please select an employee or check "Send to all employees"');
+            return;
         }
         
-        addTaskModal.style.display = 'none';
-        this.reset();
+        // Get employees list
+        const employees = gantt.getEmployees();
         
-        alert(`Task "${name}" added successfully!`);
+        if (employees.length === 0) {
+            alert('No employees available. Please add employees first.');
+            return;
+        }
+        
+        // Determine which employees to assign the task to
+        const targetEmployees = sendToAll ? employees : [employees.find(emp => emp.id === employeeId)];
+        
+        if (!sendToAll && !targetEmployees[0]) {
+            alert('Selected employee not found.');
+            return;
+        }
+        
+        // Show loading state
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = sendToAll ? `Adding to ${targetEmployees.length} employees...` : 'Adding...';
+        submitBtn.disabled = true;
+        
+        try {
+            // Add tasks to local Gantt chart
+            targetEmployees.forEach(emp => {
+                gantt.addTask(emp.id, name, startDate, endDate, status, startTime, endTime);
+            });
+            
+            // Sync to Supabase if enabled
+            if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+                // Create tasks for all target employees
+                const taskPromises = targetEmployees.map(emp => 
+                    supabaseService.addTask(emp.id, name, startDate, endDate, startTime, endTime, status)
+                );
+                
+                await Promise.all(taskPromises);
+                
+                // Refresh from database
+                await syncFromSupabase();
+            }
+            
+            addTaskModal.style.display = 'none';
+            this.reset();
+            
+            const successMessage = sendToAll 
+                ? `Task "${name}" added successfully to ${targetEmployees.length} employees!`
+                : `Task "${name}" added successfully!`;
+            alert(successMessage);
+        } catch (error) {
+            console.error('Error adding task(s):', error);
+            alert('Error adding task. Please try again.');
+        } finally {
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+        }
     });
     
     // Edit Task Form
@@ -827,10 +897,24 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     }
     
+    // Helper function to parse date string as local date (not UTC)
+    function parseLocalDate(dateStr) {
+        // Parse YYYY-MM-DD format as local date
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+            const day = parseInt(parts[2], 10);
+            return new Date(year, month, day);
+        }
+        // Fallback to regular Date parsing
+        return new Date(dateStr);
+    }
+    
     function openHourlyGantt(dateStr) {
         const hourlyModal = document.getElementById('hourlyGanttModal');
         const titleEl = document.getElementById('hourlyGanttTitle');
-        const date = new Date(dateStr);
+        const date = parseLocalDate(dateStr);
         
         titleEl.textContent = `Hourly Schedule - ${date.toLocaleDateString('en-US', { 
             weekday: 'long', 

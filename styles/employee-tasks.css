@@ -224,6 +224,36 @@ body {
     margin-top: 4px;
 }
 
+.time-status {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-top: 4px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    display: inline-block;
+}
+
+.time-status.completed-time {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.time-status.upcoming-time {
+    background: #fef2f2;
+    color: #991b1b;
+}
+
+.time-status.current-time {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.time-status.past-time {
+    background: #f1f5f9;
+    color: #64748b;
+    opacity: 0.7;
+}
+
 .empty-state {
     text-align: center;
     padding: 40px 20px;

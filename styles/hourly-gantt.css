@@ -425,7 +425,7 @@
 .hourly-gantt-employee-section {
     display: grid;
     grid-template-columns: 180px 1fr;
-    grid-template-rows: repeat(4, 32px);
+    grid-template-rows: repeat(5, 32px);
     border-bottom: 1px solid #cbd5e1;
 }
 

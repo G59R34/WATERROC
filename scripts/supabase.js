@@ -1982,10 +1982,278 @@ class SupabaseService {
             return [];
         }
     }
+
+    // ==========================================
+    // COMPANY CHAT
+    // ==========================================
+
+    /**
+     * Get company chat messages (with user info)
+     * @param {number} limit - Number of messages to fetch (default: 100)
+     * @returns {Promise<Array>} Array of chat messages with user information
+     */
+    async getCompanyChatMessages(limit = 100) {
+        if (!this.isReady()) return null;
+
+        try {
+            const { data, error } = await this.client
+                .from('company_chat_messages')
+                .select(`
+                    *,
+                    users:user_id (
+                        id,
+                        username,
+                        full_name,
+                        is_admin
+                    )
+                `)
+                .is('deleted_at', null)
+                .order('created_at', { ascending: false })
+                .limit(limit);
+
+            if (error) throw error;
+
+            // Reverse to show oldest first (for chat display)
+            // Map users to user for consistency
+            if (data) {
+                return data.map(msg => ({
+                    ...msg,
+                    user: msg.users || null
+                })).reverse();
+            }
+            return [];
+        } catch (error) {
+            console.error('Error fetching company chat messages:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Send a company chat message
+     * @param {string} message - The message text
+     * @returns {Promise<Object|null>} The created message or null on error
+     */
+    async sendCompanyChatMessage(message) {
+        if (!this.isReady()) {
+            console.error('Supabase not ready');
+            return null;
+        }
+
+        const currentUser = await this.getCurrentUser();
+        if (!currentUser) {
+            console.error('No current user found');
+            return null;
+        }
+
+        console.log('Sending chat message for user:', currentUser.id, 'Message:', message);
+
+        try {
+            // Insert the message
+            const { data: insertedData, error: insertError } = await this.client
+                .from('company_chat_messages')
+                .insert({
+                    user_id: currentUser.id,
+                    message: message.trim()
+                })
+                .select('*')
+                .single();
+
+            if (insertError) {
+                console.error('Insert error:', insertError);
+                console.error('Insert error code:', insertError.code);
+                console.error('Insert error message:', insertError.message);
+                console.error('Insert error details:', insertError.details);
+                throw insertError;
+            }
+
+            console.log('Message inserted successfully:', insertedData);
+
+            // Return with user info from currentUser (we already have it)
+            return {
+                ...insertedData,
+                user: {
+                    id: currentUser.id,
+                    username: currentUser.username,
+                    full_name: currentUser.full_name,
+                    is_admin: currentUser.is_admin
+                }
+            };
+
+        } catch (error) {
+            console.error('Error sending company chat message:', error);
+            console.error('Error message:', error.message);
+            console.error('Error code:', error.code);
+            console.error('Error details:', error.details);
+            return null;
+        }
+    }
+
+    /**
+     * Update a company chat message (edit)
+     * @param {number} messageId - The message ID
+     * @param {string} newMessage - The updated message text
+     * @returns {Promise<Object|null>} The updated message or null on error
+     */
+    async updateCompanyChatMessage(messageId, newMessage) {
+        if (!this.isReady()) return null;
+
+        const currentUser = await this.getCurrentUser();
+        if (!currentUser) {
+            console.error('No current user found');
+            return null;
+        }
+
+        try {
+            const { data, error } = await this.client
+                .from('company_chat_messages')
+                .update({
+                    message: newMessage.trim(),
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', messageId)
+                .eq('user_id', currentUser.id) // Ensure user owns the message
+                .select(`
+                    *,
+                    users:user_id (
+                        id,
+                        username,
+                        full_name,
+                        is_admin
+                    )
+                `)
+                .single();
+
+            if (error) throw error;
+
+            console.log('✅ Company chat message updated:', data);
+            // Map users to user for consistency
+            if (data && data.users) {
+                return {
+                    ...data,
+                    user: data.users
+                };
+            }
+            return data;
+        } catch (error) {
+            console.error('Error updating company chat message:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Delete a company chat message (soft delete)
+     * @param {number} messageId - The message ID
+     * @returns {Promise<boolean>} True if successful, false otherwise
+     */
+    async deleteCompanyChatMessage(messageId) {
+        if (!this.isReady()) return false;
+
+        const currentUser = await this.getCurrentUser();
+        if (!currentUser) {
+            console.error('No current user found');
+            return false;
+        }
+
+        try {
+            // Check if user is admin or owns the message
+            const isAdmin = await this.isAdmin();
+            
+            let query = this.client
+                .from('company_chat_messages')
+                .update({ deleted_at: new Date().toISOString() })
+                .eq('id', messageId);
+
+            // If not admin, ensure user owns the message
+            if (!isAdmin) {
+                query = query.eq('user_id', currentUser.id);
+            }
+
+            const { error } = await query;
+
+            if (error) throw error;
+
+            console.log('✅ Company chat message deleted');
+            return true;
+        } catch (error) {
+            console.error('Error deleting company chat message:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Subscribe to company chat messages for real-time updates
+     * @param {Function} callback - Callback function to handle new messages
+     * @returns {Function} Unsubscribe function
+     */
+    subscribeToCompanyChat(callback) {
+        if (!this.isReady()) {
+            console.error('Supabase not ready for chat subscription');
+            return () => {};
+        }
+
+        const channel = this.client
+            .channel('company-chat')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'company_chat_messages',
+                    filter: 'deleted_at=is.null'
+                },
+                async (payload) => {
+                    try {
+                        // Fetch the full message with user info
+                        const { data: message, error } = await this.client
+                            .from('company_chat_messages')
+                            .select(`
+                                *,
+                                users:user_id (
+                                    id,
+                                    username,
+                                    full_name,
+                                    is_admin
+                                )
+                            `)
+                            .eq('id', payload.new.id)
+                            .single();
+
+                        if (error) {
+                            console.error('Error fetching message with user info:', error);
+                            // Fallback: use payload data without user info
+                            callback({
+                                ...payload.new,
+                                user: null
+                            });
+                        } else if (message) {
+                            // Map users to user for consistency
+                            const mappedMessage = message.users ? {
+                                ...message,
+                                user: message.users
+                            } : message;
+                            callback(mappedMessage);
+                        }
+                    } catch (error) {
+                        console.error('Error in chat subscription callback:', error);
+                    }
+                }
+            )
+            .subscribe();
+
+        // Return unsubscribe function
+        return () => {
+            this.client.removeChannel(channel);
+        };
+    }
 }
 
 // Create global instance
 const supabaseService = new SupabaseService();
+
+// Also expose on window for scripts that check window.supabaseService
+if (typeof window !== 'undefined') {
+    window.supabaseService = supabaseService;
+}
 
 // Export for module systems
 if (typeof module !== 'undefined' && module.exports) {
