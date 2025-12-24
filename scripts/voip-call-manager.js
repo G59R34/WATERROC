@@ -14,6 +14,7 @@ class VOIPCallManager {
         this.callStartTime = null;
         this.signalUnsubscribe = null;
         this.incomingCallUnsubscribe = null;
+        this.incomingCallPollInterval = null;
         this.supabaseService = window.supabaseService;
         this.onCallStateChange = null;
         this.onIncomingCall = null;
@@ -34,16 +35,74 @@ class VOIPCallManager {
     async initialize() {
         if (!this.supabaseService || !this.supabaseService.isReady()) {
             console.error('Supabase service not available');
+            // Retry after a delay
+            setTimeout(() => this.initialize(), 2000);
             return false;
         }
 
         // Subscribe to incoming calls
         const employee = await this.supabaseService.getCurrentEmployee();
         if (employee) {
+            console.log('📞 Initializing VOIP for employee:', employee.id, employee.name);
             this.subscribeToIncomingCalls(employee.id);
+            // Also start polling as a fallback
+            this.startIncomingCallPolling(employee.id);
+        } else {
+            console.error('❌ Could not get current employee for VOIP initialization, retrying...');
+            // Retry after a delay
+            setTimeout(() => this.initialize(), 2000);
         }
 
         return true;
+    }
+
+    /**
+     * Poll for incoming calls as a fallback (in case real-time doesn't work)
+     */
+    startIncomingCallPolling(employeeId) {
+        // Clear any existing polling
+        if (this.incomingCallPollInterval) {
+            clearInterval(this.incomingCallPollInterval);
+        }
+
+        // Poll every 2 seconds for incoming calls
+        this.incomingCallPollInterval = setInterval(async () => {
+            try {
+                if (!this.supabaseService || !this.supabaseService.isReady()) return;
+                if (this.isCallActive || this.isIncomingCall) return; // Don't poll if already in a call
+
+                // Check for recent call requests (last 10 seconds)
+                const tenSecondsAgo = new Date(Date.now() - 10000).toISOString();
+                
+                const { data: signals, error } = await this.supabaseService.client
+                    .from('call_signaling')
+                    .select('*')
+                    .eq('receiver_id', employeeId)
+                    .eq('signal_type', 'call-request')
+                    .gte('created_at', tenSecondsAgo)
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+
+                if (error) {
+                    console.error('Error polling for incoming calls:', error);
+                    return;
+                }
+
+                if (signals && signals.length > 0) {
+                    const signal = signals[0];
+                    // Check if we've already handled this call
+                    if (!this.isIncomingCall && !this.isCallActive) {
+                        console.log('📞 Polling detected incoming call:', signal);
+                        this.isIncomingCall = true;
+                        if (this.onIncomingCall) {
+                            this.onIncomingCall(signal);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error in incoming call polling:', error);
+            }
+        }, 2000); // Poll every 2 seconds
     }
 
     /**
@@ -54,15 +113,28 @@ class VOIPCallManager {
             this.incomingCallUnsubscribe();
         }
 
+        console.log('📡 Subscribing to incoming calls for employee:', employeeId);
+
         this.incomingCallUnsubscribe = this.supabaseService.subscribeToIncomingCalls(
             employeeId,
             async (signal) => {
                 console.log('📞 Incoming call signal received:', signal);
+                console.log('   Signal type:', signal.signal_type);
+                console.log('   Receiver ID:', signal.receiver_id);
+                console.log('   Caller ID:', signal.caller_id);
+                
+                // Mark as incoming call
+                this.isIncomingCall = true;
+                
                 if (this.onIncomingCall) {
                     this.onIncomingCall(signal);
+                } else {
+                    console.warn('⚠️ onIncomingCall callback not set');
                 }
             }
         );
+
+        console.log('✅ Incoming call subscription active');
     }
 
     /**
@@ -154,7 +226,7 @@ class VOIPCallManager {
             }
 
             // Send call request signal
-            await this.supabaseService.sendCallSignal(
+            const signalSent = await this.supabaseService.sendCallSignal(
                 this.currentCallId,
                 receiverId,
                 'call-request',
@@ -166,6 +238,14 @@ class VOIPCallManager {
                     offer: offer
                 }
             );
+
+            if (!signalSent) {
+                console.error('❌ Failed to send call request signal');
+                this.cleanup();
+                return false;
+            }
+
+            console.log('✅ Call request signal sent to employee:', receiverId);
 
             // Subscribe to signaling for this call
             this.subscribeToCallSignaling(this.currentCallId);
@@ -437,6 +517,12 @@ class VOIPCallManager {
         if (this.signalUnsubscribe) {
             this.signalUnsubscribe();
             this.signalUnsubscribe = null;
+        }
+
+        // Stop polling
+        if (this.incomingCallPollInterval) {
+            clearInterval(this.incomingCallPollInterval);
+            this.incomingCallPollInterval = null;
         }
 
         // Cleanup signaling data

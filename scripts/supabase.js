@@ -3363,23 +3363,45 @@ class SupabaseService {
      * @returns {Function} Unsubscribe function
      */
     subscribeToIncomingCalls(employeeId, callback) {
-        if (!this.isReady()) return () => {};
+        if (!this.isReady()) {
+            console.error('Supabase not ready for incoming calls subscription');
+            return () => {};
+        }
+
+        console.log('📡 Setting up incoming calls subscription for employee:', employeeId);
 
         const channel = this.client
-            .channel(`incoming-calls-${employeeId}`)
+            .channel(`incoming-calls-${employeeId}-${Date.now()}`)
             .on('postgres_changes', {
                 event: 'INSERT',
                 schema: 'public',
                 table: 'call_signaling',
                 filter: `receiver_id=eq.${employeeId}`
             }, (payload) => {
-                if (payload.new.signal_type === 'call-request') {
+                console.log('📨 Received signaling payload:', payload);
+                console.log('   Signal type:', payload.new?.signal_type);
+                console.log('   Receiver ID:', payload.new?.receiver_id);
+                console.log('   Caller ID:', payload.new?.caller_id);
+                
+                if (payload.new && payload.new.signal_type === 'call-request') {
+                    console.log('✅ Incoming call request detected, calling callback');
                     callback(payload.new);
+                } else {
+                    console.log('ℹ️ Signal received but not a call-request:', payload.new?.signal_type);
                 }
             })
-            .subscribe();
+            .subscribe((status, err) => {
+                console.log('📡 Incoming calls subscription status:', status);
+                if (err) {
+                    console.error('❌ Subscription error:', err);
+                }
+                if (status === 'SUBSCRIBED') {
+                    console.log('✅ Successfully subscribed to incoming calls for employee:', employeeId);
+                }
+            });
 
         return () => {
+            console.log('🔌 Unsubscribing from incoming calls');
             this.client.removeChannel(channel);
         };
     }

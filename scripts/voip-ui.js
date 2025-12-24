@@ -116,11 +116,18 @@ class VOIPUI {
 
         // Add event listeners
         modal.querySelector('[data-action="accept"]').addEventListener('click', async () => {
-            await this.callManager.answerCall({ signal_data: callData });
-            this.removeIncomingCallModal();
+            console.log('✅ Accepting call');
+            const success = await this.callManager.answerCall({ signal_data: callData });
+            if (success) {
+                this.removeIncomingCallModal();
+                this.showActiveCallModal(callData.callerName, callData.callType);
+            } else {
+                alert('Failed to answer call. Please check your microphone permissions.');
+            }
         });
 
         modal.querySelector('[data-action="reject"]').addEventListener('click', async () => {
+            console.log('❌ Rejecting call');
             await this.callManager.rejectCall({ signal_data: callData });
             this.removeIncomingCallModal();
         });
