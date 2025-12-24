@@ -497,6 +497,9 @@ class EmployeeStatusMonitor {
             if (this.isInactiveStatus(status)) {
                 console.log('🚨 INACTIVE STATUS FOUND DURING POLLING - INITIATING LOGOUT');
                 await this.bootUser(status);
+            } else if (status === 'extended_leave') {
+                console.log('🏖️ EXTENDED LEAVE STATUS FOUND DURING POLLING - SHOWING WOMP WOMP');
+                await this.handleExtendedLeave();
             }
             
         } catch (error) {
