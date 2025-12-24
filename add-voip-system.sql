@@ -27,7 +27,7 @@ CREATE INDEX IF NOT EXISTS idx_call_logs_started_at ON public.call_logs(started_
 -- Create call_signaling table for WebRTC signaling (temporary, cleaned up after calls)
 CREATE TABLE IF NOT EXISTS public.call_signaling (
     id BIGSERIAL PRIMARY KEY,
-    call_id TEXT NOT NULL UNIQUE, -- Unique call identifier
+    call_id TEXT NOT NULL, -- Call identifier (not unique - allows multiple signals per call)
     caller_id BIGINT NOT NULL REFERENCES public.employees(id) ON DELETE CASCADE,
     receiver_id BIGINT NOT NULL REFERENCES public.employees(id) ON DELETE CASCADE,
     signal_type VARCHAR(50) NOT NULL, -- 'offer', 'answer', 'ice-candidate', 'call-request', 'call-accept', 'call-reject', 'call-end'
@@ -35,6 +35,12 @@ CREATE TABLE IF NOT EXISTS public.call_signaling (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '5 minutes') -- Auto-cleanup old signals
 );
+
+-- Create unique constraint on call_id + signal_type for call-request, call-accept, call-reject, call-end
+-- This allows multiple ice-candidates but prevents duplicate call requests
+CREATE UNIQUE INDEX IF NOT EXISTS idx_call_signaling_unique_requests 
+    ON public.call_signaling(call_id, signal_type) 
+    WHERE signal_type IN ('call-request', 'call-accept', 'call-reject', 'call-end');
 
 -- Create index for call_signaling
 CREATE INDEX IF NOT EXISTS idx_call_signaling_call_id ON public.call_signaling(call_id);

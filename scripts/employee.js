@@ -99,6 +99,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         } catch (error) {
             console.error('Error checking expired time off on employee load:', error);
         }
+
+        // Load team members for calling
+        loadTeamMembers();
         
         // Update summary after initial load
         setTimeout(async () => {
@@ -1104,6 +1107,102 @@ document.addEventListener('DOMContentLoaded', async function() {
                 </div>
             `;
         }).join('');
+    }
+
+    // Load team members for calling
+    async function loadTeamMembers() {
+        const teamMembersList = document.getElementById('teamMembersList');
+        if (!teamMembersList) return;
+
+        try {
+            // Get current employee to exclude from list
+            const currentEmployee = await supabaseService.getCurrentEmployee();
+            if (!currentEmployee) {
+                teamMembersList.innerHTML = '<div class="empty-state" style="padding: 20px; text-align: center; color: #6b7280;">Unable to load team members</div>';
+                return;
+            }
+
+            // Get all employees
+            const employees = await supabaseService.getEmployees();
+            if (!employees || employees.length === 0) {
+                teamMembersList.innerHTML = '<div class="empty-state" style="padding: 20px; text-align: center; color: #6b7280;">No team members found</div>';
+                return;
+            }
+
+            // Filter out current employee
+            const otherEmployees = employees.filter(emp => emp.id !== currentEmployee.id);
+
+            if (otherEmployees.length === 0) {
+                teamMembersList.innerHTML = '<div class="empty-state" style="padding: 20px; text-align: center; color: #6b7280;">No other team members</div>';
+                return;
+            }
+
+            // Render team members with call buttons
+            teamMembersList.innerHTML = otherEmployees.map(emp => {
+                const initials = emp.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+                return `
+                    <div class="team-member-item" style="
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                        padding: 12px;
+                        margin-bottom: 8px;
+                        background: var(--bg-secondary, #f8fafc);
+                        border-radius: 8px;
+                        border: 1px solid var(--border-light, #e2e8f0);
+                        transition: all 0.2s ease;
+                    " onmouseover="this.style.transform='translateX(2px)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+                        <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                            <div style="
+                                width: 40px;
+                                height: 40px;
+                                border-radius: 50%;
+                                background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                color: white;
+                                font-weight: 600;
+                                font-size: 14px;
+                                flex-shrink: 0;
+                            ">${initials}</div>
+                            <div style="min-width: 0; flex: 1;">
+                                <div style="font-weight: 600; color: var(--text-primary, #1f2937); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                    ${escapeHtml(emp.name)}
+                                </div>
+                                <div style="font-size: 12px; color: var(--text-secondary, #6b7280); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                    ${escapeHtml(emp.role || 'Employee')}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="team-member-call-buttons" id="callButtons-${emp.id}" style="display: flex; gap: 6px; flex-shrink: 0;"></div>
+                    </div>
+                `;
+            }).join('');
+
+            // Add call buttons using VOIP UI
+            if (typeof voipUI !== 'undefined' && voipUI) {
+                otherEmployees.forEach(emp => {
+                    const callButtonsContainer = document.getElementById(`callButtons-${emp.id}`);
+                    if (callButtonsContainer) {
+                        voipUI.addCallButton(callButtonsContainer, emp);
+                    }
+                });
+            } else {
+                console.warn('VOIP UI not available for adding call buttons');
+            }
+
+        } catch (error) {
+            console.error('Error loading team members:', error);
+            teamMembersList.innerHTML = '<div class="empty-state" style="padding: 20px; text-align: center; color: #6b7280;">Error loading team members</div>';
+        }
+    }
+
+    // Helper function to escape HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 });
 

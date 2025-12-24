@@ -3302,30 +3302,92 @@ class SupabaseService {
      * @returns {Promise<boolean>} Success status
      */
     async sendCallSignal(callId, receiverId, signalType, signalData) {
-        if (!this.isReady()) return false;
+        if (!this.isReady()) {
+            console.error('Supabase not ready for sending call signal');
+            return false;
+        }
 
         try {
             const employee = await this.getCurrentEmployee();
-            if (!employee) return false;
-
-            const { error } = await this.client
-                .from('call_signaling')
-                .insert({
-                    call_id: callId,
-                    caller_id: employee.id,
-                    receiver_id: receiverId,
-                    signal_type: signalType,
-                    signal_data: signalData
-                });
-
-            if (error) {
-                console.error('Error sending call signal:', error);
+            if (!employee) {
+                console.error('Could not get current employee for sending signal');
                 return false;
             }
 
+            console.log(`📤 Sending ${signalType} signal:`, {
+                callId,
+                callerId: employee.id,
+                receiverId,
+                signalType
+            });
+
+            const insertData = {
+                call_id: callId,
+                caller_id: employee.id,
+                receiver_id: receiverId,
+                signal_type: signalType,
+                signal_data: signalData
+            };
+
+            let result;
+
+            // For call-request, call-accept, call-reject, call-end - use upsert to handle duplicates
+            // These should be unique per call_id
+            if (['call-request', 'call-accept', 'call-reject', 'call-end'].includes(signalType)) {
+                // Check if signal already exists
+                const { data: existing } = await this.client
+                    .from('call_signaling')
+                    .select('id')
+                    .eq('call_id', callId)
+                    .eq('signal_type', signalType)
+                    .maybeSingle();
+
+                if (existing) {
+                    // Update existing signal
+                    result = await this.client
+                        .from('call_signaling')
+                        .update({
+                            signal_data: signalData,
+                            caller_id: employee.id,
+                            receiver_id: receiverId,
+                            created_at: new Date().toISOString()
+                        })
+                        .eq('id', existing.id)
+                        .select()
+                        .single();
+                } else {
+                    // Insert new signal
+                    result = await this.client
+                        .from('call_signaling')
+                        .insert(insertData)
+                        .select()
+                        .single();
+                }
+            } else {
+                // For ice-candidate and other signals, allow multiple per call_id
+                // Just insert directly
+                result = await this.client
+                    .from('call_signaling')
+                    .insert(insertData)
+                    .select()
+                    .single();
+            }
+
+            if (result.error) {
+                // If it's a duplicate key error, that's okay for ice-candidates
+                if (result.error.code === '23505' && signalType === 'ice-candidate') {
+                    console.log('ℹ️ ICE candidate already exists, skipping');
+                    return true;
+                }
+                console.error('❌ Error sending call signal:', result.error);
+                console.error('   Signal data:', signalData);
+                return false;
+            }
+
+            console.log('✅ Call signal sent successfully:', result.data?.id);
             return true;
         } catch (error) {
-            console.error('Error sending call signal:', error);
+            console.error('❌ Exception sending call signal:', error);
             return false;
         }
     }
