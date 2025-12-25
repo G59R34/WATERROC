@@ -6,6 +6,7 @@ class CompanyChat {
         this.isOpen = false;
         this.messages = [];
         this.subscription = null;
+        this.pollInterval = null;
         this.currentUser = null;
         this.isAdmin = false;
         this.chatContainer = null;
@@ -13,6 +14,7 @@ class CompanyChat {
         this.messageInput = null;
         this.messagesContainer = null;
         this.unreadCount = 0;
+        this.lastMessageId = null;
     }
 
     async init() {
@@ -48,6 +50,9 @@ class CompanyChat {
         
         // Subscribe to real-time updates
         this.subscribeToMessages();
+        
+        // Start polling as fallback (every 2 seconds)
+        this.startPolling();
         
         console.log('✅ Company chat initialized');
     }
@@ -254,8 +259,26 @@ class CompanyChat {
     async loadMessages() {
         if (!supabaseService || !supabaseService.isReady()) return;
 
-        this.messages = await supabaseService.getCompanyChatMessages(100) || [];
-        this.renderMessages();
+        const newMessages = await supabaseService.getCompanyChatMessages(100) || [];
+        
+        // Check if we have new messages (compare by last message ID)
+        const latestMessageId = newMessages.length > 0 ? newMessages[newMessages.length - 1].id : null;
+        const hasNewMessages = this.lastMessageId !== latestMessageId;
+        
+        if (hasNewMessages || this.messages.length === 0) {
+            this.messages = newMessages;
+            this.lastMessageId = latestMessageId;
+            this.renderMessages();
+            
+            // Update unread count if chat is closed and we have new messages
+            if (!this.isOpen && hasNewMessages && this.messages.length > 0) {
+                const newMessageCount = this.messages.length - (this.messages.length - newMessages.length);
+                if (newMessageCount > 0) {
+                    this.unreadCount += newMessageCount;
+                    this.updateUnreadBadge();
+                }
+            }
+        }
     }
 
     renderMessages() {
@@ -541,11 +564,36 @@ class CompanyChat {
         return div.innerHTML;
     }
 
+    startPolling() {
+        // Clear any existing polling interval
+        if (this.pollInterval) {
+            clearInterval(this.pollInterval);
+        }
+        
+        // Poll every 2 seconds
+        this.pollInterval = setInterval(() => {
+            if (supabaseService && supabaseService.isReady()) {
+                this.loadMessages();
+            }
+        }, 2000);
+        
+        console.log('🔄 Started polling company chat every 2 seconds');
+    }
+    
+    stopPolling() {
+        if (this.pollInterval) {
+            clearInterval(this.pollInterval);
+            this.pollInterval = null;
+            console.log('⏸️ Stopped polling company chat');
+        }
+    }
+
     destroy() {
         if (this.subscription) {
             this.subscription();
             this.subscription = null;
         }
+        this.stopPolling();
     }
 }
 
