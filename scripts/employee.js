@@ -395,15 +395,24 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     myShiftsBtn.addEventListener('click', async () => {
         myShiftsModal.style.display = 'block';
+        if (typeof showDataLoadingScreen !== 'undefined') {
+            showDataLoadingScreen('shifts data');
+        }
         await loadMyShifts();
     });
 
     document.getElementById('myShiftsPrevWeek').addEventListener('click', async () => {
+        if (typeof showDataLoadingScreen !== 'undefined') {
+            showDataLoadingScreen('previous week shifts');
+        }
         shiftsWeekStart.setDate(shiftsWeekStart.getDate() - 7);
         await loadMyShifts();
     });
 
     document.getElementById('myShiftsNextWeek').addEventListener('click', async () => {
+        if (typeof showDataLoadingScreen !== 'undefined') {
+            showDataLoadingScreen('next week shifts');
+        }
         shiftsWeekStart.setDate(shiftsWeekStart.getDate() + 7);
         await loadMyShifts();
     });
@@ -591,8 +600,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     const myProfileForm = document.getElementById('myProfileForm');
 
     myProfileBtn.addEventListener('click', async () => {
-        await loadMyProfile();
         myProfileModal.style.display = 'block';
+        if (typeof showDataLoadingScreen !== 'undefined') {
+            showDataLoadingScreen('profile data');
+        }
+        await loadMyProfile();
     });
 
     document.getElementById('cancelMyProfileBtn').addEventListener('click', () => {
@@ -617,6 +629,10 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     myProfileForm.addEventListener('submit', async function(e) {
         e.preventDefault();
+
+        if (typeof showFormLoadingScreen !== 'undefined') {
+            showFormLoadingScreen('profile update');
+        }
 
         const employee = await getCurrentEmployee();
         if (!employee) {
@@ -683,6 +699,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         // Toggle notification panel
         notificationBtn.addEventListener('click', () => {
+            if (typeof showUILoadingScreen !== 'undefined') {
+                showUILoadingScreen('notification panel');
+            }
             notificationPanel.classList.add('active');
             notificationOverlay.classList.add('active');
         });
@@ -698,12 +717,18 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         // Mark all as read
         markAllReadBtn.addEventListener('click', () => {
+            if (typeof showActionLoadingScreen !== 'undefined') {
+                showActionLoadingScreen('notification update');
+            }
             notificationSystem.markAllAsRead();
         });
         
         // Clear all notifications
         clearAllBtn.addEventListener('click', () => {
             if (confirm('Clear all notifications?')) {
+                if (typeof showActionLoadingScreen !== 'undefined') {
+                    showActionLoadingScreen('notification clearing');
+                }
                 notificationSystem.clearAll();
             }
         });
@@ -787,6 +812,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         // Acknowledge button handler
         acknowledgeBtn.onclick = async function() {
+            if (typeof showActionLoadingScreen !== 'undefined') {
+                showActionLoadingScreen('task acknowledgement');
+            }
             const result = await supabaseService.acknowledgeTask(taskId);
             if (result) {
                 alert('Task acknowledged successfully!');
@@ -800,6 +828,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         // Unacknowledge button handler
         unacknowledgeBtn.onclick = async function() {
+            if (typeof showActionLoadingScreen !== 'undefined') {
+                showActionLoadingScreen('acknowledgement removal');
+            }
             const result = await supabaseService.unacknowledgeTask(taskId);
             if (result) {
                 alert('Acknowledgement removed');
@@ -893,6 +924,10 @@ document.addEventListener('DOMContentLoaded', async function() {
                 return;
             }
             
+            if (typeof showFormLoadingScreen !== 'undefined') {
+                showFormLoadingScreen('message');
+            }
+            
             newSendBtn.disabled = true;
             newSendBtn.textContent = 'Sending...';
             
@@ -946,6 +981,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         document.getElementById('timeOffStartDate').min = today;
         document.getElementById('timeOffEndDate').min = today;
         
+        if (typeof showDataLoadingScreen !== 'undefined') {
+            showDataLoadingScreen('time off requests');
+        }
         // Load existing time off requests
         await loadMyTimeOffRequests();
     });
@@ -972,6 +1010,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Submit time off request
     timeOffForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        
+        if (typeof showFormLoadingScreen !== 'undefined') {
+            showFormLoadingScreen('time off request');
+        }
         
         if (!supabaseService.isReady()) {
             alert('Time off requests require an active connection');

@@ -157,6 +157,20 @@ body:not(.employee-page) .gantt-chart {
     background: var(--bg-primary);
 }
 
+/* Separate rows for shifts and tasks */
+.gantt-shift-row {
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.gantt-task-row {
+    border-bottom: 1px solid var(--border-light);
+    background: #fafafa;
+}
+
+[data-theme="dark"] .gantt-task-row {
+    background: rgba(255, 255, 255, 0.02);
+}
+
 /* FINAL OVERHAUL: Employee cell - square rectangular */
 /* CRITICAL FIX: Bright white employee cells */
 .gantt-employee-cell {

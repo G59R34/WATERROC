@@ -13,6 +13,9 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Navigation
     document.getElementById('backToDashboard').addEventListener('click', function() {
+        if (typeof showPageLoadScreen !== 'undefined') {
+            showPageLoadScreen();
+        }
         window.location.href = 'admin.html';
     });
 
@@ -197,6 +200,9 @@ document.addEventListener('DOMContentLoaded', async function() {
                     e.stopPropagation();
                     const employeeId = parseInt(btn.dataset.employeeId);
                     openProfileModal(employeeId);
+                    if (typeof showDataLoadingScreen !== 'undefined') {
+                        showDataLoadingScreen('profile data');
+                    }
                 });
             });
 
@@ -204,6 +210,9 @@ document.addEventListener('DOMContentLoaded', async function() {
             document.querySelectorAll('.btn-delete-employee').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     e.stopPropagation();
+                    if (typeof showActionLoadingScreen !== 'undefined') {
+                        showActionLoadingScreen('employee deletion');
+                    }
                     const employeeId = parseInt(btn.dataset.employeeId);
                     const employeeName = btn.dataset.employeeName;
                     await handleDeleteEmployee(employeeId, employeeName);
@@ -248,6 +257,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Save profile
     profileForm.addEventListener('submit', async function(e) {
         e.preventDefault();
+
+        if (typeof showFormLoadingScreen !== 'undefined') {
+            showFormLoadingScreen('profile update');
+        }
 
         const newStatus = document.getElementById('profileStatus').value;
         const currentProfile = profiles?.find(p => p.employee_id === currentEmployeeId) || {};

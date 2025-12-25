@@ -169,6 +169,20 @@ class HourlyGanttChart {
         if (supabaseService && supabaseService.isReady()) {
             this.tasks = await supabaseService.getHourlyTasks(dateStr, dateStr) || [];
             console.log('Loaded tasks from Supabase:', this.tasks);
+            console.log('Total tasks loaded:', this.tasks.length);
+            
+            // Log task details for debugging
+            this.tasks.forEach((task, index) => {
+                console.log(`Task ${index + 1}:`, {
+                    id: task.id,
+                    name: task.name,
+                    employee_id: task.employee_id,
+                    work_area: task.work_area,
+                    start_time: task.start_time,
+                    end_time: task.end_time,
+                    status: task.status
+                });
+            });
             
             // Load exceptions for this date
             this.exceptions = await supabaseService.getExceptionLogs({
@@ -361,15 +375,29 @@ class HourlyGanttChart {
                 }
                 
                 // Draw tasks for this employee and work area
-                const employeeTasks = this.tasks.filter(task => 
-                    task.employee_id === employee.id && task.work_area === area
-                );
+                // Handle both work_area (Supabase) and workArea (old format)
+                const employeeTasks = this.tasks.filter(task => {
+                    const taskWorkArea = task.work_area || task.workArea;
+                    const taskEmployeeId = task.employee_id || task.employeeId;
+                    return taskEmployeeId === employee.id && taskWorkArea === area;
+                });
                 
-                console.log(`Tasks for ${employee.name} in ${area}:`, employeeTasks);
+                console.log(`Tasks for ${employee.name} (ID: ${employee.id}) in ${area}:`, employeeTasks);
+                console.log(`All tasks for employee ${employee.id}:`, this.tasks.filter(t => (t.employee_id || t.employeeId) === employee.id));
+                
+                if (employeeTasks.length > 0) {
+                    console.log(`Rendering ${employeeTasks.length} task(s) for ${employee.name} in ${area}`);
+                }
                 
                 employeeTasks.forEach(task => {
+                    console.log('Creating task bar for:', task);
                     const taskBar = this.createTaskBar(task);
-                    timelineArea.appendChild(taskBar);
+                    if (taskBar) {
+                        timelineArea.appendChild(taskBar);
+                        console.log('Task bar appended to timeline');
+                    } else {
+                        console.error('Failed to create task bar for:', task);
+                    }
                 });
                 
                 areaRow.appendChild(timelineArea);
@@ -460,11 +488,19 @@ class HourlyGanttChart {
         
         console.log('Task bar position:', { left: leftPosition, width: width });
         
+        // Ensure minimum width for visibility
+        const minWidth = Math.max(width, 20);
+        
         taskBar.style.left = `${leftPosition}px`;
-        taskBar.style.width = `${width}px`;
+        taskBar.style.width = `${minWidth}px`;
+        taskBar.style.position = 'absolute';
+        taskBar.style.top = '4px';
+        taskBar.style.height = '24px';
+        taskBar.style.zIndex = '10';
         
         const taskContent = document.createElement('div');
         taskContent.className = 'hourly-gantt-task-content';
+        taskContent.style.pointerEvents = 'none'; // Allow clicks to pass through to taskBar
         
         // Add acknowledged badge if task is acknowledged
         const acknowledgedBy = task.acknowledged_by || task.acknowledgedBy;
@@ -485,13 +521,63 @@ class HourlyGanttChart {
             taskBar.classList.add('acknowledged');
         }
         
-        // Add click handler for editing
-        if (this.isEditable) {
-            taskBar.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.editTask(task);
-            });
-        }
+        // Add click handler for editing/viewing - always allow clicks
+        taskBar.style.cursor = 'pointer';
+        taskBar.style.pointerEvents = 'auto'; // Ensure task bar can receive clicks
+        
+        // Add visual feedback on hover
+        taskBar.addEventListener('mouseenter', () => {
+            taskBar.style.opacity = '0.9';
+            taskBar.style.transform = 'translateY(-1px)';
+        });
+        
+        taskBar.addEventListener('mouseleave', () => {
+            taskBar.style.opacity = '1';
+            taskBar.style.transform = 'translateY(0)';
+        });
+        
+        // Add click handler with better error handling
+        const clickHandler = (e) => {
+            console.log('=== TASK BAR CLICK DETECTED ===');
+            console.log('Task:', task);
+            console.log('Event:', e);
+            console.log('Event target:', e.target);
+            console.log('Event currentTarget:', e.currentTarget);
+            
+            e.stopPropagation();
+            e.preventDefault();
+            
+            // Verify the task has required data
+            if (!task || !task.id) {
+                console.error('Invalid task data:', task);
+                alert('Error: Invalid task data');
+                return;
+            }
+            
+            console.log('Calling editTask with task:', task);
+            // Call editTask
+            this.editTask(task);
+        };
+        
+        // Add multiple event listeners to catch clicks
+        taskBar.addEventListener('click', clickHandler, true); // Use capture phase
+        taskBar.addEventListener('click', clickHandler, false); // Use bubble phase
+        
+        // Also try mousedown as backup
+        taskBar.addEventListener('mousedown', (e) => {
+            if (e.button === 0) { // Left click only
+                console.log('Task bar mousedown detected');
+                // Don't prevent default here, let click handle it
+            }
+        });
+        
+        // Add a test to verify the element is clickable
+        console.log('Task bar created and click handler attached:', {
+            taskId: task.id,
+            taskName: task.name,
+            element: taskBar,
+            hasClickHandler: true
+        });
         
         return taskBar;
     }
@@ -515,9 +601,30 @@ class HourlyGanttChart {
     
     editTask(task) {
         // This will be called from admin.js for editing
-        if (window.editHourlyTask) {
-            window.editHourlyTask(task);
-        }
+        console.log('editTask called with task:', task);
+        console.log('window.editHourlyTask exists?', typeof window.editHourlyTask);
+        
+        // Wait a bit for the function to be available (in case admin.js is still loading)
+        const tryEdit = (attempts = 0) => {
+            if (window.editHourlyTask && typeof window.editHourlyTask === 'function') {
+                console.log('Calling window.editHourlyTask');
+                try {
+                    window.editHourlyTask(task);
+                } catch (error) {
+                    console.error('Error calling editHourlyTask:', error);
+                    alert('Error opening task editor: ' + error.message);
+                }
+            } else if (attempts < 10) {
+                // Retry after a short delay (up to 10 times = 1 second)
+                console.log(`editHourlyTask not available yet, retrying... (attempt ${attempts + 1})`);
+                setTimeout(() => tryEdit(attempts + 1), 100);
+            } else {
+                console.error('window.editHourlyTask is not defined after 10 attempts!');
+                alert('Task editing is not available. Please refresh the page or ensure you are on the admin page.');
+            }
+        };
+        
+        tryEdit();
     }
     
     async addTask(employeeId, taskName, startTime, endTime, status = 'pending', workArea = 'other') {

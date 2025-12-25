@@ -77,9 +77,23 @@ function showLoadingScreen(message = 'Loading...', callback = null) {
     // This allows the page to function while showing the overlay
     overlay.style.pointerEvents = 'auto';
     
-    // Random duration between 5-10 seconds
+    // Random failure chance: 1 in 5 (20% chance)
+    const shouldFail = Math.random() < 0.2; // 20% chance
+    
+    if (shouldFail) {
+        // FAIL! Redirect to error page after a short delay
+        const failDelay = Math.floor(Math.random() * 3000) + 2000; // 2-5 seconds before failing
+        setTimeout(() => {
+            hideLoadingScreen();
+            // Redirect to error page
+            window.location.href = 'error.html';
+        }, failDelay);
+        return overlay;
+    }
+    
+    // Normal loading - Random duration between 5-12 seconds (increased for more loading!)
     const minDuration = 5000; // 5 seconds
-    const maxDuration = 10000; // 10 seconds
+    const maxDuration = 12000; // 12 seconds
     const duration = Math.floor(Math.random() * (maxDuration - minDuration + 1)) + minDuration;
     
     setTimeout(() => {
@@ -113,16 +127,35 @@ function showPageLoadScreen() {
     const messages = [
         'Loading page...',
         'Preparing dashboard...',
-        'Fetching data...',
+        'Fetching data from the cloud...',
         'Initializing components...',
         'Loading resources...',
         'Please wait...',
         'Processing request...',
-        'Syncing data...'
+        'Syncing data...',
+        'Reticulating splines...',
+        'Waking up hamsters...',
+        'Spinning up quantum processors...',
+        'Calibrating flux capacitors...',
+        'Consulting the oracle...',
+        'Downloading more RAM...',
+        'Optimizing UI paradigms...',
+        'Compiling coffee into code...',
+        'Establishing secure connection to mainframe...',
+        'Warming up the server hamsters...',
+        'Defragmenting the database...',
+        'Aligning chakras with server nodes...',
+        'Convincing electrons to cooperate...',
+        'Teaching AI to be patient...',
+        'Summoning data from the void...',
+        'Untangling network cables...',
+        'Negotiating with firewall...',
+        'Bribing the cache...',
+        'Asking servers nicely...',
+        'Loading loading screen...'
     ];
     const randomMessage = messages[Math.floor(Math.random() * messages.length)];
     showLoadingScreen(randomMessage, () => {
-        // ADDED: Play loading sound when page load completes
         playLoadingSound();
     });
 }
@@ -132,10 +165,22 @@ function showFormLoadingScreen(formName = 'form') {
     const messages = [
         'Submitting ' + formName + '...',
         'Processing ' + formName + '...',
-        'Saving data...',
-        'Validating information...',
-        'Uploading...',
-        'Processing request...'
+        'Saving data to the mothership...',
+        'Validating information with blockchain...',
+        'Uploading to the cloud...',
+        'Processing request...',
+        'Encrypting your secrets...',
+        'Double-checking everything twice...',
+        'Running through bureaucracy simulator...',
+        'Printing digital paperwork...',
+        'Filing in triplicate...',
+        'Notifying all interested parties...',
+        'Asking permission from the database...',
+        'Waiting for manager approval (not really)...',
+        'Converting to enterprise format...',
+        'Adding unnecessary metadata...',
+        'Justifying this delay to stakeholders...',
+        'Making it look official...'
     ];
     const randomMessage = messages[Math.floor(Math.random() * messages.length)];
     showLoadingScreen(randomMessage);
@@ -145,10 +190,20 @@ function showFormLoadingScreen(formName = 'form') {
 function showDataLoadingScreen(dataType = 'data') {
     const messages = [
         'Loading ' + dataType + '...',
-        'Fetching ' + dataType + '...',
-        'Retrieving information...',
-        'Syncing ' + dataType + '...',
-        'Processing ' + dataType + '...'
+        'Fetching ' + dataType + ' from distant servers...',
+        'Retrieving information from the archives...',
+        'Syncing ' + dataType + ' with reality...',
+        'Processing ' + dataType + ' through AI pipeline...',
+        'Excavating ' + dataType + ' from storage...',
+        'Decrypting ' + dataType + ' with quantum keys...',
+        'Summoning ' + dataType + ' from the database...',
+        'Downloading ' + dataType + ' via carrier pigeon...',
+        'Extracting ' + dataType + ' from compressed space...',
+        'Translating ' + dataType + ' from binary...',
+        'Asking database politely for ' + dataType + '...',
+        'Negotiating with cache for ' + dataType + '...',
+        'Mining ' + dataType + ' from blockchain...',
+        'Hydrating ' + dataType + ' molecules...'
     ];
     const randomMessage = messages[Math.floor(Math.random() * messages.length)];
     showLoadingScreen(randomMessage);
@@ -158,10 +213,102 @@ function showDataLoadingScreen(dataType = 'data') {
 function showActionLoadingScreen(actionName = 'action') {
     const messages = [
         'Processing ' + actionName + '...',
-        'Executing ' + actionName + '...',
-        'Please wait...',
-        'Working on it...',
-        'This may take a moment...'
+        'Executing ' + actionName + ' with extreme precision...',
+        'Please wait while we pretend to work...',
+        'Working on it (actually)...',
+        'This may take a moment (or ten)...',
+        'Consulting the manual for ' + actionName + '...',
+        'Performing ' + actionName + ' ritual...',
+        'Initializing ' + actionName + ' sequence...',
+        'Calculating optimal ' + actionName + ' strategy...',
+        'Applying enterprise-grade ' + actionName + '...',
+        'Running ' + actionName + ' through compliance...',
+        'Validating ' + actionName + ' with stakeholders...',
+        'Making ' + actionName + ' look professional...',
+        'Adding unnecessary delays to seem important...',
+        'Pretending this is complicated...',
+        'Doing absolutely nothing efficiently...',
+        'Maximizing user anticipation...',
+        'Building suspense...'
+    ];
+    const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+    showLoadingScreen(randomMessage);
+}
+
+// NEW: Show loading screen for UI interactions
+function showUILoadingScreen(uiElement = 'interface') {
+    const messages = [
+        'Updating ' + uiElement + '...',
+        'Refreshing ' + uiElement + ' aesthetics...',
+        'Polishing pixels...',
+        'Adjusting visual fidelity...',
+        'Rendering beautiful gradients...',
+        'Animating transitions smoothly...',
+        'Making things look pretty...',
+        'Consulting design system...',
+        'Applying CSS magic...',
+        'Tweaking the UI until perfect...',
+        'Running accessibility checks...',
+        'Optimizing for retina displays...',
+        'Calibrating color temperature...',
+        'Aligning pixels with precision...'
+    ];
+    const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+    showLoadingScreen(randomMessage);
+}
+
+// NEW: Show loading screen for modal operations
+function showModalLoadingScreen(modalName = 'dialog') {
+    const messages = [
+        'Opening ' + modalName + '...',
+        'Preparing ' + modalName + ' interface...',
+        'Loading ' + modalName + ' components...',
+        'Initializing popup experience...',
+        'Creating modal backdrop...',
+        'Summoning dialog box from the void...',
+        'Constructing overlay dimensions...',
+        'Calculating optimal modal placement...',
+        'Making this modal worth the wait...',
+        'Ensuring maximum user engagement...'
+    ];
+    const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+    showLoadingScreen(randomMessage);
+}
+
+// NEW: Show loading screen for theme changes
+function showThemeLoadingScreen() {
+    const messages = [
+        'Switching color schemes...',
+        'Adjusting photon wavelengths...',
+        'Inverting color matrix...',
+        'Recalibrating brightness levels...',
+        'Applying new theme across dimensions...',
+        'Toggling between light and dark forces...',
+        'Consulting color theory textbooks...',
+        'Painting the interface...',
+        'Mixing digital pigments...',
+        'Updating visual ambiance...',
+        'Changing the vibes...',
+        'Making everything match...'
+    ];
+    const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+    showLoadingScreen(randomMessage);
+}
+
+// NEW: Show loading screen for sorting/filtering
+function showFilterLoadingScreen() {
+    const messages = [
+        'Sorting through chaos...',
+        'Filtering results with precision...',
+        'Organizing data alphabetically...',
+        'Categorizing by importance...',
+        'Applying advanced filters...',
+        'Running sort algorithm...',
+        'Arranging in perfect order...',
+        'Finding what you\'re looking for...',
+        'Searching through infinite possibilities...',
+        'Narrowing down options...',
+        'Making sense of everything...'
     ];
     const randomMessage = messages[Math.floor(Math.random() * messages.length)];
     showLoadingScreen(randomMessage);
@@ -175,6 +322,10 @@ if (typeof window !== 'undefined') {
     window.showFormLoadingScreen = showFormLoadingScreen;
     window.showDataLoadingScreen = showDataLoadingScreen;
     window.showActionLoadingScreen = showActionLoadingScreen;
+    window.showUILoadingScreen = showUILoadingScreen;
+    window.showModalLoadingScreen = showModalLoadingScreen;
+    window.showThemeLoadingScreen = showThemeLoadingScreen;
+    window.showFilterLoadingScreen = showFilterLoadingScreen;
     window.playLoadingSound = playLoadingSound; // Export for manual triggering
 }
 

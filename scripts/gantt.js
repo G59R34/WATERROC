@@ -295,33 +295,41 @@ class GanttChart {
         const body = document.createElement('div');
         body.className = 'gantt-body';
         
-        const rowPromises = this.data.employees.map(employee => this.createEmployeeRow(employee));
+        // Create both shift and task rows for each employee
+        const rowPromises = [];
+        this.data.employees.forEach(employee => {
+            rowPromises.push(this.createShiftRow(employee));
+            rowPromises.push(this.createTaskRow(employee));
+        });
+        
         const rows = await Promise.all(rowPromises);
         
         rows.forEach(row => {
-            body.appendChild(row);
+            if (row) body.appendChild(row);
         });
         
         return body;
     }
     
-    async createEmployeeRow(employee) {
+    // Create row for shifts only
+    async createShiftRow(employee) {
         const row = document.createElement('div');
-        row.className = 'gantt-row';
+        row.className = 'gantt-row gantt-shift-row';
         row.dataset.employeeId = employee.id;
+        row.dataset.rowType = 'shifts';
         
         // VISUAL: Employee cell as card with avatar
         const employeeCell = document.createElement('div');
         employeeCell.className = 'gantt-employee-cell';
         employeeCell.dataset.employeeId = employee.id;
         
-        // VISUAL: Avatar badge
+        // VISUAL: Avatar badge with "Shifts" label
         const initials = this.getInitials(employee.name);
         employeeCell.innerHTML = `
             <div class="employee-avatar">${initials}</div>
             <div class="employee-info">
                 <div class="employee-name">${employee.name}</div>
-                <div class="employee-role">${employee.role}</div>
+                <div class="employee-role">${employee.role} - Shifts</div>
             </div>
         `;
         row.appendChild(employeeCell);
@@ -381,6 +389,64 @@ class GanttChart {
                 timelineCell.appendChild(shiftBar);
             }
         });
+        
+        row.appendChild(timelineCell);
+        return row;
+    }
+    
+    // Create row for tasks only
+    async createTaskRow(employee) {
+        const row = document.createElement('div');
+        row.className = 'gantt-row gantt-task-row';
+        row.dataset.employeeId = employee.id;
+        row.dataset.rowType = 'tasks';
+        
+        // VISUAL: Employee cell as card with avatar
+        const employeeCell = document.createElement('div');
+        employeeCell.className = 'gantt-employee-cell';
+        employeeCell.dataset.employeeId = employee.id;
+        
+        // VISUAL: Avatar badge with "Tasks" label
+        const initials = this.getInitials(employee.name);
+        employeeCell.innerHTML = `
+            <div class="employee-avatar">${initials}</div>
+            <div class="employee-info">
+                <div class="employee-name">${employee.name}</div>
+                <div class="employee-role">${employee.role} - Tasks</div>
+            </div>
+        `;
+        row.appendChild(employeeCell);
+        
+        // Timeline cell
+        const timelineCell = document.createElement('div');
+        timelineCell.className = 'gantt-timeline-cell';
+        
+        const days = this.getDaysBetween(this.startDate, this.endDate);
+        for (let i = 0; i < days; i++) {
+            const currentDate = new Date(this.startDate);
+            currentDate.setDate(this.startDate.getDate() + i);
+            const dateStr = this.formatDate(currentDate);
+            
+            const dayCell = document.createElement('div');
+            dayCell.className = 'gantt-day-cell';
+            dayCell.dataset.date = dateStr;
+            dayCell.dataset.employeeId = employee.id;
+            
+            if (this.isWeekend(currentDate)) {
+                dayCell.classList.add('weekend');
+            }
+            
+            if (this.isToday(currentDate)) {
+                dayCell.classList.add('today');
+            }
+            
+            // VISUAL: Holiday highlight
+            if (this.isHoliday(dateStr)) {
+                dayCell.classList.add('holiday');
+            }
+            
+            timelineCell.appendChild(dayCell);
+        }
         
         // Tasks for this employee (from localStorage)
         const employeeTasks = this.data.tasks.filter(task => task.employeeId === employee.id);
@@ -729,14 +795,16 @@ class GanttChart {
         return false;
     }
     
-    deleteTask(taskId) {
+    async deleteTask(taskId) {
         const taskIndex = this.data.tasks.findIndex(t => t.id === parseInt(taskId));
         if (taskIndex !== -1) {
             this.data.tasks.splice(taskIndex, 1);
             this.saveData();
-            this.render();
+            await this.render();
+            console.log('Task deleted from Gantt chart, ID:', taskId);
             return true;
         }
+        console.warn('Task not found in Gantt chart, ID:', taskId);
         return false;
     }
     

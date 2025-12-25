@@ -239,5 +239,13 @@
     <script src="scripts/notifications.js"></script>
     <script src="scripts/announcement-banner.js"></script>
     <script src="scripts/exceptions.js"></script>
+    <script>
+        // Show page load screen on initial load
+        window.addEventListener('load', () => {
+            if (typeof showPageLoadScreen !== 'undefined') {
+                showPageLoadScreen();
+            }
+        });
+    </script>
 </body>
 </html>

@@ -521,6 +521,10 @@
     <script>
         // Initialize VOIP on page load
         document.addEventListener('DOMContentLoaded', async () => {
+            // Show page load screen on initial load
+            if (typeof showPageLoadScreen !== 'undefined') {
+                showPageLoadScreen();
+            }
             if (typeof voipUI !== 'undefined') {
                 await voipUI.initialize();
             }

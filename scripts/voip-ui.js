@@ -8,6 +8,7 @@ class VOIPUI {
         this.activeCallModal = null;
         this.currentCallDuration = null;
         this.durationInterval = null;
+        this.ringtoneAudio = null; // Audio element for ringtone.wav
     }
 
     /**
@@ -363,40 +364,32 @@ class VOIPUI {
     }
 
     /**
-     * Play ringtone (simple beep pattern)
+     * Play ringtone using ringtone.wav
      */
     playRingtone() {
-        // Simple ringtone using Web Audio API
+        // Stop any existing ringtone
+        this.stopRingtone();
+        
         try {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
+            // Create audio element for ringtone
+            if (!this.ringtoneAudio) {
+                this.ringtoneAudio = new Audio('ringtone.wav');
+                this.ringtoneAudio.volume = 0.8; // Set volume to 80%
+                this.ringtoneAudio.loop = true; // Loop the ringtone
+                this.ringtoneAudio.preload = 'auto';
+            }
             
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            oscillator.frequency.value = 800;
-            oscillator.type = 'sine';
-            
-            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-            
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.3);
-            
-            // Repeat every 2 seconds
-            this.ringtoneInterval = setInterval(() => {
-                const osc = audioContext.createOscillator();
-                const gain = audioContext.createGain();
-                osc.connect(gain);
-                gain.connect(audioContext.destination);
-                osc.frequency.value = 800;
-                osc.type = 'sine';
-                gain.gain.setValueAtTime(0.3, audioContext.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-                osc.start();
-                osc.stop(audioContext.currentTime + 0.3);
-            }, 2000);
+            // Play the ringtone
+            this.ringtoneAudio.currentTime = 0; // Reset to start
+            this.ringtoneAudio.play().catch(error => {
+                console.warn('Could not play ringtone:', error);
+                // Try again after user interaction
+                document.addEventListener('click', () => {
+                    if (this.ringtoneAudio) {
+                        this.ringtoneAudio.play().catch(() => {});
+                    }
+                }, { once: true });
+            });
         } catch (error) {
             console.warn('Could not play ringtone:', error);
         }
@@ -406,9 +399,9 @@ class VOIPUI {
      * Stop ringtone
      */
     stopRingtone() {
-        if (this.ringtoneInterval) {
-            clearInterval(this.ringtoneInterval);
-            this.ringtoneInterval = null;
+        if (this.ringtoneAudio) {
+            this.ringtoneAudio.pause();
+            this.ringtoneAudio.currentTime = 0;
         }
     }
 }

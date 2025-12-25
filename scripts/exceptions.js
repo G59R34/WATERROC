@@ -46,6 +46,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     tabBtns.forEach(btn => {
         btn.addEventListener('click', () => {
+            if (typeof showUILoadingScreen !== 'undefined') {
+                showUILoadingScreen('tab content');
+            }
             const tabName = btn.dataset.tab;
             
             // Update active states
@@ -233,6 +236,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Filter logs
     document.getElementById('filterLogsBtn').addEventListener('click', () => {
+        if (typeof showFilterLoadingScreen !== 'undefined') {
+            showFilterLoadingScreen();
+        }
         const filters = {
             startDate: document.getElementById('filterStartDate').value || null,
             endDate: document.getElementById('filterEndDate').value || null,
@@ -244,6 +250,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     
     document.getElementById('clearFiltersBtn').addEventListener('click', () => {
+        if (typeof showActionLoadingScreen !== 'undefined') {
+            showActionLoadingScreen('filter reset');
+        }
         document.getElementById('filterStartDate').value = '';
         document.getElementById('filterEndDate').value = '';
         document.getElementById('filterEmployee').value = '';
@@ -253,6 +262,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Export logs to CSV
     document.getElementById('exportLogsBtn').addEventListener('click', async () => {
+        if (typeof showActionLoadingScreen !== 'undefined') {
+            showActionLoadingScreen('CSV export generation');
+        }
         const filters = {
             startDate: document.getElementById('filterStartDate').value || null,
             endDate: document.getElementById('filterEndDate').value || null,
@@ -354,10 +366,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
     
-    document.getElementById('refreshSummaryBtn').addEventListener('click', loadSummary);
+    document.getElementById('refreshSummaryBtn').addEventListener('click', () => {
+        if (typeof showDataLoadingScreen !== 'undefined') {
+            showDataLoadingScreen('exception summary');
+        }
+        loadSummary();
+    });
     
     // Export summary
     document.getElementById('exportSummaryBtn').addEventListener('click', async () => {
+        if (typeof showActionLoadingScreen !== 'undefined') {
+            showActionLoadingScreen('summary export');
+        }
         const summary = await supabaseService.getExceptionSummary();
         
         if (summary.length === 0) {
@@ -410,6 +430,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Back to dashboard
     document.getElementById('backToDashboardBtn').addEventListener('click', () => {
+        if (typeof showPageLoadScreen !== 'undefined') {
+            showPageLoadScreen();
+        }
         window.location.href = 'admin.html';
     });
     

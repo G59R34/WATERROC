@@ -15,6 +15,9 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Navigation
     document.getElementById('backToDashboard').addEventListener('click', function() {
+        if (typeof showPageLoadScreen !== 'undefined') {
+            showPageLoadScreen();
+        }
         window.location.href = 'admin.html';
     });
 
@@ -53,11 +56,17 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Week navigation
     document.getElementById('prevWeekBtn').addEventListener('click', () => {
+        if (typeof showDataLoadingScreen !== 'undefined') {
+            showDataLoadingScreen('previous week schedule');
+        }
         currentWeekStart.setDate(currentWeekStart.getDate() - 7);
         loadShifts();
     });
 
     document.getElementById('nextWeekBtn').addEventListener('click', () => {
+        if (typeof showDataLoadingScreen !== 'undefined') {
+            showDataLoadingScreen('next week schedule');
+        }
         currentWeekStart.setDate(currentWeekStart.getDate() + 7);
         loadShifts();
     });
@@ -89,6 +98,9 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Template change handler
     document.getElementById('shiftTemplate').addEventListener('change', function() {
+        if (typeof showUILoadingScreen !== 'undefined') {
+            showUILoadingScreen('template application');
+        }
         const templateId = parseInt(this.value);
         if (templateId) {
             const template = shiftTemplates.find(t => t.id === templateId);
@@ -367,6 +379,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Save shift
     shiftForm.addEventListener('submit', async function(e) {
         e.preventDefault();
+
+        if (typeof showFormLoadingScreen !== 'undefined') {
+            showFormLoadingScreen('shift data');
+        }
 
         const shiftData = {
             employee_id: parseInt(document.getElementById('shiftEmployee').value),

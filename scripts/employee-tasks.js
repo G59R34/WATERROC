@@ -2,6 +2,11 @@
 document.addEventListener('DOMContentLoaded', async function() {
     'use strict';
 
+    // Show page load screen on initial load
+    if (typeof showPageLoadScreen !== 'undefined') {
+        showPageLoadScreen();
+    }
+
     // Check authentication first using sessionStorage
     const userRole = sessionStorage.getItem('userRole');
     if (userRole !== 'employee') {
@@ -100,12 +105,24 @@ document.addEventListener('DOMContentLoaded', async function() {
         updateCurrentTime();
         
         // Load employee ID first, then load shift and tasks
+        if (typeof showDataLoadingScreen !== 'undefined') {
+            showDataLoadingScreen('employee data');
+        }
         await loadEmployeeId();
+        
+        if (typeof showDataLoadingScreen !== 'undefined') {
+            showDataLoadingScreen('shift information');
+        }
         await loadTodayShift();
+        
+        if (typeof showDataLoadingScreen !== 'undefined') {
+            showDataLoadingScreen('tasks');
+        }
         await loadTasks();
 
         // Auto-refresh every 30 seconds
         refreshInterval = setInterval(async () => {
+            // Don't show loading screens on auto-refresh to avoid interrupting user
             await loadTodayShift(); // Reload shift data from Supabase
             await loadTasks();
             updateCurrentTime();
@@ -121,6 +138,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     function setupEventListeners() {
         document.getElementById('logoutBtn').addEventListener('click', async (e) => {
             e.preventDefault();
+            
+            if (typeof showActionLoadingScreen !== 'undefined') {
+                showActionLoadingScreen('logout');
+            }
             
             try {
                 // Sign out from Supabase
@@ -140,6 +161,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
 
         document.getElementById('refreshBtn').addEventListener('click', async () => {
+            if (typeof showDataLoadingScreen !== 'undefined') {
+                showDataLoadingScreen('tasks');
+            }
             await loadTasks();
             showNotification('✅ Tasks refreshed');
         });
@@ -538,6 +562,10 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Make acknowledgeTask available globally
     window.acknowledgeTask = async function(taskId) {
+        if (typeof showActionLoadingScreen !== 'undefined') {
+            showActionLoadingScreen('task acknowledgement');
+        }
+        
         try {
             console.log('Attempting to acknowledge task:', taskId);
             console.log('Current employee:', currentEmployee);

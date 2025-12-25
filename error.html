@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ERROR - YOU BROKE IT</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #ff0000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            animation: flash 0.5s infinite;
+        }
+        
+        @keyframes flash {
+            0%, 100% { background: #000; }
+            50% { background: #ff0000; }
+        }
+        
+        .error-container {
+            text-align: center;
+            padding: 50px;
+            border: 10px solid #ff0000;
+            background: #000;
+            max-width: 90%;
+            animation: shake 0.1s infinite;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+        
+        h1 {
+            font-size: 72px;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+            text-shadow: 0 0 20px #ff0000, 0 0 40px #ff0000;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        h2 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: #ffff00;
+            text-shadow: 0 0 15px #ffff00;
+        }
+        
+        p {
+            font-size: 32px;
+            margin: 20px 0;
+            line-height: 1.5;
+            font-weight: bold;
+        }
+        
+        .countdown {
+            font-size: 96px;
+            color: #00ff00;
+            margin-top: 40px;
+            text-shadow: 0 0 30px #00ff00;
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        .warning {
+            font-size: 24px;
+            color: #ff8800;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <h1>⚠️ ERROR ⚠️</h1>
+        <h2>YOU BROKE THE WEBSITE!!!</h2>
+        <p>WHAT DID YOU DO?!</p>
+        <p>YOU'RE AN IDIOT!</p>
+        <p>YOU RUINED EVERYTHING!</p>
+        <p>STOP BREAKING THINGS!</p>
+        <p>THIS IS ALL YOUR FAULT!</p>
+        <p>HOW COULD YOU BE SO STUPID?!</p>
+        <p>YOU DON'T DESERVE TO USE THIS WEBSITE!</p>
+        <div class="countdown" id="countdown">30</div>
+        <div class="warning">Redirecting you to a place for idiots...</div>
+    </div>
+    
+    <audio id="errorSound" preload="auto">
+        <source src="error.wav" type="audio/wav">
+    </audio>
+    
+    <script>
+        // Play error sound immediately
+        const errorSound = document.getElementById('errorSound');
+        errorSound.volume = 1.0;
+        
+        // Try to play sound (may require user interaction)
+        errorSound.play().catch(error => {
+            console.log('Could not play error sound immediately:', error);
+            // Try again after a short delay
+            setTimeout(() => {
+                errorSound.play().catch(err => {
+                    console.log('Could not play error sound:', err);
+                });
+            }, 100);
+        });
+        
+        // Countdown timer
+        let seconds = 30;
+        const countdownEl = document.getElementById('countdown');
+        
+        const countdown = setInterval(() => {
+            seconds--;
+            countdownEl.textContent = seconds;
+            
+            if (seconds <= 0) {
+                clearInterval(countdown);
+                // Redirect to the idiot website
+                window.location.href = 'https://www.youareanidiot.cc/';
+            }
+        }, 1000);
+        
+        // Also try to play sound on any user interaction
+        document.addEventListener('click', () => {
+            errorSound.play().catch(() => {});
+        }, { once: true });
+        
+        document.addEventListener('keydown', () => {
+            errorSound.play().catch(() => {});
+        }, { once: true });
+    </script>
+</body>
+</html>
+

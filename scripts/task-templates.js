@@ -56,6 +56,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     });
 
     backBtn.addEventListener('click', () => {
+        if (typeof showPageLoadScreen !== 'undefined') {
+            showPageLoadScreen();
+        }
         window.location.href = 'admin.html';
     });
 

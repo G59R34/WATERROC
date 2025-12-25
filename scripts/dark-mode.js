@@ -76,6 +76,10 @@ class DarkModeManager {
     }
 
     toggle() {
+        // Show loading screen when toggling theme
+        if (typeof showThemeLoadingScreen !== 'undefined') {
+            showThemeLoadingScreen();
+        }
         const newTheme = this.theme === 'dark' ? 'light' : 'dark';
         this.applyTheme(newTheme);
     }

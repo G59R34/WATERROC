@@ -173,5 +173,13 @@
     <script src="scripts/supabase.js"></script>
     <script src="scripts/config.js"></script>
     <script src="scripts/analytics.js"></script>
+    <script>
+        // Show page load screen on initial load
+        window.addEventListener('load', () => {
+            if (typeof showPageLoadScreen !== 'undefined') {
+                showPageLoadScreen();
+            }
+        });
+    </script>
 </body>
 </html>

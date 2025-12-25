@@ -12,6 +12,9 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Navigation
     document.getElementById('backToDashboard').addEventListener('click', function() {
+        if (typeof showPageLoadScreen !== 'undefined') {
+            showPageLoadScreen();
+        }
         window.location.href = 'admin.html';
     });
 
@@ -65,6 +68,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     });
 
     applyCustomRange.addEventListener('click', function() {
+        if (typeof showFilterLoadingScreen !== 'undefined') {
+            showFilterLoadingScreen();
+        }
         if (customStartDate.value && customEndDate.value) {
             currentStartDate = customStartDate.value;
             currentEndDate = customEndDate.value;

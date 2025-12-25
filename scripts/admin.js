@@ -319,6 +319,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         // Toggle notification panel
         notificationBtn.addEventListener('click', () => {
+            if (typeof showUILoadingScreen !== 'undefined') {
+                showUILoadingScreen('notification panel');
+            }
             notificationPanel.classList.add('active');
             notificationOverlay.classList.add('active');
         });
@@ -334,12 +337,18 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         // Mark all as read
         markAllReadBtn.addEventListener('click', () => {
+            if (typeof showActionLoadingScreen !== 'undefined') {
+                showActionLoadingScreen('notification update');
+            }
             notificationSystem.markAllAsRead();
         });
         
         // Clear all notifications
         clearAllBtn.addEventListener('click', () => {
             if (confirm('Clear all notifications?')) {
+                if (typeof showActionLoadingScreen !== 'undefined') {
+                    showActionLoadingScreen('notification clearing');
+                }
                 notificationSystem.clearAll();
             }
         });
@@ -381,6 +390,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     const updateDateRangeBtn = document.getElementById('updateDateRange');
     if (updateDateRangeBtn) {
         updateDateRangeBtn.addEventListener('click', function() {
+            if (typeof showDataLoadingScreen !== 'undefined') {
+                showDataLoadingScreen('date range update');
+            }
             if (!gantt) {
                 alert('Gantt chart not initialized');
                 return;
@@ -423,6 +435,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     const resetViewBtn = document.getElementById('resetViewBtn');
     if (resetViewBtn) {
         resetViewBtn.addEventListener('click', function() {
+            if (typeof showActionLoadingScreen !== 'undefined') {
+                showActionLoadingScreen('view reset');
+            }
             if (!gantt) {
                 alert('Gantt chart not initialized');
                 return;
@@ -573,15 +588,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Open Add Employee Modal
     if (addEmployeeBtn) {
         addEmployeeBtn.addEventListener('click', async function() {
+            if (addEmployeeModal) addEmployeeModal.style.display = 'block';
             if (typeof showDataLoadingScreen !== 'undefined') {
-                showDataLoadingScreen('employee data', async () => {
-                    await loadUsersForEmployeeModal();
-                    if (addEmployeeModal) addEmployeeModal.style.display = 'block';
-                });
-            } else {
-                await loadUsersForEmployeeModal();
-                if (addEmployeeModal) addEmployeeModal.style.display = 'block';
+                showDataLoadingScreen('employee data');
             }
+            await loadUsersForEmployeeModal();
         });
     }
     
@@ -687,12 +698,9 @@ document.addEventListener('DOMContentLoaded', async function() {
                 alert('Gantt chart not initialized. Please refresh the page.');
                 return;
             }
-            if (typeof showActionLoadingScreen !== 'undefined') {
-                showActionLoadingScreen('task modal', () => {
-                    openAddTaskModal();
-                });
-            } else {
-                openAddTaskModal();
+            openAddTaskModal();
+            if (typeof showUILoadingScreen !== 'undefined') {
+                showUILoadingScreen('task form');
             }
         });
     } else {
@@ -1031,31 +1039,20 @@ document.addEventListener('DOMContentLoaded', async function() {
         deleteTaskBtn.addEventListener('click', async function() {
             const taskId = parseInt(document.getElementById('editTaskId').value);
             
+            if (!taskId || isNaN(taskId)) {
+                alert('Error: Invalid task ID');
+                return;
+            }
+            
             if (confirm('Are you sure you want to delete this task?')) {
+                // Show loading screen
                 if (typeof showActionLoadingScreen !== 'undefined') {
-                    showActionLoadingScreen('delete task', async () => {
-                        console.log('🗑️ Deleting task ID:', taskId);
-                        
-                        // Delete from Supabase first
-                        if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
-                            const result = await supabaseService.deleteTask(taskId);
-                            console.log('Supabase delete result:', result);
-                            
-                            // Refresh from database
-                            await syncFromSupabase();
-                        }
-                        
-                        // Delete from local Gantt chart
-                        gantt.deleteTask(taskId);
-                        
-                        editTaskModal.style.display = 'none';
-                        document.getElementById('editTaskForm').reset();
-                        
-                        alert('Task deleted successfully!');
-                    });
-                } else {
-                    console.log('🗑️ Deleting task ID:', taskId);
-                    
+                    showActionLoadingScreen('delete task');
+                }
+                
+                console.log('🗑️ Deleting task ID:', taskId);
+                
+                try {
                     // Delete from Supabase first
                     if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
                         const result = await supabaseService.deleteTask(taskId);
@@ -1066,12 +1063,17 @@ document.addEventListener('DOMContentLoaded', async function() {
                     }
                     
                     // Delete from local Gantt chart
-                    gantt.deleteTask(taskId);
+                    if (gantt) {
+                        await gantt.deleteTask(taskId);
+                    }
                     
                     editTaskModal.style.display = 'none';
                     document.getElementById('editTaskForm').reset();
                     
-                    alert('Task deleted successfully!');
+                    alert('✅ Task deleted successfully!');
+                } catch (error) {
+                    console.error('Error deleting task:', error);
+                    alert('❌ Failed to delete task: ' + error.message);
                 }
             }
         });
@@ -1452,54 +1454,30 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     function openHourlyGantt(dateStr) {
+        const hourlyModal = document.getElementById('hourlyGanttModal');
+        const titleEl = document.getElementById('hourlyGanttTitle');
+        const date = parseLocalDate(dateStr);
+        
+        // Open modal first
+        hourlyModal.style.display = 'block';
+        
+        titleEl.textContent = `Hourly Schedule - ${date.toLocaleDateString('en-US', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        })}`;
+        
+        // Show loading screen while rendering
         if (typeof showDataLoadingScreen !== 'undefined') {
-            showDataLoadingScreen('hourly schedule', () => {
-                const hourlyModal = document.getElementById('hourlyGanttModal');
-                const titleEl = document.getElementById('hourlyGanttTitle');
-                const date = parseLocalDate(dateStr);
-                
-                titleEl.textContent = `Hourly Schedule - ${date.toLocaleDateString('en-US', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                })}`;
-                
-                // Create or update hourly gantt
-                currentHourlyGantt = new HourlyGanttChart('hourlyGanttChart', dateStr, true);
-                
-                // Initialize context menu for hourly Gantt chart
-                if (typeof HourlyGanttContextMenu !== 'undefined') {
-                    // Remove existing context menu if it exists
-                    const existingMenu = document.getElementById('hourlyGanttContextMenu');
-                    if (existingMenu) {
-                        existingMenu.remove();
-                    }
-                    
-                    // Create new context menu
-                    if (currentHourlyGantt) {
-                        window.hourlyGanttContextMenu = new HourlyGanttContextMenu(currentHourlyGantt);
-                    }
-                }
-                
-                hourlyModal.style.display = 'block';
-            });
-        } else {
-            const hourlyModal = document.getElementById('hourlyGanttModal');
-            const titleEl = document.getElementById('hourlyGanttTitle');
-            const date = parseLocalDate(dateStr);
-            
-            titleEl.textContent = `Hourly Schedule - ${date.toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-            })}`;
-            
-            // Create or update hourly gantt
-            currentHourlyGantt = new HourlyGanttChart('hourlyGanttChart', dateStr, true);
-            
-            // Initialize context menu for hourly Gantt chart
+            showDataLoadingScreen('hourly schedule');
+        }
+        
+        // Create or update hourly gantt (this will render asynchronously)
+        currentHourlyGantt = new HourlyGanttChart('hourlyGanttChart', dateStr, true);
+        
+        // Initialize context menu for hourly Gantt chart after a short delay
+        setTimeout(() => {
             if (typeof HourlyGanttContextMenu !== 'undefined') {
                 // Remove existing context menu if it exists
                 const existingMenu = document.getElementById('hourlyGanttContextMenu');
@@ -1512,9 +1490,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                     window.hourlyGanttContextMenu = new HourlyGanttContextMenu(currentHourlyGantt);
                 }
             }
-            
-            hourlyModal.style.display = 'block';
-        }
+        }, 100);
     }
     
     function populateHourlyTaskEmployees() {
@@ -1601,23 +1577,62 @@ document.addEventListener('DOMContentLoaded', async function() {
     };
     
     window.editHourlyTask = function(task) {
-        console.log('Edit task:', task);
+        console.log('Edit task function called with:', task);
+        
+        if (!task) {
+            console.error('No task provided to editHourlyTask');
+            alert('Error: No task data provided');
+            return;
+        }
         
         // Handle both Supabase format (start_time) and old format (startTime)
         const startTime = task.start_time || task.startTime;
         const endTime = task.end_time || task.endTime;
         const workArea = task.work_area || task.workArea;
         
+        console.log('Task data:', { id: task.id, name: task.name, startTime, endTime, workArea });
+        
+        // Check if modal exists
+        const modal = document.getElementById('editHourlyTaskModal');
+        if (!modal) {
+            console.error('editHourlyTaskModal element not found!');
+            alert('Error: Task editor modal not found. Please refresh the page.');
+            return;
+        }
+        
         // Populate the form
-        document.getElementById('editHourlyTaskId').value = task.id;
-        document.getElementById('editHourlyTaskName').value = task.name;
-        document.getElementById('editHourlyTaskCategory').value = workArea || 'other';
-        document.getElementById('editHourlyTaskStartTime').value = startTime.substring(0, 5);
-        document.getElementById('editHourlyTaskEndTime').value = endTime.substring(0, 5);
-        document.getElementById('editHourlyTaskStatus').value = task.status;
+        const idField = document.getElementById('editHourlyTaskId');
+        const nameField = document.getElementById('editHourlyTaskName');
+        const categoryField = document.getElementById('editHourlyTaskCategory');
+        const startTimeField = document.getElementById('editHourlyTaskStartTime');
+        const endTimeField = document.getElementById('editHourlyTaskEndTime');
+        const statusField = document.getElementById('editHourlyTaskStatus');
+        
+        if (!idField || !nameField || !categoryField || !startTimeField || !endTimeField || !statusField) {
+            console.error('One or more form fields not found:', {
+                idField: !!idField,
+                nameField: !!nameField,
+                categoryField: !!categoryField,
+                startTimeField: !!startTimeField,
+                endTimeField: !!endTimeField,
+                statusField: !!statusField
+            });
+            alert('Error: Task editor form fields not found. Please refresh the page.');
+            return;
+        }
+        
+        idField.value = task.id;
+        nameField.value = task.name || '';
+        categoryField.value = workArea || 'other';
+        startTimeField.value = startTime ? startTime.substring(0, 5) : '09:00';
+        endTimeField.value = endTime ? endTime.substring(0, 5) : '17:00';
+        statusField.value = task.status || 'pending';
+        
+        console.log('Form populated, showing modal');
         
         // Show the modal
-        document.getElementById('editHourlyTaskModal').style.display = 'block';
+        modal.style.display = 'block';
+        console.log('Modal should now be visible');
     };
     
     // Edit Shift Modal
@@ -1669,14 +1684,20 @@ document.addEventListener('DOMContentLoaded', async function() {
     });
     
     document.getElementById('deleteHourlyTaskBtn')?.addEventListener('click', async () => {
+        const taskId = parseInt(document.getElementById('editHourlyTaskId')?.value);
+        
+        if (!taskId || isNaN(taskId)) {
+            alert('Error: Invalid task ID');
+            return;
+        }
+        
         if (confirm('Are you sure you want to delete this task?')) {
+            // Show loading screen
             if (typeof showActionLoadingScreen !== 'undefined') {
-                showActionLoadingScreen('delete hourly task', async () => {
-                    await deleteHourlyTask();
-                });
-            } else {
-                await deleteHourlyTask();
+                showActionLoadingScreen('delete hourly task');
             }
+            
+            await deleteHourlyTask();
         }
     });
     
@@ -1718,9 +1739,20 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     async function deleteHourlyTask() {
-        const taskId = parseInt(document.getElementById('editHourlyTaskId').value);
+        const taskIdField = document.getElementById('editHourlyTaskId');
+        if (!taskIdField) {
+            alert('Error: Task ID field not found');
+            return;
+        }
         
-        console.log('Attempting to delete task with ID:', taskId);
+        const taskId = parseInt(taskIdField.value);
+        
+        if (!taskId || isNaN(taskId)) {
+            alert('Error: Invalid task ID');
+            return;
+        }
+        
+        console.log('Attempting to delete hourly task with ID:', taskId);
         
         if (!supabaseService || !supabaseService.isReady()) {
             alert('❌ Supabase not connected');
@@ -1728,11 +1760,15 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         
         try {
-            console.log('Calling supabaseService.deleteHourlyTask...');
-            await supabaseService.deleteHourlyTask(taskId);
+            console.log('Calling supabaseService.deleteHourlyTask with ID:', taskId);
+            const result = await supabaseService.deleteHourlyTask(taskId);
+            console.log('Delete result:', result);
             
             // Close modal
-            document.getElementById('editHourlyTaskModal').style.display = 'none';
+            const modal = document.getElementById('editHourlyTaskModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
             
             // Refresh hourly gantt if open
             if (currentHourlyGantt) {
@@ -1742,8 +1778,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             alert('✅ Task deleted successfully!');
         } catch (error) {
-            console.error('Error deleting task:', error);
-            alert('❌ Failed to delete task: ' + error.message);
+            console.error('Error deleting hourly task:', error);
+            alert('❌ Failed to delete task: ' + (error.message || error));
         }
     }
     
