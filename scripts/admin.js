@@ -305,6 +305,241 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
         });
     }
+
+    // ==========================================
+    // PAYROLL MANAGEMENT
+    // ==========================================
+
+    // Payroll Hours Management
+    const payrollHoursModal = document.getElementById('payrollHoursModal');
+    const managePayrollHoursBtn = document.getElementById('managePayrollHoursBtn');
+    const closePayrollHours = document.getElementById('closePayrollHours');
+    const savePayrollHoursBtn = document.getElementById('savePayrollHoursBtn');
+    const cancelPayrollHours = document.getElementById('cancelPayrollHours');
+
+    if (managePayrollHoursBtn) {
+        managePayrollHoursBtn.addEventListener('click', async function() {
+            payrollHoursModal.style.display = 'block';
+            await loadPayrollHoursUI();
+        });
+    }
+
+    if (closePayrollHours) {
+        closePayrollHours.addEventListener('click', function() {
+            payrollHoursModal.style.display = 'none';
+        });
+    }
+
+    if (cancelPayrollHours) {
+        cancelPayrollHours.addEventListener('click', function() {
+            payrollHoursModal.style.display = 'none';
+        });
+    }
+
+    if (savePayrollHoursBtn) {
+        savePayrollHoursBtn.addEventListener('click', async function() {
+            if (typeof showFormLoadingScreen !== 'undefined') {
+                showFormLoadingScreen('payroll hours');
+            }
+
+            const periodStart = document.getElementById('payrollPeriodStart').value;
+            const periodEnd = document.getElementById('payrollPeriodEnd').value;
+
+            if (!periodStart || !periodEnd) {
+                alert('❌ Please select both start and end dates for the pay period');
+                return;
+            }
+
+            try {
+                const employees = await supabaseService.getEmployees() || [];
+                const hoursInputs = document.querySelectorAll('#payrollHoursList input[type="number"][data-employee-id]');
+                
+                let savedCount = 0;
+                for (const input of hoursInputs) {
+                    const employeeId = parseInt(input.getAttribute('data-employee-id'));
+                    const hours = parseFloat(input.value) || 0;
+                    const hourlyRate = parseFloat(input.getAttribute('data-hourly-rate')) || null;
+                    const notes = input.getAttribute('data-notes') || null;
+
+                    if (hours > 0) {
+                        const result = await supabaseService.setPayrollHours(
+                            employeeId,
+                            periodStart,
+                            periodEnd,
+                            hours,
+                            hourlyRate,
+                            notes
+                        );
+                        if (!result.error) {
+                            savedCount++;
+                        }
+                    }
+                }
+
+                alert(`✅ Saved payroll hours for ${savedCount} employee(s)!`);
+                payrollHoursModal.style.display = 'none';
+            } catch (error) {
+                console.error('Error saving payroll hours:', error);
+                alert('❌ Failed to save payroll hours: ' + error.message);
+            }
+        });
+    }
+
+    async function loadPayrollHoursUI() {
+        const list = document.getElementById('payrollHoursList');
+        if (!list) return;
+
+        list.innerHTML = '<div style="text-align: center; padding: 20px; color: #64748b;">Loading employees...</div>';
+
+        try {
+            const employees = await supabaseService.getEmployees() || [];
+            
+            if (employees.length === 0) {
+                list.innerHTML = '<div style="text-align: center; padding: 20px; color: #64748b;">No employees found</div>';
+                return;
+            }
+
+            const periodStart = document.getElementById('payrollPeriodStart').value || new Date().toISOString().split('T')[0];
+            const periodEnd = document.getElementById('payrollPeriodEnd').value || new Date().toISOString().split('T')[0];
+
+            // Get existing payroll hours for this period
+            const existingHours = await supabaseService.getPayrollHours(periodStart, periodEnd);
+
+            list.innerHTML = employees.map(emp => {
+                const existing = existingHours.find(h => h.employee_id === emp.id);
+                const hours = existing ? existing.hours : 0;
+                const hourlyRate = existing ? existing.hourly_rate : null;
+
+                return `
+                    <div style="display: flex; align-items: center; gap: 15px; padding: 15px; border-bottom: 1px solid var(--border-light, #e5e7eb);">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: var(--text-primary, #1f2937);">${emp.name}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary, #6b7280);">${emp.role}</div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <label style="font-size: 14px;">Hours:</label>
+                            <input type="number" 
+                                   data-employee-id="${emp.id}" 
+                                   data-hourly-rate="${hourlyRate || ''}"
+                                   data-notes=""
+                                   value="${hours}" 
+                                   min="0" 
+                                   step="0.25" 
+                                   style="width: 100px; padding: 8px; border: 1px solid var(--border-light, #e5e7eb); border-radius: 4px;">
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } catch (error) {
+            console.error('Error loading payroll hours UI:', error);
+            list.innerHTML = '<div style="text-align: center; padding: 20px; color: #dc2626;">Error loading employees</div>';
+        }
+    }
+
+    // Accountant Access Management
+    const accountantAccessModal = document.getElementById('accountantAccessModal');
+    const manageAccountantAccessBtn = document.getElementById('manageAccountantAccessBtn');
+    const closeAccountantAccess = document.getElementById('closeAccountantAccess');
+    const saveAccountantAccessBtn = document.getElementById('saveAccountantAccessBtn');
+    const cancelAccountantAccess = document.getElementById('cancelAccountantAccess');
+
+    if (manageAccountantAccessBtn) {
+        manageAccountantAccessBtn.addEventListener('click', async function() {
+            accountantAccessModal.style.display = 'block';
+            await loadAccountantAccessUI();
+        });
+    }
+
+    if (closeAccountantAccess) {
+        closeAccountantAccess.addEventListener('click', function() {
+            accountantAccessModal.style.display = 'none';
+        });
+    }
+
+    if (cancelAccountantAccess) {
+        cancelAccountantAccess.addEventListener('click', function() {
+            accountantAccessModal.style.display = 'none';
+        });
+    }
+
+    if (saveAccountantAccessBtn) {
+        saveAccountantAccessBtn.addEventListener('click', async function() {
+            if (typeof showFormLoadingScreen !== 'undefined') {
+                showFormLoadingScreen('accountant access');
+            }
+
+            try {
+                const employees = await supabaseService.getEmployees() || [];
+                const checkboxes = document.querySelectorAll('#accountantAccessList input[type="checkbox"]');
+                
+                let savedCount = 0;
+                for (const checkbox of checkboxes) {
+                    const employeeId = parseInt(checkbox.getAttribute('data-employee-id'));
+                    const canView = checkbox.checked;
+                    const canProcess = checkbox.getAttribute('data-can-process') === 'true' ? checkbox.checked : false;
+
+                    const result = await supabaseService.setAccountantAccess(
+                        employeeId,
+                        canView,
+                        canProcess
+                    );
+                    if (!result.error) {
+                        savedCount++;
+                    }
+                }
+
+                alert(`✅ Saved accountant access for ${savedCount} employee(s)!`);
+                accountantAccessModal.style.display = 'none';
+            } catch (error) {
+                console.error('Error saving accountant access:', error);
+                alert('❌ Failed to save accountant access: ' + error.message);
+            }
+        });
+    }
+
+    async function loadAccountantAccessUI() {
+        const list = document.getElementById('accountantAccessList');
+        if (!list) return;
+
+        list.innerHTML = '<div style="text-align: center; padding: 20px; color: #64748b;">Loading employees...</div>';
+
+        try {
+            const employees = await supabaseService.getEmployees() || [];
+            const accessList = await supabaseService.getAccountantAccess();
+
+            if (employees.length === 0) {
+                list.innerHTML = '<div style="text-align: center; padding: 20px; color: #64748b;">No employees found</div>';
+                return;
+            }
+
+            list.innerHTML = employees.map(emp => {
+                const access = accessList.find(a => a.employee_id === emp.id);
+                const canView = access ? access.can_view : true; // Default to true
+                const canProcess = access ? access.can_process : true; // Default to true
+
+                return `
+                    <div style="display: flex; align-items: center; gap: 15px; padding: 15px; border-bottom: 1px solid var(--border-light, #e5e7eb);">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: var(--text-primary, #1f2937);">${emp.name}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary, #6b7280);">${emp.role}</div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 20px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" 
+                                       data-employee-id="${emp.id}" 
+                                       data-can-process="true"
+                                       ${canView ? 'checked' : ''}>
+                                <span style="font-size: 14px;">Accountant Access</span>
+                            </label>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } catch (error) {
+            console.error('Error loading accountant access UI:', error);
+            list.innerHTML = '<div style="text-align: center; padding: 20px; color: #dc2626;">Error loading employees</div>';
+        }
+    }
     
     // Setup notification panel
     function setupNotificationPanel() {

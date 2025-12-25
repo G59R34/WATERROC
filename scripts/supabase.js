@@ -176,6 +176,33 @@ class SupabaseService {
     }
 
     /**
+     * Get user by ID (UUID)
+     * @param {string} userId - User UUID
+     * @returns {Promise<Object|null>}
+     */
+    async getUserById(userId) {
+        if (!this.isReady()) return null;
+
+        try {
+            const { data, error } = await this.client
+                .from('users')
+                .select('*')
+                .eq('id', userId)
+                .single();
+
+            if (error) {
+                console.error('Error getting user by ID:', error);
+                return null;
+            }
+
+            return data;
+        } catch (error) {
+            console.error('Error getting user by ID:', error);
+            return null;
+        }
+    }
+
+    /**
      * Get current employee record based on logged-in user
      * @returns {Promise<Object|null>} Employee record or null
      */
@@ -3837,6 +3864,354 @@ class SupabaseService {
         } catch (error) {
             console.error('Error deleting call signaling:', error);
             return false;
+        }
+    }
+
+    // ==========================================
+    // PAYROLL OPERATIONS
+    // ==========================================
+
+    /**
+     * Set payroll hours for an employee for a pay period
+     * @param {number} employeeId - Employee ID
+     * @param {string} payPeriodStart - Pay period start date (YYYY-MM-DD)
+     * @param {string} payPeriodEnd - Pay period end date (YYYY-MM-DD)
+     * @param {number} hours - Hours worked
+     * @param {number} hourlyRate - Optional hourly rate override
+     * @param {string} notes - Optional notes
+     * @returns {Promise<{data: any, error: string|null}>}
+     */
+    async setPayrollHours(employeeId, payPeriodStart, payPeriodEnd, hours, hourlyRate = null, notes = null) {
+        if (!this.isReady()) return { data: null, error: 'Supabase not initialized' };
+
+        try {
+            const { data: { user } } = await this.client.auth.getUser();
+            if (!user) {
+                return { data: null, error: 'Not authenticated' };
+            }
+
+            const insertData = {
+                employee_id: employeeId,
+                pay_period_start: payPeriodStart,
+                pay_period_end: payPeriodEnd,
+                hours: hours,
+                created_by: user.id
+            };
+
+            if (hourlyRate !== null) {
+                insertData.hourly_rate = hourlyRate;
+            }
+            if (notes) {
+                insertData.notes = notes;
+            }
+
+            const { data, error } = await this.client
+                .from('payroll_hours')
+                .upsert(insertData, {
+                    onConflict: 'employee_id,pay_period_start,pay_period_end'
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            console.log('✅ Payroll hours set successfully');
+            return { data, error: null };
+        } catch (error) {
+            console.error('Error setting payroll hours:', error);
+            return { data: null, error: error.message };
+        }
+    }
+
+    /**
+     * Get payroll hours for employees in a pay period
+     * @param {string} payPeriodStart - Pay period start date (YYYY-MM-DD)
+     * @param {string} payPeriodEnd - Pay period end date (YYYY-MM-DD)
+     * @param {number} employeeId - Optional employee ID filter
+     * @returns {Promise<Array>}
+     */
+    async getPayrollHours(payPeriodStart, payPeriodEnd, employeeId = null) {
+        if (!this.isReady()) return [];
+
+        try {
+            let query = this.client
+                .from('payroll_hours')
+                .select(`
+                    *,
+                    employees (
+                        id,
+                        name,
+                        role
+                    )
+                `)
+                .eq('pay_period_start', payPeriodStart)
+                .eq('pay_period_end', payPeriodEnd);
+
+            if (employeeId) {
+                query = query.eq('employee_id', employeeId);
+            }
+
+            const { data, error } = await query;
+
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error getting payroll hours:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Set accountant access for an employee
+     * @param {number} employeeId - Employee ID
+     * @param {boolean} canView - Can accountant view this employee
+     * @param {boolean} canProcess - Can accountant process payroll for this employee
+     * @param {string} notes - Optional notes
+     * @returns {Promise<{data: any, error: string|null}>}
+     */
+    async setAccountantAccess(employeeId, canView, canProcess, notes = null) {
+        if (!this.isReady()) return { data: null, error: 'Supabase not initialized' };
+
+        try {
+            const { data: { user } } = await this.client.auth.getUser();
+            if (!user) {
+                return { data: null, error: 'Not authenticated' };
+            }
+
+            const insertData = {
+                employee_id: employeeId,
+                can_view: canView,
+                can_process: canProcess,
+                created_by: user.id
+            };
+
+            if (notes) {
+                insertData.notes = notes;
+            }
+
+            const { data, error } = await this.client
+                .from('accountant_access')
+                .upsert(insertData, {
+                    onConflict: 'employee_id'
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            console.log('✅ Accountant access set successfully');
+            return { data, error: null };
+        } catch (error) {
+            console.error('Error setting accountant access:', error);
+            return { data: null, error: error.message };
+        }
+    }
+
+    /**
+     * Get accountant access for all employees
+     * @returns {Promise<Array>}
+     */
+    async getAccountantAccess() {
+        if (!this.isReady()) return [];
+
+        try {
+            const { data, error } = await this.client
+                .from('accountant_access')
+                .select(`
+                    *,
+                    employees (
+                        id,
+                        name,
+                        role
+                    )
+                `)
+                .order('employee_id');
+
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error getting accountant access:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get employees that accountant has access to
+     * @returns {Promise<Array>}
+     */
+    async getAccountantAccessibleEmployees() {
+        if (!this.isReady()) return [];
+
+        try {
+            const { data, error } = await this.client
+                .from('accountant_access')
+                .select(`
+                    *,
+                    employees (
+                        id,
+                        name,
+                        role
+                    )
+                `)
+                .eq('can_view', true)
+                .order('employee_id');
+
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error getting accessible employees:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Save payroll processing history
+     * @param {Object} payrollData - Payroll processing data
+     * @returns {Promise<{data: any, error: string|null}>}
+     */
+    async savePayrollHistory(payrollData) {
+        if (!this.isReady()) return { data: null, error: 'Supabase not initialized' };
+
+        try {
+            const { data: { user } } = await this.client.auth.getUser();
+            if (!user) {
+                return { data: null, error: 'Not authenticated' };
+            }
+
+            const insertData = {
+                ...payrollData,
+                processed_by: user.id
+            };
+
+            const { data, error } = await this.client
+                .from('payroll_history')
+                .insert(insertData)
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            console.log('✅ Payroll history saved');
+            return { data, error: null };
+        } catch (error) {
+            console.error('Error saving payroll history:', error);
+            return { data: null, error: error.message };
+        }
+    }
+
+    /**
+     * Get payroll history
+     * @param {number} limit - Number of records to return
+     * @returns {Promise<Array>}
+     */
+    async getPayrollHistory(limit = 50) {
+        if (!this.isReady()) return [];
+
+        try {
+            const { data, error } = await this.client
+                .from('payroll_history')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(limit);
+
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error getting payroll history:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Send payroll email via Edge Function
+     * @param {string} to - Recipient email
+     * @param {string} subject - Email subject
+     * @param {string} html - Email HTML content
+     * @returns {Promise<{success: boolean, error: string|null}>}
+     */
+    async sendPayrollEmail(to, subject, html) {
+        if (!this.isReady()) return { success: false, error: 'Supabase not initialized' };
+
+        try {
+            // Call the Edge Function
+            const { data, error } = await this.client.functions.invoke('send-email', {
+                body: { to, subject, html }
+            });
+
+            if (error) throw error;
+
+            console.log('✅ Payroll email sent successfully');
+            return { success: true, error: null, data };
+        } catch (error) {
+            console.error('Error sending payroll email:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Log payroll email sent
+     * @param {number} payrollHistoryId - Payroll history ID
+     * @param {number} employeeId - Employee ID
+     * @param {string} employeeEmail - Employee email
+     * @param {string} subject - Email subject
+     * @param {boolean} success - Whether email was sent successfully
+     * @param {string} errorMessage - Error message if failed
+     * @returns {Promise<{data: any, error: string|null}>}
+     */
+    async logPayrollEmail(payrollHistoryId, employeeId, employeeEmail, subject, success, errorMessage = null) {
+        if (!this.isReady()) return { data: null, error: 'Supabase not initialized' };
+
+        try {
+            const insertData = {
+                payroll_history_id: payrollHistoryId,
+                employee_id: employeeId,
+                employee_email: employeeEmail,
+                email_subject: subject,
+                email_sent: success,
+                email_sent_at: success ? new Date().toISOString() : null,
+                error_message: errorMessage
+            };
+
+            const { data, error } = await this.client
+                .from('payroll_emails')
+                .insert(insertData)
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            return { data, error: null };
+        } catch (error) {
+            console.error('Error logging payroll email:', error);
+            return { data: null, error: error.message };
+        }
+    }
+
+    /**
+     * Update payroll history email status
+     * @param {number} payrollHistoryId - Payroll history ID
+     * @returns {Promise<{data: any, error: string|null}>}
+     */
+    async updatePayrollHistoryEmailStatus(payrollHistoryId) {
+        if (!this.isReady()) return { data: null, error: 'Supabase not initialized' };
+
+        try {
+            const { data, error } = await this.client
+                .from('payroll_history')
+                .update({
+                    email_sent: true,
+                    email_sent_at: new Date().toISOString()
+                })
+                .eq('id', payrollHistoryId)
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            return { data, error: null };
+        } catch (error) {
+            console.error('Error updating payroll history email status:', error);
+            return { data: null, error: error.message };
         }
     }
 }

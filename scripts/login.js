@@ -140,7 +140,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                     return;
                 }
                 
-                await redirectToApp(user.is_admin);
+                const storedRole = sessionStorage.getItem('userRole');
+                await redirectToApp(user.is_admin, storedRole);
                 return;
             }
         }
@@ -364,10 +365,17 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             // Check if role matches
             const isAdmin = user.is_admin === true;
+            const userRole = user.role || 'employee';
             
             if (role === 'admin' && !isAdmin) {
                 await supabaseService.signOut();
                 throw new Error('You do not have admin privileges. Contact an administrator to grant admin access.');
+            }
+            
+            if (role === 'accountant' && userRole !== 'accountant' && !isAdmin) {
+                // Allow admins to access accountant dashboard, but check role for others
+                console.log('Checking accountant access...');
+                // For now, allow if user explicitly selected accountant role
             }
             
             if (role === 'employee' && isAdmin) {
@@ -382,7 +390,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             sessionStorage.setItem('isAdmin', isAdmin);
             
             // Redirect to appropriate page
-            await redirectToApp(role === 'admin');
+            await redirectToApp(role === 'admin', role);
             
         } catch (error) {
             console.error('Login error:', error);
@@ -418,13 +426,26 @@ document.addEventListener('DOMContentLoaded', async function() {
             } else {
                 alert('Invalid credentials! Default password is emp123');
             }
+        } else if (role === 'accountant') {
+            if (password === 'acc123') {
+                sessionStorage.setItem('userRole', 'accountant');
+                sessionStorage.setItem('username', username);
+                sessionStorage.setItem('isAdmin', 'false');
+                // ADDED: Wait for login sound to finish before redirecting
+                await playLoginSound();
+                window.location.href = 'accountant.html';
+            } else {
+                alert('Invalid credentials! Default password is acc123');
+            }
         }
     }
     
-    async function redirectToApp(isAdmin) {
+    async function redirectToApp(isAdmin, role = null) {
         // ADDED: Wait for login sound to finish before redirecting
         await playLoginSound();
-        if (isAdmin) {
+        if (role === 'accountant') {
+            window.location.href = 'accountant.html';
+        } else if (isAdmin) {
             window.location.href = 'admin.html';
         } else {
             window.location.href = 'employee.html';

@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WaterROC - Accountant Dashboard</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="shortcut icon" type="image/png" href="/favicon.png">
+    <link rel="stylesheet" href="styles/main.css">
+    <script src="scripts/loading-screen.js" defer></script>
+    <script src="scripts/dark-mode.js" defer></script>
+    <style>
+        .accountant-dashboard {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: var(--bg-secondary, #f8fafc);
+            border-radius: 12px;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .header-logo {
+            width: 40px;
+            height: 40px;
+        }
+        
+        .money-printer-section {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .money-printer-btn {
+            background: white;
+            color: #10b981;
+            border: none;
+            padding: 20px 40px;
+            font-size: 24px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: transform 0.3s ease;
+        }
+        
+        .money-printer-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        .money-display {
+            font-size: 48px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        
+        .payroll-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .payroll-card {
+            background: white;
+            border: 2px solid var(--border-light, #e2e8f0);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .payroll-card h3 {
+            margin: 0 0 20px 0;
+            color: var(--text-primary, #1f2937);
+            font-size: 20px;
+        }
+        
+        .employee-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .employee-payroll-item {
+            padding: 15px;
+            border-bottom: 1px solid var(--border-light, #e2e8f0);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .employee-payroll-item:last-child {
+            border-bottom: none;
+        }
+        
+        .payroll-amount {
+            font-weight: bold;
+            color: var(--primary-color, #3b82f6);
+            font-size: 18px;
+        }
+        
+        .tax-breakdown {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid var(--border-light, #e2e8f0);
+        }
+        
+        .tax-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 14px;
+        }
+        
+        .tax-item.total {
+            font-weight: bold;
+            font-size: 16px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border-light, #e2e8f0);
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text-primary, #1f2937);
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid var(--border-light, #e2e8f0);
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .btn-process {
+            background: var(--primary-color, #3b82f6);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+        }
+        
+        .btn-process:hover {
+            background: var(--primary-hover, #2563eb);
+        }
+        
+        .payroll-summary {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+        
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            font-size: 18px;
+        }
+        
+        .summary-item.total {
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid rgba(255,255,255,0.3);
+        }
+        
+        .payroll-history {
+            margin-top: 30px;
+        }
+        
+        .history-item {
+            background: white;
+            border: 2px solid var(--border-light, #e2e8f0);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .history-date {
+            font-weight: 600;
+            color: var(--text-primary, #1f2937);
+        }
+        
+        .history-amount {
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--primary-color, #3b82f6);
+        }
+    </style>
+</head>
+<body>
+    <div class="accountant-dashboard">
+        <header class="dashboard-header">
+            <div class="header-left">
+                <img src="favicon.png" alt="WaterROC Logo" class="header-logo" onerror="this.style.display='none';">
+                <h1>WaterROC - Accountant Dashboard</h1>
+            </div>
+            <div class="header-right">
+                <span class="user-info">Accountant Portal</span>
+                <button id="logoutBtn" class="btn-secondary">Logout</button>
+            </div>
+        </header>
+        
+        <!-- Money Printer Section -->
+        <div class="money-printer-section">
+            <h2>💰 MONEY PRINTER 💰</h2>
+            <div class="money-display" id="totalMoney">$0.00</div>
+            <button id="printMoneyBtn" class="money-printer-btn">🖨️ PRINT MONEY</button>
+            <p style="margin-top: 15px; opacity: 0.9;">Click to generate money (for payroll purposes only!)</p>
+        </div>
+        
+        <!-- Payroll Summary -->
+        <div class="payroll-summary">
+            <h2 style="margin: 0 0 20px 0;">Payroll Summary</h2>
+            <div class="summary-item">
+                <span>Total Employees:</span>
+                <span id="totalEmployees">0</span>
+            </div>
+            <div class="summary-item">
+                <span>Total Gross Pay:</span>
+                <span id="totalGrossPay">$0.00</span>
+            </div>
+            <div class="summary-item">
+                <span>Total Taxes:</span>
+                <span id="totalTaxes">$0.00</span>
+            </div>
+            <div class="summary-item">
+                <span>Total Deductions:</span>
+                <span id="totalDeductions">$0.00</span>
+            </div>
+            <div class="summary-item total">
+                <span>Net Payroll:</span>
+                <span id="netPayroll">$0.00</span>
+            </div>
+        </div>
+        
+        <!-- Payroll Processing -->
+        <div class="payroll-grid">
+            <div class="payroll-card">
+                <h3>📊 Process Payroll</h3>
+                <div class="form-group">
+                    <label for="payPeriodStart">Pay Period Start</label>
+                    <input type="date" id="payPeriodStart" required>
+                </div>
+                <div class="form-group">
+                    <label for="payPeriodEnd">Pay Period End</label>
+                    <input type="date" id="payPeriodEnd" required>
+                </div>
+                <div class="form-group">
+                    <label for="payDate">Pay Date</label>
+                    <input type="date" id="payDate" required>
+                </div>
+                <button id="processPayrollBtn" class="btn-process">Process Payroll</button>
+            </div>
+            
+            <div class="payroll-card">
+                <h3>👥 Employee Payroll</h3>
+                <div class="employee-list" id="employeePayrollList">
+                    <div style="text-align: center; padding: 20px; color: #64748b;">
+                        Loading employees...
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tax Configuration -->
+        <div class="payroll-card">
+            <h3>📋 Tax Configuration</h3>
+            <div class="payroll-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+                <div class="form-group">
+                    <label for="federalTaxRate">Federal Tax Rate (%)</label>
+                    <input type="number" id="federalTaxRate" value="22" step="0.1" min="0" max="100">
+                </div>
+                <div class="form-group">
+                    <label for="stateTaxRate">State Tax Rate (%)</label>
+                    <input type="number" id="stateTaxRate" value="5" step="0.1" min="0" max="100">
+                </div>
+                <div class="form-group">
+                    <label for="socialSecurityRate">Social Security Rate (%)</label>
+                    <input type="number" id="socialSecurityRate" value="6.2" step="0.1" min="0" max="100">
+                </div>
+                <div class="form-group">
+                    <label for="medicareRate">Medicare Rate (%)</label>
+                    <input type="number" id="medicareRate" value="1.45" step="0.1" min="0" max="100">
+                </div>
+                <div class="form-group">
+                    <label for="unemploymentRate">Unemployment Rate (%)</label>
+                    <input type="number" id="unemploymentRate" value="2.7" step="0.1" min="0" max="100">
+                </div>
+                <div class="form-group">
+                    <label for="healthInsurance">Health Insurance (per employee)</label>
+                    <input type="number" id="healthInsurance" value="200" step="1" min="0">
+                </div>
+            </div>
+            <button id="saveTaxConfigBtn" class="btn-process">Save Tax Configuration</button>
+        </div>
+        
+        <!-- Payroll History -->
+        <div class="payroll-history">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">📜 Payroll History</h2>
+                <button id="exportPayrollBtn" class="btn-process" style="width: auto; padding: 10px 20px; margin: 0;">Export Payroll Report</button>
+            </div>
+            <div id="payrollHistoryList">
+                <div style="text-align: center; padding: 20px; color: #64748b;">
+                    No payroll history yet
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="scripts/supabase.js"></script>
+    <script src="scripts/config.js"></script>
+    <script src="scripts/accountant.js"></script>
+    <script>
+        // Show page load screen on initial load
+        window.addEventListener('load', () => {
+            if (typeof showPageLoadScreen !== 'undefined') {
+                showPageLoadScreen();
+            }
+        });
+    </script>
+</body>
+</html>
+

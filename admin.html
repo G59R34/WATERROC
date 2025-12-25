@@ -83,6 +83,14 @@
                 </div>
                 
                 <div class="controls-section">
+                    <h3>Payroll Management</h3>
+                    <div class="control-group">
+                        <button id="managePayrollHoursBtn" class="btn-primary btn-muted" title="Set payroll hours for employees">Set Payroll Hours</button>
+                        <button id="manageAccountantAccessBtn" class="btn-primary btn-muted" title="Designate employees for accountant access">Accountant Access</button>
+                    </div>
+                </div>
+                
+                <div class="controls-section">
                     <h3>Color Legend</h3>
                     <!-- FULL OVERHAUL: Muted color legend - blue/gray shades only -->
                     <!-- ADDED UI: Muted color legend with tooltips -->
@@ -482,6 +490,47 @@
                     <button type="button" class="btn-secondary" id="cancelEditShift">Cancel</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Payroll Hours Management Modal -->
+    <div id="payrollHoursModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <span class="close" id="closePayrollHours">&times;</span>
+            <h2>💰 Set Payroll Hours</h2>
+            <div class="form-group">
+                <label for="payrollPeriodStart">Pay Period Start</label>
+                <input type="date" id="payrollPeriodStart" required>
+            </div>
+            <div class="form-group">
+                <label for="payrollPeriodEnd">Pay Period End</label>
+                <input type="date" id="payrollPeriodEnd" required>
+            </div>
+            <div id="payrollHoursList" style="max-height: 500px; overflow-y: auto; margin: 20px 0;">
+                <div style="text-align: center; padding: 20px; color: #64748b;">Loading employees...</div>
+            </div>
+            <div class="form-actions">
+                <button id="savePayrollHoursBtn" class="btn-primary">Save All Hours</button>
+                <button type="button" class="btn-secondary" id="cancelPayrollHours">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Accountant Access Management Modal -->
+    <div id="accountantAccessModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <span class="close" id="closeAccountantAccess">&times;</span>
+            <h2>👤 Accountant Access Management</h2>
+            <p style="color: #64748b; margin-bottom: 20px;">
+                Designate which employees the accountant can view and process payroll for.
+            </p>
+            <div id="accountantAccessList" style="max-height: 500px; overflow-y: auto; margin: 20px 0;">
+                <div style="text-align: center; padding: 20px; color: #64748b;">Loading employees...</div>
+            </div>
+            <div class="form-actions">
+                <button id="saveAccountantAccessBtn" class="btn-primary">Save Access Settings</button>
+                <button type="button" class="btn-secondary" id="cancelAccountantAccess">Cancel</button>
+            </div>
         </div>
     </div>
 
