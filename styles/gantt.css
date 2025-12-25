@@ -122,6 +122,48 @@ body:not(.employee-page) .gantt-chart {
     font-weight: 600;
 }
 
+/* Hour header for hour view */
+.gantt-hour-header {
+    min-width: 200px;
+    width: 200px;
+    padding: var(--space-2) var(--space-3);
+    text-align: center;
+    border-right: 1px solid var(--border-light);
+    background: #ffffff;
+    font-weight: 600;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+    position: relative;
+}
+
+/* Hour view: full-width header */
+.gantt-hour-header[style*="width: 100%"] {
+    width: 100% !important;
+    min-width: 0 !important;
+    flex: 1 !important;
+    flex-shrink: 1 !important;
+    max-width: 100% !important;
+}
+
+[data-theme="dark"] .gantt-hour-header {
+    background: var(--bg-primary);
+}
+
+.gantt-hour-header .hour-label {
+    display: block;
+    font-size: 1.5rem;
+    color: var(--text-primary);
+    margin-bottom: var(--space-1);
+    font-weight: 700;
+}
+
+.gantt-hour-header .hour-date {
+    display: block;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
 /* FINAL OVERHAUL: Holiday banner - square rectangular */
 .gantt-day-header .day-holiday {
     display: block;
@@ -251,6 +293,14 @@ body:not(.employee-page) .gantt-chart {
     display: flex;
     position: relative;
     min-width: fit-content;
+    width: 100%;
+}
+
+/* Hour view: timeline cell should stretch full width */
+.gantt-timeline-cell:has(.gantt-day-cell[style*="width: 100%"]) {
+    min-width: 0 !important;
+    width: 100% !important;
+    flex: 1 !important;
 }
 
 /* FINAL OVERHAUL: Clean empty cells - square, no clutter */
@@ -262,6 +312,15 @@ body:not(.employee-page) .gantt-chart {
     background: #ffffff;
     position: relative;
     flex-shrink: 0;
+}
+
+/* Hour view: full-width day cell */
+.gantt-day-cell[style*="width: 100%"] {
+    width: 100% !important;
+    min-width: 0 !important;
+    flex: 1 !important;
+    flex-shrink: 1 !important;
+    max-width: 100% !important;
 }
 
 [data-theme="dark"] .gantt-day-cell {
@@ -693,7 +752,10 @@ body:not(.employee-page) .gantt-chart {
     position: absolute;
     top: 0;
     bottom: 0;
+    left: 0;
     width: 2px;
+    height: 100%;
+    min-height: 100%;
     background: #ef4444;
     z-index: 100;
     pointer-events: none;
@@ -724,4 +786,214 @@ body:not(.employee-page) .gantt-chart {
         transform: scale(1.2);
         box-shadow: 0 0 25px rgba(239, 68, 68, 1);
     }
+}
+
+/* Calendar-style layout for month view */
+.gantt-calendar-header {
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.gantt-calendar-month-title {
+    padding: var(--space-4);
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    background: #f0f0f0;
+    border-bottom: 1px solid var(--border-light);
+}
+
+[data-theme="dark"] .gantt-calendar-month-title {
+    background: var(--bg-secondary);
+}
+
+.gantt-weekdays-header {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.gantt-weekday-header {
+    padding: var(--space-3);
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.875rem;
+    border-right: 1px solid var(--border-light);
+    background: #f0f0f0;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.gantt-weekday-header:last-child {
+    border-right: none;
+}
+
+[data-theme="dark"] .gantt-weekday-header {
+    background: var(--bg-secondary);
+}
+
+.gantt-calendar-body {
+    display: flex;
+    flex-direction: column;
+}
+
+.gantt-calendar-week-row {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    border-bottom: 1px solid var(--border-light);
+    min-height: 150px;
+    width: 100%;
+}
+
+/* Ensure calendar rows don't wrap incorrectly */
+.gantt-calendar-body {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    overflow-x: auto;
+}
+
+.gantt-calendar-employee-cell {
+    border-right: 1px solid var(--border-light);
+    padding: var(--space-3);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    background: #ffffff;
+}
+
+[data-theme="dark"] .gantt-calendar-employee-cell {
+    background: var(--bg-primary);
+}
+
+.gantt-calendar-day-cell {
+    border-right: 1px solid var(--border-light);
+    padding: var(--space-2);
+    min-height: 120px;
+    position: relative;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    overflow: hidden;
+}
+
+.gantt-calendar-day-cell:last-child {
+    border-right: none;
+}
+
+[data-theme="dark"] .gantt-calendar-day-cell {
+    background: var(--bg-primary);
+}
+
+.gantt-calendar-day-cell.other-month {
+    background: #f9f9f9;
+    opacity: 0.6;
+}
+
+[data-theme="dark"] .gantt-calendar-day-cell.other-month {
+    background: var(--bg-secondary);
+    opacity: 0.4;
+}
+
+.gantt-calendar-day-cell.weekend {
+    background: var(--bg-tertiary);
+}
+
+[data-theme="dark"] .gantt-calendar-day-cell.weekend {
+    background: var(--bg-secondary);
+}
+
+.gantt-calendar-day-cell.today {
+    background: rgba(37, 99, 235, 0.05);
+    border: 2px solid var(--primary-600);
+}
+
+[data-theme="dark"] .gantt-calendar-day-cell.today {
+    background: rgba(37, 99, 235, 0.1);
+    border-color: var(--primary-500);
+}
+
+.gantt-calendar-day-cell.holiday {
+    background: #fff3e0;
+}
+
+[data-theme="dark"] .gantt-calendar-day-cell.holiday {
+    background: rgba(255, 243, 224, 0.3);
+}
+
+.calendar-day-number {
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: var(--text-primary);
+    margin-bottom: var(--space-2);
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border-light);
+    width: 100%;
+}
+
+.gantt-calendar-day-cell.today .calendar-day-number {
+    color: var(--primary-600);
+    font-size: 1.5rem;
+}
+
+.gantt-calendar-day-cell.other-month .calendar-day-number {
+    opacity: 0.4;
+    font-size: 1rem;
+}
+
+.calendar-events-container {
+    width: 100%;
+    flex: 1;
+    overflow-y: auto;
+    max-height: calc(150px - 50px);
+}
+
+.calendar-event-employee {
+    font-weight: 600;
+    font-size: 0.7rem;
+    margin-bottom: 2px;
+}
+
+.calendar-event-time {
+    font-size: 0.65rem;
+    opacity: 0.9;
+    margin-bottom: 2px;
+}
+
+.calendar-event-name {
+    font-size: 0.7rem;
+    font-weight: 500;
+}
+
+/* Style shift bars and tasks in calendar cells */
+.gantt-calendar-day-cell .gantt-shift-bar {
+    position: relative !important;
+    width: 100% !important;
+    left: 0 !important;
+    margin-top: 4px;
+    height: auto;
+    min-height: 24px;
+    padding: 4px 8px;
+    font-size: 0.7rem;
+}
+
+.gantt-calendar-day-cell .gantt-shift-bar .shift-time {
+    font-size: 0.7rem;
+    margin-bottom: 2px;
+}
+
+.gantt-calendar-task {
+    position: relative;
+    width: 100%;
+    margin-top: 4px;
+    padding: 4px 8px;
+    border-radius: 2px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: white;
+    box-sizing: border-box;
 }
