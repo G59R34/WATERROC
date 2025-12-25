@@ -30,7 +30,7 @@
 
 .checkin-dialog {
     background: var(--bg-primary);
-    border-radius: 20px;
+    border-radius: 0px;
     width: 90%;
     max-width: 600px;
     max-height: 85vh;
@@ -100,7 +100,7 @@
     width: 100%;
     padding: 15px;
     border: none;
-    border-radius: 12px;
+    border-radius: 0px;
     font-size: 1.1rem;
     font-weight: 600;
     cursor: pointer;
@@ -133,14 +133,14 @@
     max-height: 300px;
     overflow-y: auto;
     background: var(--bg-secondary);
-    border-radius: 12px;
+    border-radius: 0px;
     padding: 15px;
 }
 
 .notification-item-checkin {
     background: var(--bg-primary);
     padding: 15px;
-    border-radius: 10px;
+    border-radius: 0px;
     margin-bottom: 12px;
     border-left: 4px solid var(--primary-color);
     box-shadow: var(--shadow-sm);
@@ -243,7 +243,7 @@
 .stat-card {
     background: var(--bg-secondary);
     padding: 20px;
-    border-radius: 12px;
+    border-radius: 0px;
     text-align: center;
 }
 
@@ -279,12 +279,12 @@
 
 .notification-list-checkin::-webkit-scrollbar-track {
     background: var(--bg-tertiary);
-    border-radius: 10px;
+    border-radius: 0px;
 }
 
 .notification-list-checkin::-webkit-scrollbar-thumb {
     background: var(--border-medium);
-    border-radius: 10px;
+    border-radius: 0px;
 }
 
 .notification-list-checkin::-webkit-scrollbar-thumb:hover {

@@ -70,7 +70,15 @@ document.addEventListener('DOMContentLoaded', async function() {
     });
 
     // Refresh button
-    document.getElementById('refreshProfilesBtn').addEventListener('click', loadProfiles);
+    document.getElementById('refreshProfilesBtn').addEventListener('click', function() {
+        if (typeof showDataLoadingScreen !== 'undefined') {
+            showDataLoadingScreen('profiles', () => {
+                loadProfiles();
+            });
+        } else {
+            loadProfiles();
+        }
+    });
 
     // Load profiles
     async function loadProfiles() {

@@ -18,6 +18,8 @@
     <div class="dashboard">
         <header class="dashboard-header">
             <div class="header-left">
+                <!-- ADDED: Favicon logo image -->
+                <img src="favicon.png" alt="WaterROC Logo" class="header-logo" onerror="this.style.display='none';">
                 <h1>WaterROC</h1>
             </div>
             <div class="header-right">
@@ -30,6 +32,7 @@
                 <span id="clockStatus" style="margin:0 10px; font-weight:600;">Not clocked in</span>
                 <button id="logoutBtn" class="btn-secondary">Logout</button>
             </div>
+            <!-- Dark mode toggle will be inserted here by dark-mode.js -->
         </header>
         
         <!-- Announcement Banner -->
@@ -50,27 +53,26 @@
                 
                 <div class="info-card">
                     <h3>Task Status Legend</h3>
+                    <!-- FULL OVERHAUL: Muted color legend - blue/gray shades only -->
                     <div class="color-legend">
                         <div class="legend-item">
-                            <span class="color-box" style="background-color: #2563eb;"></span>
+                            <span class="color-box" style="background-color: #4a90e2;"></span>
                             <span>In Progress</span>
                         </div>
                         <div class="legend-item">
-                            <span class="color-box" style="background-color: #059669;"></span>
-                            <span>Completed</span>
-                        </div>
+                            <span class="color-box" style="background-color: #6c757d;"></span>
                             <span>Completed</span>
                         </div>
                         <div class="legend-item">
-                            <span class="color-box" style="background-color: #f59e0b;"></span>
+                            <span class="color-box" style="background-color: #5a9fd4;"></span>
                             <span>Pending</span>
                         </div>
                         <div class="legend-item">
-                            <span class="color-box" style="background-color: #ef4444;"></span>
+                            <span class="color-box" style="background-color: #495057;"></span>
                             <span>Overdue</span>
                         </div>
                         <div class="legend-item">
-                            <span class="color-box" style="background-color: #8b5cf6;"></span>
+                            <span class="color-box" style="background-color: #868e96;"></span>
                             <span>On Hold</span>
                         </div>
                     </div>

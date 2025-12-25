@@ -12,24 +12,33 @@
     <link rel="stylesheet" href="styles/company-chat.css">
     <link rel="stylesheet" href="styles/voip.css">
     <link rel="stylesheet" href="styles/gantt-context-menu.css">
+    <script src="scripts/loading-screen.js" defer></script>
     <script src="scripts/dark-mode.js" defer></script>
     <script src="scripts/gantt-context-menu.js" defer></script>
     <script src="scripts/hourly-gantt-context-menu.js" defer></script>
 </head>
 <body>
+    <script>
+        // DISABLED: Page load screen was blocking all interactions and preventing Gantt from rendering
+        // Only show loading screens for specific user actions, not on initial page load
+    </script>
     <div class="dashboard">
         <header class="dashboard-header">
             <div class="header-left">
+                <!-- ADDED: Favicon logo image -->
+                <img src="favicon.png" alt="WaterROC Logo" class="header-logo" onerror="this.style.display='none';">
                 <h1>WaterROC</h1>
             </div>
             <div class="header-right">
-                <button id="notificationBtn" class="notification-btn">
+                <!-- ADDED UI: Notification button with tooltip -->
+                <button id="notificationBtn" class="notification-btn" title="View notifications">
                     🔔
                     <span id="notificationBadge" class="notification-badge">0</span>
                 </button>
-                <span class="user-info">Admin Dashboard</span>
-                <button id="logoutBtn" class="btn-secondary">Logout</button>
+                <span class="user-info" title="Current user role">Admin Dashboard</span>
+                <button id="logoutBtn" class="btn-secondary" title="Logout from the system">Logout</button>
             </div>
+            <!-- Dark mode toggle will be inserted here by dark-mode.js -->
         </header>
         
         <!-- Announcement Banner -->
@@ -39,13 +48,15 @@
             <div class="controls-panel">
                 <div class="controls-section">
                     <h3>Gantt Chart Controls</h3>
+                    <!-- FULL OVERHAUL: Muted blue/gray buttons, no yellow/green/orange -->
                     <div class="control-group">
-                        <button id="addEmployeeBtn" class="btn-primary">Add Personell</button>
-                        <button id="addTaskBtn" class="btn-primary">Add Task</button>
-                        <button id="sendAnnouncementBtn" class="btn-warning">Send Announcement</button>
-                        <button id="viewAnalyticsBtn" class="btn-success">View Analytics</button>
-                        <button id="saveDataBtn" class="btn-success">Save Changes</button>
-                        <button id="resetViewBtn" class="btn-secondary">Reset View</button>
+                        <!-- ADDED UI: Buttons with tooltips -->
+                        <button id="addEmployeeBtn" class="btn-primary" title="Add a new employee to the system">Add Personnel</button>
+                        <button id="addTaskBtn" class="btn-primary" title="Create a new task assignment">Add Task</button>
+                        <button id="sendAnnouncementBtn" class="btn-primary btn-muted" title="Send announcement to all employees">Send Announcement</button>
+                        <button id="viewAnalyticsBtn" class="btn-primary btn-muted" title="View analytics and reports">View Analytics</button>
+                        <button id="saveDataBtn" class="btn-primary btn-muted" title="Save all changes to the schedule">Save Changes</button>
+                        <button id="resetViewBtn" class="btn-secondary" title="Reset Gantt view to default">Reset View</button>
                     </div>
                 </div>
                 
@@ -61,35 +72,39 @@
                 
                 <div class="controls-section">
                     <h3>Advanced Features</h3>
+                    <!-- FULL OVERHAUL: Muted blue buttons -->
                     <div class="control-group">
-                        <button id="manageProfilesBtn" class="btn-primary">Personell Profiles</button>
-                        <button id="manageShiftsBtn" class="btn-primary">Shift Scheduling</button>
-                        <button id="manageTaskTemplatesBtn" class="btn-primary">Task Templates</button>
-                        <button id="manageExceptionsBtn" class="btn-warning">Exceptions & Absence</button>
+                        <!-- ADDED UI: Advanced feature buttons with tooltips -->
+                        <button id="manageProfilesBtn" class="btn-primary btn-muted" title="Manage employee profiles">Personnel Profiles</button>
+                        <button id="manageShiftsBtn" class="btn-primary btn-muted" title="Schedule employee shifts">Shift Scheduling</button>
+                        <button id="manageTaskTemplatesBtn" class="btn-primary btn-muted" title="Manage task templates">Task Templates</button>
+                        <button id="manageExceptionsBtn" class="btn-primary btn-muted" title="Manage exceptions and absences">Exceptions & Absence</button>
                     </div>
                 </div>
                 
                 <div class="controls-section">
                     <h3>Color Legend</h3>
+                    <!-- FULL OVERHAUL: Muted color legend - blue/gray shades only -->
+                    <!-- ADDED UI: Muted color legend with tooltips -->
                     <div class="color-legend">
-                        <div class="legend-item">
-                            <span class="color-box" style="background-color: #3b82f6;"></span>
+                        <div class="legend-item" title="Tasks currently in progress">
+                            <span class="color-box" style="background-color: #4a90e2;"></span>
                             <span>In Progress</span>
                         </div>
-                        <div class="legend-item">
-                            <span class="color-box" style="background-color: #10b981;"></span>
+                        <div class="legend-item" title="Completed tasks">
+                            <span class="color-box" style="background-color: #6c757d;"></span>
                             <span>Completed</span>
                         </div>
-                        <div class="legend-item">
-                            <span class="color-box" style="background-color: #f59e0b;"></span>
+                        <div class="legend-item" title="Pending tasks">
+                            <span class="color-box" style="background-color: #5a9fd4;"></span>
                             <span>Pending</span>
                         </div>
-                        <div class="legend-item">
-                            <span class="color-box" style="background-color: #ef4444;"></span>
+                        <div class="legend-item" title="Overdue tasks">
+                            <span class="color-box" style="background-color: #495057;"></span>
                             <span>Overdue</span>
                         </div>
-                        <div class="legend-item">
-                            <span class="color-box" style="background-color: #8b5cf6;"></span>
+                        <div class="legend-item" title="Tasks on hold">
+                            <span class="color-box" style="background-color: #868e96;"></span>
                             <span>On Hold</span>
                         </div>
                     </div>
@@ -97,6 +112,21 @@
             </div>
             
             <div class="gantt-container">
+                <!-- ADDED UI: Gantt controls bar with search, zoom, export -->
+                <div class="gantt-controls-bar">
+                    <div class="gantt-controls-left">
+                        <!-- ADDED UI: Search bar for employees -->
+                        <input type="text" id="employeeSearch" class="gantt-search" placeholder="Search employees..." title="Search for employees by name">
+                        <!-- ADDED UI: Zoom buttons for Gantt -->
+                        <button id="zoomOutBtn" class="btn-secondary btn-small" title="Zoom out">−</button>
+                        <button id="zoomInBtn" class="btn-secondary btn-small" title="Zoom in">+</button>
+                        <button id="zoomResetBtn" class="btn-secondary btn-small" title="Reset zoom">Reset</button>
+                    </div>
+                    <div class="gantt-controls-right">
+                        <!-- ADDED UI: Export CSV button -->
+                        <button id="exportCSVBtn" class="btn-primary btn-muted" title="Export schedule to CSV">Export CSV</button>
+                    </div>
+                </div>
                 <div id="ganttChart" class="gantt-chart"></div>
             </div>
         </div>
@@ -496,5 +526,13 @@
             }
         });
     </script>
+    
+    <!-- ADDED UI: Footer with version/copyright -->
+    <footer class="dashboard-footer">
+        <p>WaterROC v2.1.4 &copy; 2024 Waterstream Resource Operations Center</p>
+    </footer>
+    
+    <!-- LOGIC: Enhanced Gantt interactions -->
+    <script src="scripts/gantt-enhancements.js"></script>
 </body>
 </html>

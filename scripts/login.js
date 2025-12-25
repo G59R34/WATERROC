@@ -1,6 +1,58 @@
 // Login Script with Supabase Authentication
+
+// ADDED: Audio playback for successful login
+let loginAudio = null;
+function getLoginAudio() {
+    if (!loginAudio) {
+        loginAudio = new Audio('login.wav');
+        loginAudio.volume = 0.7; // Set volume to 70%
+        loginAudio.preload = 'auto';
+    }
+    return loginAudio;
+}
+
+function playLoginSound() {
+    return new Promise((resolve) => {
+        try {
+            const audio = getLoginAudio();
+            audio.currentTime = 0; // Reset to start
+            
+            // Wait for audio to finish playing before resolving, but with a timeout
+            const onEnded = () => {
+                audio.removeEventListener('ended', onEnded);
+                clearTimeout(timeoutId);
+                resolve();
+            };
+            audio.addEventListener('ended', onEnded);
+            
+            // FIXED: Add timeout to prevent infinite waiting if audio fails
+            const timeoutId = setTimeout(() => {
+                audio.removeEventListener('ended', onEnded);
+                console.log('Login sound timeout - proceeding with redirect');
+                resolve(); // Resolve after max 3 seconds even if audio hasn't finished
+            }, 3000); // Max 3 second wait
+            
+            audio.play().catch(error => {
+                console.log('Could not play login sound:', error);
+                // If audio can't play, resolve immediately
+                clearTimeout(timeoutId);
+                audio.removeEventListener('ended', onEnded);
+                resolve();
+            });
+        } catch (error) {
+            console.log('Error playing login sound:', error);
+            resolve(); // Resolve immediately on error
+        }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', async function() {
     const loginForm = document.getElementById('loginForm');
+    if (!loginForm) {
+        console.error('Login form not found!');
+        return;
+    }
+    
     const usernameInput = document.getElementById('username');
     const emailInput = document.getElementById('email');
     const fullNameInput = document.getElementById('fullName');
@@ -12,10 +64,17 @@ document.addEventListener('DOMContentLoaded', async function() {
     const emailGroup = document.getElementById('emailGroup');
     const fullNameGroup = document.getElementById('fullNameGroup');
     
+    // Check if required elements exist
+    if (!usernameInput || !passwordInput || !roleSelect || !submitBtn) {
+        console.error('Required login form elements not found!');
+        return;
+    }
+    
     let isSignupMode = false;
     
     // Toggle between login and signup
-    toggleSignup.addEventListener('click', function(e) {
+    if (toggleSignup) {
+        toggleSignup.addEventListener('click', function(e) {
         e.preventDefault();
         isSignupMode = !isSignupMode;
         
@@ -42,8 +101,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         
         // Re-attach event listener
-        document.getElementById('toggleSignup').addEventListener('click', arguments.callee);
+        const newToggle = document.getElementById('toggleSignup');
+        if (newToggle) {
+            newToggle.addEventListener('click', arguments.callee);
+        }
     });
+    }
     
     // Check if already logged in
     if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
@@ -71,11 +134,13 @@ document.addEventListener('DOMContentLoaded', async function() {
                 
                 if (employmentStatus === 'extended_leave') {
                     // Redirect to extended leave page
+                    // ADDED: Wait for login sound to finish before redirecting
+                    await playLoginSound();
                     window.location.href = 'extended-leave.html';
                     return;
                 }
                 
-                redirectToApp(user.is_admin);
+                await redirectToApp(user.is_admin);
                 return;
             }
         }
@@ -84,25 +149,68 @@ document.addEventListener('DOMContentLoaded', async function() {
     loginForm.addEventListener('submit', async function(e) {
         e.preventDefault();
         
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const loginProgress = document.getElementById('loginProgress');
+        const submitBtn = document.getElementById('submitBtn');
+        
+        // Show loading indicators immediately (no delay)
+        if (loadingOverlay) loadingOverlay.style.display = 'flex';
+        if (loginProgress) loginProgress.style.display = 'block';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Logging in...';
+        }
+        
+        // DISABLED: Fake loading screen was blocking login
+        // if (typeof showFormLoadingScreen !== 'undefined') {
+        //     showFormLoadingScreen('login');
+        // }
+        
         const username = usernameInput.value.trim();
         const email = emailInput.value.trim();
         const fullName = fullNameInput.value.trim();
         const password = passwordInput.value;
         const role = roleSelect.value;
         
-        if (isSignupMode) {
-            // Handle signup
-            if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
-                await handleSupabaseSignup(username, email, fullName, password, role);
+        // LOGIC: Session storage for theme preference and remember me
+        const rememberMe = document.getElementById('rememberMe');
+        if (rememberMe && rememberMe.checked) {
+            localStorage.setItem('rememberLogin', 'true');
+        }
+        
+        try {
+            if (isSignupMode) {
+                // Handle signup
+                if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+                    await handleSupabaseSignup(username, email, fullName, password, role);
+                } else {
+                    throw new Error('Signup requires Supabase to be configured. Please use offline demo mode for testing.');
+                }
             } else {
-                alert('Signup requires Supabase to be configured. Please use offline demo mode for testing.');
+                // Handle login
+                if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+                    await handleSupabaseLogin(username, password, role);
+                } else {
+                    handleOfflineLogin(username, password, role);
+                }
             }
-        } else {
-            // Handle login
-            if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
-                await handleSupabaseLogin(username, password, role);
-            } else {
-                handleOfflineLogin(username, password, role);
+        } catch (error) {
+            // ADDED UI: Show error message
+            const errorMsg = document.getElementById('errorMessage');
+            if (errorMsg) {
+                errorMsg.textContent = error.message || 'Login failed. Please try again.';
+                errorMsg.style.display = 'block';
+                setTimeout(() => {
+                    errorMsg.style.display = 'none';
+                }, 5000);
+            }
+        } finally {
+            // Hide loading indicators
+            if (loadingOverlay) loadingOverlay.style.display = 'none';
+            if (loginProgress) loginProgress.style.display = 'none';
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = isSignupMode ? 'Sign Up' : 'Login';
             }
         }
     });
@@ -239,6 +347,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                             sessionStorage.setItem('userRole', role);
                             sessionStorage.setItem('username', username);
                             sessionStorage.setItem('userId', userData.id);
+                            // ADDED: Wait for login sound to finish before redirecting
+                            await playLoginSound();
                             window.location.href = 'extended-leave.html';
                             return;
                         }
@@ -272,7 +382,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             sessionStorage.setItem('isAdmin', isAdmin);
             
             // Redirect to appropriate page
-            redirectToApp(role === 'admin');
+            await redirectToApp(role === 'admin');
             
         } catch (error) {
             console.error('Login error:', error);
@@ -283,7 +393,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
     
-    function handleOfflineLogin(username, password, role) {
+    async function handleOfflineLogin(username, password, role) {
         // Simple offline authentication (for demo/offline mode)
         if (role === 'admin') {
             // In offline mode, accept any admin credentials for testing
@@ -291,6 +401,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                 sessionStorage.setItem('userRole', 'admin');
                 sessionStorage.setItem('username', username);
                 sessionStorage.setItem('isAdmin', 'true');
+                // ADDED: Wait for login sound to finish before redirecting
+                await playLoginSound();
                 window.location.href = 'admin.html';
             } else {
                 alert('Invalid admin password! Use admin123 for offline mode.');
@@ -300,6 +412,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                 sessionStorage.setItem('userRole', 'employee');
                 sessionStorage.setItem('username', username);
                 sessionStorage.setItem('isAdmin', 'false');
+                // ADDED: Wait for login sound to finish before redirecting
+                await playLoginSound();
                 window.location.href = 'employee.html';
             } else {
                 alert('Invalid credentials! Default password is emp123');
@@ -307,7 +421,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
     
-    function redirectToApp(isAdmin) {
+    async function redirectToApp(isAdmin) {
+        // ADDED: Wait for login sound to finish before redirecting
+        await playLoginSound();
         if (isAdmin) {
             window.location.href = 'admin.html';
         } else {

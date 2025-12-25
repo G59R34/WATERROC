@@ -19,20 +19,52 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     // Initialize Gantt Chart FIRST
-    const gantt = new GanttChart('ganttChart', true);
+    const ganttContainer = document.getElementById('ganttChart');
+    if (!ganttContainer) {
+        console.error('Gantt chart container not found!');
+        // Don't return - continue with button setup even if Gantt fails
+    }
+    
+    // Initialize Gantt Chart
+    let gantt;
+    try {
+        if (ganttContainer) {
+            gantt = new GanttChart('ganttChart', true);
+            console.log('Gantt chart initialized successfully');
+        } else {
+            console.warn('Gantt container not found, creating placeholder');
+            gantt = null;
+        }
+    } catch (error) {
+        console.error('Error initializing Gantt chart:', error);
+        gantt = null; // Don't return - continue with rest of initialization
+    }
     
     // Initialize context menu for Gantt chart
     let ganttContextMenu = null;
     if (typeof GanttContextMenu !== 'undefined') {
-        ganttContextMenu = new GanttContextMenu(gantt);
+        try {
+            ganttContextMenu = new GanttContextMenu(gantt);
+        } catch (error) {
+            console.error('Error initializing Gantt context menu:', error);
+        }
     }
     
     // Set up date inputs
     const startDateInput = document.getElementById('startDate');
     const endDateInput = document.getElementById('endDate');
     
-    startDateInput.valueAsDate = gantt.startDate;
-    endDateInput.valueAsDate = gantt.endDate;
+    if (startDateInput && endDateInput && gantt) {
+        try {
+            startDateInput.valueAsDate = gantt.startDate;
+            endDateInput.valueAsDate = gantt.endDate;
+        } catch (error) {
+            console.error('Error setting date inputs:', error);
+        }
+    }
+    
+    // Make gantt globally accessible
+    window.gantt = gantt;
     
     // Check Supabase authentication
     if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
@@ -78,7 +110,14 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         
         // Sync from Supabase AFTER gantt is initialized
-        await syncFromSupabase();
+        // Wait a bit to ensure gantt is fully initialized before syncing
+        setTimeout(async () => {
+            try {
+                await syncFromSupabase();
+            } catch (error) {
+                console.error('Error in initial syncFromSupabase:', error);
+            }
+        }, 1000);
         
         // Ensure DO exceptions are created for today
         try {
@@ -131,8 +170,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             // Only update if data actually changed to prevent unnecessary re-renders
             const currentDataStr = JSON.stringify({
-                employees: gantt.data.employees,
-                tasks: gantt.data.tasks
+                employees: gantt ? gantt.data.employees : [],
+                tasks: gantt ? gantt.data.tasks : []
             });
             const newDataStr = JSON.stringify({
                 employees: data.employees,
@@ -141,13 +180,20 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             if (currentDataStr !== newDataStr) {
                 localStorage.setItem('ganttData', JSON.stringify(data));
-                gantt.data = data;
-                // Use requestAnimationFrame to make render smoother
-                requestAnimationFrame(async () => {
-                    await gantt.render();
-                });
-                
-                console.log(`📋 Updated ${data.tasks.length} task(s) for ${data.employees.length} employee(s)`);
+                if (gantt) {
+                    gantt.data = data;
+                    // Use requestAnimationFrame to make render smoother
+                    requestAnimationFrame(async () => {
+                        try {
+                            await gantt.render();
+                            console.log(`📋 Updated ${data.tasks.length} task(s) for ${data.employees.length} employee(s)`);
+                        } catch (error) {
+                            console.error('Error rendering Gantt after sync:', error);
+                        }
+                    });
+                } else {
+                    console.warn('Gantt chart not initialized, cannot render');
+                }
             }
         }
     }
@@ -186,29 +232,79 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     // Analytics navigation
-    document.getElementById('viewAnalyticsBtn').addEventListener('click', function() {
-        window.location.href = 'analytics.html';
-    });
+    const viewAnalyticsBtn = document.getElementById('viewAnalyticsBtn');
+    if (viewAnalyticsBtn) {
+        viewAnalyticsBtn.addEventListener('click', function() {
+            if (typeof showPageLoadScreen !== 'undefined') {
+                showPageLoadScreen();
+                setTimeout(() => {
+                    window.location.href = 'analytics.html';
+                }, 100);
+            } else {
+                window.location.href = 'analytics.html';
+            }
+        });
+    }
     
     // Employee Profiles navigation
-    document.getElementById('manageProfilesBtn').addEventListener('click', function() {
-        window.location.href = 'profiles.html';
-    });
+    const manageProfilesBtn = document.getElementById('manageProfilesBtn');
+    if (manageProfilesBtn) {
+        manageProfilesBtn.addEventListener('click', function() {
+            if (typeof showPageLoadScreen !== 'undefined') {
+                showPageLoadScreen();
+                setTimeout(() => {
+                    window.location.href = 'profiles.html';
+                }, 100);
+            } else {
+                window.location.href = 'profiles.html';
+            }
+        });
+    }
     
     // Shift Scheduling navigation
-    document.getElementById('manageShiftsBtn').addEventListener('click', function() {
-        window.location.href = 'shifts.html';
-    });
+    const manageShiftsBtn = document.getElementById('manageShiftsBtn');
+    if (manageShiftsBtn) {
+        manageShiftsBtn.addEventListener('click', function() {
+            if (typeof showPageLoadScreen !== 'undefined') {
+                showPageLoadScreen();
+                setTimeout(() => {
+                    window.location.href = 'shifts.html';
+                }, 100);
+            } else {
+                window.location.href = 'shifts.html';
+            }
+        });
+    }
     
     // Task Templates navigation
-    document.getElementById('manageTaskTemplatesBtn').addEventListener('click', function() {
-        window.location.href = 'task-templates.html';
-    });
+    const manageTaskTemplatesBtn = document.getElementById('manageTaskTemplatesBtn');
+    if (manageTaskTemplatesBtn) {
+        manageTaskTemplatesBtn.addEventListener('click', function() {
+            if (typeof showPageLoadScreen !== 'undefined') {
+                showPageLoadScreen();
+                setTimeout(() => {
+                    window.location.href = 'task-templates.html';
+                }, 100);
+            } else {
+                window.location.href = 'task-templates.html';
+            }
+        });
+    }
     
     // Exceptions & Absence navigation
-    document.getElementById('manageExceptionsBtn').addEventListener('click', function() {
-        window.location.href = 'exceptions.html';
-    });
+    const manageExceptionsBtn = document.getElementById('manageExceptionsBtn');
+    if (manageExceptionsBtn) {
+        manageExceptionsBtn.addEventListener('click', function() {
+            if (typeof showPageLoadScreen !== 'undefined') {
+                showPageLoadScreen();
+                setTimeout(() => {
+                    window.location.href = 'exceptions.html';
+                }, 100);
+            } else {
+                window.location.href = 'exceptions.html';
+            }
+        });
+    }
     
     // Setup notification panel
     function setupNotificationPanel() {
@@ -250,10 +346,12 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     // Logout functionality
-    document.getElementById('logoutBtn').addEventListener('click', async function(e) {
-        e.preventDefault();
-        
-        try {
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async function(e) {
+            e.preventDefault();
+            
+            try {
             // Clean up employee status monitoring first
             if (typeof employeeStatusMonitor !== 'undefined') {
                 employeeStatusMonitor.cleanup();
@@ -264,48 +362,85 @@ document.addEventListener('DOMContentLoaded', async function() {
                 console.log('Signing out from Supabase...');
                 await supabaseService.signOut();
             }
-        } catch (error) {
-            console.error('Error during Supabase logout:', error);
-        }
-        
-        // Clear all session data
-        sessionStorage.clear();
-        localStorage.removeItem('ganttData');
-        
-        // Small delay to ensure signOut completes
-        setTimeout(() => {
-            window.location.href = 'index.html';
-        }, 100);
-    });
+            } catch (error) {
+                console.error('Error during Supabase logout:', error);
+            }
+            
+            // Clear all session data
+            sessionStorage.clear();
+            localStorage.removeItem('ganttData');
+            
+            // Small delay to ensure signOut completes
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 100);
+        });
+    }
     
     // Update date range
-    document.getElementById('updateDateRange').addEventListener('click', function() {
-        const newStart = new Date(startDateInput.value);
-        const newEnd = new Date(endDateInput.value);
-        
-        if (newStart > newEnd) {
-            alert('Start date must be before end date!');
-            return;
-        }
-        
-        gantt.setDateRange(newStart, newEnd);
-        startDateInput.valueAsDate = gantt.startDate;
-        endDateInput.valueAsDate = gantt.endDate;
-    });
+    const updateDateRangeBtn = document.getElementById('updateDateRange');
+    if (updateDateRangeBtn) {
+        updateDateRangeBtn.addEventListener('click', function() {
+            if (!gantt) {
+                alert('Gantt chart not initialized');
+                return;
+            }
+            if (typeof showActionLoadingScreen !== 'undefined') {
+                showActionLoadingScreen('date range', () => {
+                    const newStart = new Date(startDateInput.value);
+                    const newEnd = new Date(endDateInput.value);
+                    
+                    if (newStart > newEnd) {
+                        alert('Start date must be before end date!');
+                        return;
+                    }
+                    
+                    gantt.setDateRange(newStart, newEnd);
+                    if (startDateInput && endDateInput) {
+                        startDateInput.valueAsDate = gantt.startDate;
+                        endDateInput.valueAsDate = gantt.endDate;
+                    }
+                });
+            } else {
+                const newStart = new Date(startDateInput.value);
+                const newEnd = new Date(endDateInput.value);
+                
+                if (newStart > newEnd) {
+                    alert('Start date must be before end date!');
+                    return;
+                }
+                
+                gantt.setDateRange(newStart, newEnd);
+                if (startDateInput && endDateInput) {
+                    startDateInput.valueAsDate = gantt.startDate;
+                    endDateInput.valueAsDate = gantt.endDate;
+                }
+            }
+        });
+    }
     
     // Reset view
-    document.getElementById('resetViewBtn').addEventListener('click', function() {
-        const today = new Date();
-        const start = new Date(today);
-        start.setDate(today.getDate() - 7);
-        
-        const end = new Date(today);
-        end.setDate(today.getDate() + 23);
-        
-        gantt.setDateRange(start, end);
-        startDateInput.valueAsDate = gantt.startDate;
-        endDateInput.valueAsDate = gantt.endDate;
-    });
+    const resetViewBtn = document.getElementById('resetViewBtn');
+    if (resetViewBtn) {
+        resetViewBtn.addEventListener('click', function() {
+            if (!gantt) {
+                alert('Gantt chart not initialized');
+                return;
+            }
+            const today = new Date();
+            const start = new Date(today);
+            start.setDate(today.getDate() - 7);
+            
+            const end = new Date(today);
+            end.setDate(today.getDate() + 23);
+            
+            gantt.setDateRange(start, end);
+            if (startDateInput && endDateInput) {
+                startDateInput.valueAsDate = gantt.startDate;
+                endDateInput.valueAsDate = gantt.endDate;
+            }
+        });
+    }
     
     // Announcement Modal
     const announcementModal = document.getElementById('announcementModal');
@@ -314,12 +449,17 @@ document.addEventListener('DOMContentLoaded', async function() {
     const cancelAnnouncementBtn = document.getElementById('cancelAnnouncementBtn');
     
     // Open announcement modal
-    sendAnnouncementBtn.addEventListener('click', function() {
-        announcementModal.style.display = 'block';
-        document.getElementById('announcementTitle').value = '';
-        document.getElementById('announcementMessage').value = '';
-        document.getElementById('announcementPriority').value = 'normal';
-    });
+    if (sendAnnouncementBtn && announcementModal) {
+        sendAnnouncementBtn.addEventListener('click', function() {
+            announcementModal.style.display = 'block';
+            const titleInput = document.getElementById('announcementTitle');
+            const messageInput = document.getElementById('announcementMessage');
+            const priorityInput = document.getElementById('announcementPriority');
+            if (titleInput) titleInput.value = '';
+            if (messageInput) messageInput.value = '';
+            if (priorityInput) priorityInput.value = 'normal';
+        });
+    }
     
     // Close announcement modal
     announcementModal.querySelectorAll('.close')[0].addEventListener('click', function() {
@@ -381,20 +521,44 @@ document.addEventListener('DOMContentLoaded', async function() {
     });
     
     // Save data manually
-    document.getElementById('saveDataBtn').addEventListener('click', function() {
-        gantt.saveData();
-        
-        // Show success message
-        const btn = document.getElementById('saveDataBtn');
-        const originalText = btn.textContent;
-        btn.textContent = '✓ Saved!';
-        btn.style.background = '#10b981';
-        
-        setTimeout(() => {
-            btn.textContent = originalText;
-            btn.style.background = '';
-        }, 2000);
-    });
+    const saveDataBtn = document.getElementById('saveDataBtn');
+    if (saveDataBtn) {
+        saveDataBtn.addEventListener('click', function() {
+            if (!gantt) {
+                alert('Gantt chart not initialized');
+                return;
+            }
+            if (typeof showActionLoadingScreen !== 'undefined') {
+                showActionLoadingScreen('save', () => {
+                    gantt.saveData();
+                    
+                    // Show success message
+                    const btn = document.getElementById('saveDataBtn');
+                    const originalText = btn.textContent;
+                    btn.textContent = '✓ Saved!';
+                    btn.style.background = '#10b981';
+                    
+                    setTimeout(() => {
+                        btn.textContent = originalText;
+                        btn.style.background = '';
+                    }, 2000);
+                });
+            } else {
+                gantt.saveData();
+                
+                // Show success message
+                const btn = document.getElementById('saveDataBtn');
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Saved!';
+                btn.style.background = '#10b981';
+                
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                }, 2000);
+            }
+        });
+    }
     
     // Modal functionality
     const addEmployeeModal = document.getElementById('addEmployeeModal');
@@ -407,10 +571,19 @@ document.addEventListener('DOMContentLoaded', async function() {
     const closeBtns = document.querySelectorAll('.close');
     
     // Open Add Employee Modal
-    addEmployeeBtn.addEventListener('click', async function() {
-        await loadUsersForEmployeeModal();
-        addEmployeeModal.style.display = 'block';
-    });
+    if (addEmployeeBtn) {
+        addEmployeeBtn.addEventListener('click', async function() {
+            if (typeof showDataLoadingScreen !== 'undefined') {
+                showDataLoadingScreen('employee data', async () => {
+                    await loadUsersForEmployeeModal();
+                    if (addEmployeeModal) addEmployeeModal.style.display = 'block';
+                });
+            } else {
+                await loadUsersForEmployeeModal();
+                if (addEmployeeModal) addEmployeeModal.style.display = 'block';
+            }
+        });
+    }
     
     // Load users into the employee modal dropdown
     async function loadUsersForEmployeeModal() {
@@ -506,9 +679,25 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Make it globally accessible for context menu
     window.openAddTaskModal = openAddTaskModal;
     
-    addTaskBtn.addEventListener('click', function() {
-        openAddTaskModal();
-    });
+    if (addTaskBtn) {
+        console.log('Add Task button found, attaching listener');
+        addTaskBtn.addEventListener('click', function() {
+            console.log('Add Task button clicked!');
+            if (!gantt) {
+                alert('Gantt chart not initialized. Please refresh the page.');
+                return;
+            }
+            if (typeof showActionLoadingScreen !== 'undefined') {
+                showActionLoadingScreen('task modal', () => {
+                    openAddTaskModal();
+                });
+            } else {
+                openAddTaskModal();
+            }
+        });
+    } else {
+        console.error('Add Task button not found!');
+    }
     
     // Toggle employee dropdown when "send to all" is checked
     document.getElementById('taskSendToAll')?.addEventListener('change', function(e) {
@@ -566,77 +755,115 @@ document.addEventListener('DOMContentLoaded', async function() {
     setupHourlyGanttModal();
     
     // Add Employee Form
-    document.getElementById('addEmployeeForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        const name = document.getElementById('employeeName').value;
-        const role = document.getElementById('employeeRole').value;
-        const userId = document.getElementById('linkUserAccount').value || null;
-        
-        // Add to Gantt chart
-        const employee = gantt.addEmployee(name, role);
-        
-        // If Supabase is enabled, sync to database with user_id
-        if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
-            await supabaseService.addEmployee(name, role, userId);
-            await syncFromSupabase(); // Refresh from database
-        }
-        
-        addEmployeeModal.style.display = 'none';
-        this.reset();
-        
-        const linkedMsg = userId ? ' and linked to user account' : '';
-        alert(`Employee ${name} added successfully${linkedMsg}!`);
-    });
+    const addEmployeeForm = document.getElementById('addEmployeeForm');
+    if (addEmployeeForm) {
+        addEmployeeForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (!gantt) {
+                alert('Gantt chart not initialized');
+                return;
+            }
+            
+            if (typeof showFormLoadingScreen !== 'undefined') {
+                showFormLoadingScreen('employee', async () => {
+                    const name = document.getElementById('employeeName').value;
+                    const role = document.getElementById('employeeRole').value;
+                    const userId = document.getElementById('linkUserAccount').value || null;
+                    
+                    // Add to Gantt chart
+                    const employee = gantt.addEmployee(name, role);
+                
+                // If Supabase is enabled, sync to database with user_id
+                if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+                    await supabaseService.addEmployee(name, role, userId);
+                    await syncFromSupabase(); // Refresh from database
+                }
+                
+                addEmployeeModal.style.display = 'none';
+                e.target.reset();
+                
+                    const linkedMsg = userId ? ' and linked to user account' : '';
+                    alert(`Employee ${name} added successfully${linkedMsg}!`);
+                });
+            } else {
+                const name = document.getElementById('employeeName').value;
+                const role = document.getElementById('employeeRole').value;
+                const userId = document.getElementById('linkUserAccount').value || null;
+                
+                // Add to Gantt chart
+                const employee = gantt.addEmployee(name, role);
+                
+                // If Supabase is enabled, sync to database with user_id
+                if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+                    await supabaseService.addEmployee(name, role, userId);
+                    await syncFromSupabase(); // Refresh from database
+                }
+                
+                if (addEmployeeModal) addEmployeeModal.style.display = 'none';
+                e.target.reset();
+                
+                const linkedMsg = userId ? ' and linked to user account' : '';
+                alert(`Employee ${name} added successfully${linkedMsg}!`);
+            }
+        });
+    }
     
     // Add Task Form
-    document.getElementById('addTaskForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        const sendToAll = document.getElementById('taskSendToAll').checked;
-        const employeeId = sendToAll ? null : parseInt(document.getElementById('taskEmployee').value);
-        const name = document.getElementById('taskName').value;
-        const startDate = document.getElementById('taskStart').value;
-        const endDate = document.getElementById('taskEnd').value;
-        const startTime = document.getElementById('taskStartTime').value.replace(':', '');
-        const endTime = document.getElementById('taskEndTime').value.replace(':', '');
-        const status = document.getElementById('taskStatus').value;
-        
-        // Validate dates
-        if (new Date(startDate) > new Date(endDate)) {
-            alert('Start date must be before end date!');
-            return;
-        }
-        
-        // Validate employee selection if not sending to all
-        if (!sendToAll && !employeeId) {
-            alert('Please select an employee or check "Send to all employees"');
-            return;
-        }
-        
-        // Get employees list
-        const employees = gantt.getEmployees();
-        
-        if (employees.length === 0) {
-            alert('No employees available. Please add employees first.');
-            return;
-        }
-        
-        // Determine which employees to assign the task to
-        const targetEmployees = sendToAll ? employees : [employees.find(emp => emp.id === employeeId)];
-        
-        if (!sendToAll && !targetEmployees[0]) {
-            alert('Selected employee not found.');
-            return;
-        }
-        
-        // Show loading state
-        const submitBtn = this.querySelector('button[type="submit"]');
-        const originalText = submitBtn.textContent;
-        submitBtn.textContent = sendToAll ? `Adding to ${targetEmployees.length} employees...` : 'Adding...';
-        submitBtn.disabled = true;
-        
-        try {
+    const addTaskForm = document.getElementById('addTaskForm');
+    if (addTaskForm)   {
+        addTaskForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (!gantt) {
+                alert('Gantt chart not initialized');
+                return;
+            }
+            
+            const sendToAll = document.getElementById('taskSendToAll').checked;
+            const employeeId = sendToAll ? null : parseInt(document.getElementById('taskEmployee').value);
+            const name = document.getElementById('taskName').value;
+            const startDate = document.getElementById('taskStart').value;
+            const endDate = document.getElementById('taskEnd').value;
+            const startTime = document.getElementById('taskStartTime').value.replace(':', '');
+            const endTime = document.getElementById('taskEndTime').value.replace(':', '');
+            const status = document.getElementById('taskStatus').value;
+            
+            // Validate dates
+            if (new Date(startDate) > new Date(endDate)) {
+                alert('Start date must be before end date!');
+                return;
+            }
+            
+            // Validate employee selection if not sending to all
+            if (!sendToAll && !employeeId) {
+                alert('Please select an employee or check "Send to all employees"');
+                return;
+            }
+            
+            // Get employees list
+            const employees = gantt.getEmployees();
+            
+            if (employees.length === 0) {
+                alert('No employees available. Please add employees first.');
+                return;
+            }
+            
+            // Determine which employees to assign the task to
+            const targetEmployees = sendToAll ? employees : [employees.find(emp => emp.id === employeeId)];
+            
+            if (!sendToAll && !targetEmployees[0]) {
+                alert('Selected employee not found.');
+                return;
+            }
+            
+            // Show loading state
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = sendToAll ? `Adding to ${targetEmployees.length} employees...` : 'Adding...';
+            submitBtn.disabled = true;
+            
+            try {
             // Check for time off conflicts before adding tasks
             if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
                 const conflicts = [];
@@ -655,119 +882,204 @@ document.addEventListener('DOMContentLoaded', async function() {
                 }
             }
             
-            // Add tasks to local Gantt chart
-            targetEmployees.forEach(emp => {
-                gantt.addTask(emp.id, name, startDate, endDate, status, startTime, endTime);
+                // Add tasks to local Gantt chart
+                targetEmployees.forEach(emp => {
+                    gantt.addTask(emp.id, name, startDate, endDate, status, startTime, endTime);
+                });
+                
+                // Sync to Supabase if enabled
+                if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+                    // Create tasks for all target employees
+                    const taskPromises = targetEmployees.map(emp => 
+                        supabaseService.addTask(emp.id, name, startDate, endDate, startTime, endTime, status)
+                    );
+                    
+                    await Promise.all(taskPromises);
+                    
+                    // Refresh from database
+                    await syncFromSupabase();
+                }
+                
+                addTaskModal.style.display = 'none';
+                e.target.reset();
+                
+                const successMessage = sendToAll 
+                    ? `Task "${name}" added successfully to ${targetEmployees.length} employees!`
+                    : `Task "${name}" added successfully!`;
+                alert(successMessage);
+            } catch (error) {
+                console.error('Error adding task(s):', error);
+                alert('Error adding task. Please try again.');
+            } finally {
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+            }
+    });
+    }
+    
+    // Edit Task Form
+    const editTaskForm = document.getElementById('editTaskForm');
+    if (editTaskForm) {
+        editTaskForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (typeof showFormLoadingScreen !== 'undefined') {
+            showFormLoadingScreen('task update', async () => {
+                const taskId = parseInt(document.getElementById('editTaskId').value);
+                const name = document.getElementById('editTaskName').value;
+                const startDate = document.getElementById('editTaskStart').value;
+                const endDate = document.getElementById('editTaskEnd').value;
+                const startTime = document.getElementById('editTaskStartTime').value.replace(':', '');
+                const endTime = document.getElementById('editTaskEndTime').value.replace(':', '');
+                const status = document.getElementById('editTaskStatus').value;
+                
+                // Validate dates
+                if (new Date(startDate) > new Date(endDate)) {
+                    alert('Start date must be before end date!');
+                    return;
+                }
+                
+                // Update local Gantt chart
+                gantt.updateTask(taskId, {
+                    name: name,
+                    startDate: startDate,
+                    endDate: endDate,
+                    startTime: startTime,
+                    endTime: endTime,
+                    status: status
+                });
+                
+                // Sync to Supabase if enabled
+                if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+                    const currentUser = await supabaseService.getCurrentUser();
+                    await supabaseService.updateTask(taskId, {
+                        name: name,
+                        start_date: startDate,
+                        end_date: endDate,
+                        start_time: startTime,
+                        end_time: endTime,
+                        status: status,
+                        updated_by: currentUser ? currentUser.id : null
+                    });
+                    
+                    // Refresh from database
+                    await syncFromSupabase();
+                }
+                
+                editTaskModal.style.display = 'none';
+                e.target.reset();
+                
+                alert('Task updated successfully!');
+            });
+        } else {
+            if (!gantt) {
+                alert('Gantt chart not initialized');
+                return;
+            }
+            const taskId = parseInt(document.getElementById('editTaskId').value);
+            const name = document.getElementById('editTaskName').value;
+            const startDate = document.getElementById('editTaskStart').value;
+            const endDate = document.getElementById('editTaskEnd').value;
+            const startTime = document.getElementById('editTaskStartTime').value.replace(':', '');
+            const endTime = document.getElementById('editTaskEndTime').value.replace(':', '');
+            const status = document.getElementById('editTaskStatus').value;
+            
+            // Validate dates
+            if (new Date(startDate) > new Date(endDate)) {
+                alert('Start date must be before end date!');
+                return;
+            }
+            
+            // Update local Gantt chart
+            gantt.updateTask(taskId, {
+                name: name,
+                startDate: startDate,
+                endDate: endDate,
+                startTime: startTime,
+                endTime: endTime,
+                status: status
             });
             
             // Sync to Supabase if enabled
             if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
-                // Create tasks for all target employees
-                const taskPromises = targetEmployees.map(emp => 
-                    supabaseService.addTask(emp.id, name, startDate, endDate, startTime, endTime, status)
-                );
-                
-                await Promise.all(taskPromises);
-                
-                // Refresh from database
-                await syncFromSupabase();
-            }
-            
-            addTaskModal.style.display = 'none';
-            this.reset();
-            
-            const successMessage = sendToAll 
-                ? `Task "${name}" added successfully to ${targetEmployees.length} employees!`
-                : `Task "${name}" added successfully!`;
-            alert(successMessage);
-        } catch (error) {
-            console.error('Error adding task(s):', error);
-            alert('Error adding task. Please try again.');
-        } finally {
-            submitBtn.textContent = originalText;
-            submitBtn.disabled = false;
-        }
-    });
-    
-    // Edit Task Form
-    document.getElementById('editTaskForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        const taskId = parseInt(document.getElementById('editTaskId').value);
-        const name = document.getElementById('editTaskName').value;
-        const startDate = document.getElementById('editTaskStart').value;
-        const endDate = document.getElementById('editTaskEnd').value;
-        const startTime = document.getElementById('editTaskStartTime').value.replace(':', '');
-        const endTime = document.getElementById('editTaskEndTime').value.replace(':', '');
-        const status = document.getElementById('editTaskStatus').value;
-        
-        // Validate dates
-        if (new Date(startDate) > new Date(endDate)) {
-            alert('Start date must be before end date!');
-            return;
-        }
-        
-        // Update local Gantt chart
-        gantt.updateTask(taskId, {
-            name: name,
-            startDate: startDate,
-            endDate: endDate,
-            startTime: startTime,
-            endTime: endTime,
-            status: status
-        });
-        
-        // Sync to Supabase if enabled
-        if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
-            const currentUser = await supabaseService.getCurrentUser();
-            await supabaseService.updateTask(taskId, {
-                name: name,
-                start_date: startDate,
-                end_date: endDate,
-                start_time: startTime,
-                end_time: endTime,
-                status: status,
-                updated_by: currentUser ? currentUser.id : null
-            });
-            
-            // Refresh from database
-            await syncFromSupabase();
-        }
-        
-        editTaskModal.style.display = 'none';
-        this.reset();
-        
-        alert('Task updated successfully!');
-    });
-    
-    // Delete Task
-    document.getElementById('deleteTaskBtn').addEventListener('click', async function() {
-        const taskId = parseInt(document.getElementById('editTaskId').value);
-        
-        if (confirm('Are you sure you want to delete this task?')) {
-            console.log('🗑️ Deleting task ID:', taskId);
-            
-            // Delete from Supabase first
-            if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
-                const result = await supabaseService.deleteTask(taskId);
-                console.log('Supabase delete result:', result);
+                const currentUser = await supabaseService.getCurrentUser();
+                await supabaseService.updateTask(taskId, {
+                    name: name,
+                    start_date: startDate,
+                    end_date: endDate,
+                    start_time: startTime,
+                    end_time: endTime,
+                    status: status,
+                    updated_by: currentUser ? currentUser.id : null
+                });
                 
                 // Refresh from database
                 await syncFromSupabase();
             }
-            
-            // Delete from local Gantt chart
-            gantt.deleteTask(taskId);
             
             editTaskModal.style.display = 'none';
-            document.getElementById('editTaskForm').reset();
+            this.reset();
             
-            alert('Task deleted successfully!');
+            alert('Task updated successfully!');
         }
     });
+    }
+    
+    // Delete Task
+    const deleteTaskBtn = document.getElementById('deleteTaskBtn');
+    if (deleteTaskBtn) {
+        deleteTaskBtn.addEventListener('click', async function() {
+            const taskId = parseInt(document.getElementById('editTaskId').value);
+            
+            if (confirm('Are you sure you want to delete this task?')) {
+                if (typeof showActionLoadingScreen !== 'undefined') {
+                    showActionLoadingScreen('delete task', async () => {
+                        console.log('🗑️ Deleting task ID:', taskId);
+                        
+                        // Delete from Supabase first
+                        if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+                            const result = await supabaseService.deleteTask(taskId);
+                            console.log('Supabase delete result:', result);
+                            
+                            // Refresh from database
+                            await syncFromSupabase();
+                        }
+                        
+                        // Delete from local Gantt chart
+                        gantt.deleteTask(taskId);
+                        
+                        editTaskModal.style.display = 'none';
+                        document.getElementById('editTaskForm').reset();
+                        
+                        alert('Task deleted successfully!');
+                    });
+                } else {
+                    console.log('🗑️ Deleting task ID:', taskId);
+                    
+                    // Delete from Supabase first
+                    if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+                        const result = await supabaseService.deleteTask(taskId);
+                        console.log('Supabase delete result:', result);
+                        
+                        // Refresh from database
+                        await syncFromSupabase();
+                    }
+                    
+                    // Delete from local Gantt chart
+                    gantt.deleteTask(taskId);
+                    
+                    editTaskModal.style.display = 'none';
+                    document.getElementById('editTaskForm').reset();
+                    
+                    alert('Task deleted successfully!');
+                }
+            }
+        });
+    }
     
     // Override task click handler
-    gantt.onTaskClick = async function(task) {
+    if (gantt) {
+        gantt.onTaskClick = async function(task) {
         const employee = this.data.employees.find(e => e.id === task.employeeId);
         
         // Populate edit form
@@ -798,6 +1110,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Show modal
         editTaskModal.style.display = 'block';
     };
+    }
     
     // Load task acknowledgements
     async function loadTaskAcknowledgements(taskId) {
@@ -837,6 +1150,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // Helper function to update employee dropdown
     function updateEmployeeDropdown() {
+        if (!gantt) return;
         const employees = gantt.getEmployees();
         const select = document.getElementById('taskEmployee');
         
@@ -878,51 +1192,87 @@ document.addEventListener('DOMContentLoaded', async function() {
             return;
         }
 
-        // Show loading state
-        const deleteBtn = document.querySelector(`[data-employee-id="${employeeId}"]`);
-        if (deleteBtn) {
-            deleteBtn.disabled = true;
-            deleteBtn.textContent = '...';
-        }
+        if (typeof showActionLoadingScreen !== 'undefined') {
+            showActionLoadingScreen('delete employee', async () => {
+                // Show loading state
+                const deleteBtn = document.querySelector(`[data-employee-id="${employeeId}"]`);
+                if (deleteBtn) {
+                    deleteBtn.disabled = true;
+                    deleteBtn.textContent = '...';
+                }
 
-        try {
-            if (!supabaseService || !supabaseService.isReady()) {
-                alert('Supabase is not available. Cannot delete employee.');
-                return;
-            }
+                try {
+                    if (!supabaseService || !supabaseService.isReady()) {
+                        alert('Supabase is not available. Cannot delete employee.');
+                        return;
+                    }
 
-            // Check if user is admin
-            const isAdmin = await supabaseService.isAdmin();
-            if (!isAdmin) {
-                alert('Only admins can delete employees.');
-                return;
-            }
+                    // Check if user is admin
+                    const isAdmin = await supabaseService.isAdmin();
+                    if (!isAdmin) {
+                        alert('Only admins can delete employees.');
+                        return;
+                    }
 
-            // Delete the employee
-            const success = await supabaseService.deleteEmployee(employeeId);
-            
-            if (success) {
-                // Remove from Gantt chart
-                gantt.removeEmployee(employeeId);
+                    // Delete the employee
+                    const success = await supabaseService.deleteEmployee(employeeId);
+                    
+                    if (success) {
+                        // Remove from Gantt chart
+                        if (gantt) {
+                            gantt.removeEmployee(employeeId);
+                        }
+                        
+                        // Sync from Supabase to refresh data
+                        await syncFromSupabase();
+                        
+                        // Update employee dropdown
+                        updateEmployeeDropdown();
+                        
+                        alert(`✅ Employee "${employeeName}" has been deleted successfully.`);
+                    } else {
+                        alert(`❌ Failed to delete employee "${employeeName}". Please check the console for errors.`);
+                    }
+                } catch (error) {
+                    console.error('Error in handleDeleteEmployee:', error);
+                    alert(`❌ Error deleting employee: ${error.message || 'Unknown error'}`);
+                } finally {
+                    // Restore button state
+                    if (deleteBtn) {
+                        deleteBtn.disabled = false;
+                        deleteBtn.textContent = '×';
+                    }
+                }
+            });
+        } else {
+            // Fallback if loading screen not available
+            try {
+                if (!supabaseService || !supabaseService.isReady()) {
+                    alert('Supabase is not available. Cannot delete employee.');
+                    return;
+                }
+
+                const isAdmin = await supabaseService.isAdmin();
+                if (!isAdmin) {
+                    alert('Only admins can delete employees.');
+                    return;
+                }
+
+                const success = await supabaseService.deleteEmployee(employeeId);
                 
-                // Sync from Supabase to refresh data
-                await syncFromSupabase();
-                
-                // Update employee dropdown
-                updateEmployeeDropdown();
-                
-                alert(`✅ Employee "${employeeName}" has been deleted successfully.`);
-            } else {
-                alert(`❌ Failed to delete employee "${employeeName}". Please check the console for errors.`);
-            }
-        } catch (error) {
-            console.error('Error in handleDeleteEmployee:', error);
-            alert(`❌ Error deleting employee: ${error.message || 'Unknown error'}`);
-        } finally {
-            // Restore button state
-            if (deleteBtn) {
-                deleteBtn.disabled = false;
-                deleteBtn.textContent = '×';
+                if (success) {
+                    if (gantt) {
+                        gantt.removeEmployee(employeeId);
+                    }
+                    await syncFromSupabase();
+                    updateEmployeeDropdown();
+                    alert(`✅ Employee "${employeeName}" has been deleted successfully.`);
+                } else {
+                    alert(`❌ Failed to delete employee "${employeeName}". Please check the console for errors.`);
+                }
+            } catch (error) {
+                console.error('Error in handleDeleteEmployee:', error);
+                alert(`❌ Error deleting employee: ${error.message || 'Unknown error'}`);
             }
         }
     };
@@ -1077,7 +1427,13 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Add hourly task form submission
         document.getElementById('addHourlyTaskForm')?.addEventListener('submit', async (e) => {
             e.preventDefault();
-            await addHourlyTask();
+            if (typeof showFormLoadingScreen !== 'undefined') {
+                showFormLoadingScreen('hourly task', async () => {
+                    await addHourlyTask();
+                });
+            } else {
+                await addHourlyTask();
+            }
         });
     }
     
@@ -1096,35 +1452,69 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     function openHourlyGantt(dateStr) {
-        const hourlyModal = document.getElementById('hourlyGanttModal');
-        const titleEl = document.getElementById('hourlyGanttTitle');
-        const date = parseLocalDate(dateStr);
-        
-        titleEl.textContent = `Hourly Schedule - ${date.toLocaleDateString('en-US', { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-        })}`;
-        
-        // Create or update hourly gantt
-        currentHourlyGantt = new HourlyGanttChart('hourlyGanttChart', dateStr, true);
-        
-        // Initialize context menu for hourly Gantt chart
-        if (typeof HourlyGanttContextMenu !== 'undefined') {
-            // Remove existing context menu if it exists
-            const existingMenu = document.getElementById('hourlyGanttContextMenu');
-            if (existingMenu) {
-                existingMenu.remove();
+        if (typeof showDataLoadingScreen !== 'undefined') {
+            showDataLoadingScreen('hourly schedule', () => {
+                const hourlyModal = document.getElementById('hourlyGanttModal');
+                const titleEl = document.getElementById('hourlyGanttTitle');
+                const date = parseLocalDate(dateStr);
+                
+                titleEl.textContent = `Hourly Schedule - ${date.toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                })}`;
+                
+                // Create or update hourly gantt
+                currentHourlyGantt = new HourlyGanttChart('hourlyGanttChart', dateStr, true);
+                
+                // Initialize context menu for hourly Gantt chart
+                if (typeof HourlyGanttContextMenu !== 'undefined') {
+                    // Remove existing context menu if it exists
+                    const existingMenu = document.getElementById('hourlyGanttContextMenu');
+                    if (existingMenu) {
+                        existingMenu.remove();
+                    }
+                    
+                    // Create new context menu
+                    if (currentHourlyGantt) {
+                        window.hourlyGanttContextMenu = new HourlyGanttContextMenu(currentHourlyGantt);
+                    }
+                }
+                
+                hourlyModal.style.display = 'block';
+            });
+        } else {
+            const hourlyModal = document.getElementById('hourlyGanttModal');
+            const titleEl = document.getElementById('hourlyGanttTitle');
+            const date = parseLocalDate(dateStr);
+            
+            titleEl.textContent = `Hourly Schedule - ${date.toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            })}`;
+            
+            // Create or update hourly gantt
+            currentHourlyGantt = new HourlyGanttChart('hourlyGanttChart', dateStr, true);
+            
+            // Initialize context menu for hourly Gantt chart
+            if (typeof HourlyGanttContextMenu !== 'undefined') {
+                // Remove existing context menu if it exists
+                const existingMenu = document.getElementById('hourlyGanttContextMenu');
+                if (existingMenu) {
+                    existingMenu.remove();
+                }
+                
+                // Create new context menu
+                if (currentHourlyGantt) {
+                    window.hourlyGanttContextMenu = new HourlyGanttContextMenu(currentHourlyGantt);
+                }
             }
             
-            // Create new context menu
-            if (currentHourlyGantt) {
-                window.hourlyGanttContextMenu = new HourlyGanttContextMenu(currentHourlyGantt);
-            }
+            hourlyModal.style.display = 'block';
         }
-        
-        hourlyModal.style.display = 'block';
     }
     
     function populateHourlyTaskEmployees() {
@@ -1269,12 +1659,24 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     document.getElementById('editHourlyTaskForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        await saveHourlyTask();
+        if (typeof showFormLoadingScreen !== 'undefined') {
+            showFormLoadingScreen('task update', async () => {
+                await saveHourlyTask();
+            });
+        } else {
+            await saveHourlyTask();
+        }
     });
     
     document.getElementById('deleteHourlyTaskBtn')?.addEventListener('click', async () => {
         if (confirm('Are you sure you want to delete this task?')) {
-            await deleteHourlyTask();
+            if (typeof showActionLoadingScreen !== 'undefined') {
+                showActionLoadingScreen('delete hourly task', async () => {
+                    await deleteHourlyTask();
+                });
+            } else {
+                await deleteHourlyTask();
+            }
         }
     });
     

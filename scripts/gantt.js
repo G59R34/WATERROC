@@ -1,28 +1,95 @@
-// Gantt Chart Core Logic
+// ============================================
+// Gantt Chart - Enterprise Scheduling Dashboard
+// VISUAL: Professional Reflexis/Zebra Workcloud style
+// LOGIC: Load shifts from Supabase, render as bars, drag-and-drop
+// ============================================
+
 class GanttChart {
     constructor(containerId, isEditable = false) {
         this.container = document.getElementById(containerId);
+        if (!this.container) {
+            console.error(`Gantt chart container with id "${containerId}" not found!`);
+            return;
+        }
+        console.log('GanttChart constructor: container found', this.container);
         this.isEditable = isEditable;
         this.data = this.loadData();
         this.startDate = null;
         this.endDate = null;
-        this.dayWidth = 120; // Increased for time slots
-        this.showTimeSlots = true; // Show hourly breakdown
+        this.dayWidth = 140; // Professional spacing
+        this.shifts = []; // LOGIC UPGRADE: Store shifts from Supabase
+        this.draggedShift = null; // LOGIC UPGRADE: Track drag state
+        this.dragOffset = { x: 0, y: 0 };
         
-        this.init();
+        // Holiday detection - LOGIC UPGRADE: Auto-highlight holidays
+        this.holidays = this.getHolidays();
+        
+        // Call init asynchronously
+        this.init().catch(error => {
+            console.error('Error in GanttChart init():', error);
+        });
     }
     
-    init() {
-        // Set infinite scroll date range - from today to 1 year ahead
+    async init() {
+        // Set date range - from today to 3 months ahead
         const today = new Date();
-        today.setHours(0, 0, 0, 0); // Start of today
+        today.setHours(0, 0, 0, 0);
         this.startDate = new Date(today);
         
-        // Extend to 365 days in the future for infinite scroll
         this.endDate = new Date(today);
-        this.endDate.setDate(today.getDate() + 365);
+        this.endDate.setMonth(today.getMonth() + 3);
         
-        this.render();
+        console.log('GanttChart init() called, about to render');
+        console.log('Container exists:', !!this.container);
+        console.log('Data:', this.data);
+        try {
+            await this.render();
+            console.log('GanttChart render() completed successfully');
+        } catch (error) {
+            console.error('Error in GanttChart render():', error);
+            // Still show empty state if render fails
+            if (this.container) {
+                try {
+                    this.renderEmptyState();
+                } catch (emptyError) {
+                    console.error('Error rendering empty state:', emptyError);
+                    // Last resort - just show a message
+                    this.container.innerHTML = '<div style="padding: 20px; text-align: center;"><p>Gantt chart failed to load. Please refresh the page.</p></div>';
+                }
+            }
+        }
+    }
+    
+    // LOGIC UPGRADE: Holiday detection for Christmas, New Year, etc.
+    getHolidays() {
+        const currentYear = new Date().getFullYear();
+        const holidays = [];
+        
+        // Fixed holidays
+        holidays.push({ month: 0, day: 1, name: "New Year's Day" }); // Jan 1
+        holidays.push({ month: 6, day: 4, name: "Independence Day" }); // Jul 4
+        holidays.push({ month: 11, day: 25, name: "Christmas" }); // Dec 25
+        holidays.push({ month: 10, day: 24, name: "Thanksgiving" }); // Nov 24 (approximate)
+        
+        // Calculate dates for current year
+        return holidays.map(h => {
+            const date = new Date(currentYear, h.month, h.day);
+            return {
+                date: this.formatDate(date),
+                name: h.name,
+                month: h.month,
+                day: h.day
+            };
+        });
+    }
+    
+    isHoliday(dateStr) {
+        return this.holidays.some(h => h.date === dateStr);
+    }
+    
+    getHolidayName(dateStr) {
+        const holiday = this.holidays.find(h => h.date === dateStr);
+        return holiday ? holiday.name : null;
     }
     
     loadData() {
@@ -31,7 +98,6 @@ class GanttChart {
             return JSON.parse(savedData);
         }
         
-        // Empty initial state - no default employees
         return {
             employees: [],
             tasks: [],
@@ -75,48 +141,97 @@ class GanttChart {
     setDateRange(start, end) {
         this.startDate = new Date(start);
         this.endDate = new Date(end);
-        this.render(); // render is now async but we don't await here for compatibility
+        this.render();
+    }
+    
+    // LOGIC UPGRADE: Load shifts from Supabase
+    async loadShiftsFromSupabase() {
+        if (typeof supabaseService === 'undefined' || !supabaseService.isReady()) {
+            return [];
+        }
+        
+        try {
+            const startDateStr = this.formatDate(this.startDate);
+            const endDateStr = this.formatDate(this.endDate);
+            const shifts = await supabaseService.getEmployeeShifts(startDateStr, endDateStr);
+            return shifts || [];
+        } catch (error) {
+            console.error('Error loading shifts:', error);
+            return [];
+        }
     }
     
     async render() {
-        if (!this.container) return;
+        if (!this.container) {
+            console.error('Gantt chart container is null, cannot render');
+            return;
+        }
         
-        if (this.data.employees.length === 0) {
+        console.log('Rendering Gantt chart...', 'Employees:', this.data?.employees?.length || 0);
+        
+        // Ensure data exists
+        if (!this.data) {
+            console.warn('Gantt data is null, initializing default data');
+            this.data = {
+                employees: [],
+                tasks: [],
+                nextEmployeeId: 1,
+                nextTaskId: 1
+            };
+        }
+        
+        // LOGIC UPGRADE: Load shifts from Supabase
+        try {
+            this.shifts = await this.loadShiftsFromSupabase();
+        } catch (error) {
+            console.error('Error loading shifts:', error);
+            this.shifts = [];
+        }
+        
+        if (!this.data.employees || this.data.employees.length === 0) {
+            console.log('No employees, rendering empty state');
             this.renderEmptyState();
             return;
         }
         
         this.container.innerHTML = '';
         
-        // Create header
+        // VISUAL: Clean header
         const header = this.createHeader();
         this.container.appendChild(header);
         
-        // Create body (now async to load time off data)
+        // VISUAL: Professional body with shift bars
         const body = await this.createBody();
         this.container.appendChild(body);
         
-        // Synchronize scroll between body and header timeline
+        // Smooth scrolling sync
         const timelineHeader = header.querySelector('.gantt-timeline-header');
+        if (timelineHeader) {
+            let isScrolling = false;
+            body.addEventListener('scroll', () => {
+                if (!isScrolling) {
+                    isScrolling = true;
+                    requestAnimationFrame(() => {
+                        timelineHeader.scrollLeft = body.scrollLeft;
+                        isScrolling = false;
+                    });
+                }
+            }, { passive: true });
+        }
         
-        // Use requestAnimationFrame to prevent scroll fighting
-        let isScrolling = false;
-        body.addEventListener('scroll', () => {
-            if (!isScrolling) {
-                isScrolling = true;
-                requestAnimationFrame(() => {
-                    timelineHeader.scrollLeft = body.scrollLeft;
-                    isScrolling = false;
-                });
-            }
-        }, { passive: true });
+        // LOGIC UPGRADE: Initialize drag-and-drop if editable
+        if (this.isEditable) {
+            this.initDragAndDrop();
+        }
+        
+        console.log('Gantt chart rendered successfully');
     }
     
     renderEmptyState() {
         this.container.innerHTML = `
             <div class="gantt-empty-state">
                 <h3>No Employees Added</h3>
-                <p>Add employees to start scheduling tasks</p>
+                <p>Add employees to start scheduling shifts</p>
             </div>
         `;
     }
@@ -139,10 +254,11 @@ class GanttChart {
         for (let i = 0; i < days; i++) {
             const currentDate = new Date(this.startDate);
             currentDate.setDate(this.startDate.getDate() + i);
+            const dateStr = this.formatDate(currentDate);
             
             const dayHeader = document.createElement('div');
             dayHeader.className = 'gantt-day-header';
-            dayHeader.dataset.date = this.formatDate(currentDate);
+            dayHeader.dataset.date = dateStr;
             dayHeader.style.cursor = 'pointer';
             dayHeader.title = 'Click to view hourly schedule';
             
@@ -154,10 +270,18 @@ class GanttChart {
                 dayHeader.classList.add('today');
             }
             
+            // VISUAL: Holiday banner - elegant highlight
+            if (this.isHoliday(dateStr)) {
+                dayHeader.classList.add('holiday');
+                const holidayName = this.getHolidayName(dateStr);
+                dayHeader.setAttribute('data-holiday', holidayName);
+            }
+            
+            // OVERHAUL: Clean header - NO "0000-2359" clutter, sharp rectangular
             dayHeader.innerHTML = `
                 <span class="day-name">${this.getDayOfWeek(currentDate)}</span>
                 <span class="day-date">${currentDate.getDate()}</span>
-                <span class="day-time">0000-2359</span>
+                ${this.isHoliday(dateStr) ? `<span class="day-holiday">${this.getHolidayName(dateStr)}</span>` : ''}
             `;
             
             timelineHeader.appendChild(dayHeader);
@@ -171,7 +295,6 @@ class GanttChart {
         const body = document.createElement('div');
         body.className = 'gantt-body';
         
-        // Create rows asynchronously to load time off data
         const rowPromises = this.data.employees.map(employee => this.createEmployeeRow(employee));
         const rows = await Promise.all(rowPromises);
         
@@ -187,13 +310,19 @@ class GanttChart {
         row.className = 'gantt-row';
         row.dataset.employeeId = employee.id;
         
-        // Employee cell
+        // VISUAL: Employee cell as card with avatar
         const employeeCell = document.createElement('div');
         employeeCell.className = 'gantt-employee-cell';
         employeeCell.dataset.employeeId = employee.id;
+        
+        // VISUAL: Avatar badge
+        const initials = this.getInitials(employee.name);
         employeeCell.innerHTML = `
-            <div class="employee-name">${employee.name}</div>
-            <div class="employee-role">${employee.role}</div>
+            <div class="employee-avatar">${initials}</div>
+            <div class="employee-info">
+                <div class="employee-name">${employee.name}</div>
+                <div class="employee-role">${employee.role}</div>
+            </div>
         `;
         row.appendChild(employeeCell);
         
@@ -205,10 +334,12 @@ class GanttChart {
         for (let i = 0; i < days; i++) {
             const currentDate = new Date(this.startDate);
             currentDate.setDate(this.startDate.getDate() + i);
+            const dateStr = this.formatDate(currentDate);
             
             const dayCell = document.createElement('div');
             dayCell.className = 'gantt-day-cell';
-            dayCell.dataset.date = this.formatDate(currentDate);
+            dayCell.dataset.date = dateStr;
+            dayCell.dataset.employeeId = employee.id;
             
             if (this.isWeekend(currentDate)) {
                 dayCell.classList.add('weekend');
@@ -218,10 +349,15 @@ class GanttChart {
                 dayCell.classList.add('today');
             }
             
+            // VISUAL: Holiday highlight
+            if (this.isHoliday(dateStr)) {
+                dayCell.classList.add('holiday');
+            }
+            
             timelineCell.appendChild(dayCell);
         }
         
-        // Load time off periods for this employee
+        // LOGIC UPGRADE: Load time off periods
         let timeOffPeriods = [];
         if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
             const startDateStr = this.formatDate(this.startDate);
@@ -229,7 +365,7 @@ class GanttChart {
             timeOffPeriods = await supabaseService.getApprovedTimeOff(employee.id, startDateStr, endDateStr) || [];
         }
         
-        // Add time off periods first (so they appear behind tasks)
+        // VISUAL: Time off periods (behind shifts)
         timeOffPeriods.forEach(timeOff => {
             const timeOffElement = this.createTimeOffElement(timeOff, employee.id);
             if (timeOffElement) {
@@ -237,15 +373,20 @@ class GanttChart {
             }
         });
         
-        // Add tasks for this employee
-        const employeeTasks = this.data.tasks.filter(task => task.employeeId === employee.id);
+        // LOGIC UPGRADE: Render actual shifts as bars (not text codes)
+        const employeeShifts = this.shifts.filter(s => s.employee_id === employee.id);
+        employeeShifts.forEach(shift => {
+            const shiftBar = this.createShiftBar(shift, employee.id);
+            if (shiftBar) {
+                timelineCell.appendChild(shiftBar);
+            }
+        });
         
-        // Sort tasks by start date for proper stacking
+        // Tasks for this employee (from localStorage)
+        const employeeTasks = this.data.tasks.filter(task => task.employeeId === employee.id);
         employeeTasks.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
         
-        // Track task lanes for collision detection
         const taskLanes = [];
-        
         employeeTasks.forEach(task => {
             const taskElement = this.createTaskElement(task, taskLanes);
             timelineCell.appendChild(taskElement);
@@ -253,6 +394,166 @@ class GanttChart {
         
         row.appendChild(timelineCell);
         return row;
+    }
+    
+    getInitials(name) {
+        const parts = name.split(' ');
+        if (parts.length >= 2) {
+            return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+        }
+        return name.substring(0, 2).toUpperCase();
+    }
+    
+    // LOGIC UPGRADE: Create shift bar from Supabase data
+    createShiftBar(shift, employeeId) {
+        const shiftDate = new Date(shift.shift_date);
+        const dateStr = this.formatDate(shiftDate);
+        
+        // Calculate position
+        const daysFromStart = this.getDaysBetween(this.startDate, shiftDate) - 1;
+        const left = daysFromStart * this.dayWidth + 6;
+        const width = this.dayWidth - 12;
+        
+        // Parse time (HH:MM:SS format from Supabase)
+        const startTime = shift.start_time.substring(0, 5); // "HH:MM"
+        const endTime = shift.end_time.substring(0, 5);
+        
+        // OVERHAUL: Sharp rectangular shift bar - enterprise Reflexis style
+        const shiftBar = document.createElement('div');
+        shiftBar.className = 'gantt-shift-bar';
+        shiftBar.dataset.shiftId = shift.id;
+        shiftBar.dataset.employeeId = employeeId;
+        shiftBar.dataset.date = dateStr;
+        
+        // Status-based color
+        const statusClass = shift.status || 'scheduled';
+        shiftBar.classList.add(`shift-status-${statusClass}`);
+        
+        // Template color if available
+        if (shift.shift_templates?.color) {
+            shiftBar.style.backgroundColor = shift.shift_templates.color;
+        }
+        
+        // OVERHAUL: Clean shift display - time range only, no clutter
+        shiftBar.innerHTML = `
+            <span class="shift-time">${startTime} - ${endTime}</span>
+            ${shift.shift_templates?.name ? `<span class="shift-template">${shift.shift_templates.name}</span>` : ''}
+        `;
+        
+        // OVERHAUL: Sharp rectangular styling (2px border-radius max)
+        shiftBar.style.cssText += `
+            position: absolute;
+            left: ${left}px;
+            width: ${width}px;
+            height: 50px;
+            top: 50%;
+            transform: translateY(-50%);
+            border-radius: 0px;
+            padding: 4px 8px;
+            color: white;
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: ${this.isEditable ? 'move' : 'pointer'};
+            z-index: 5;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border: none;
+        `;
+        
+        // LOGIC UPGRADE: Drag-and-drop handlers
+        if (this.isEditable) {
+            shiftBar.classList.add('editable-shift');
+            shiftBar.addEventListener('mousedown', (e) => this.startDrag(e, shiftBar, shift));
+        }
+        
+        // Click to edit
+        shiftBar.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (window.openEditShiftModal) {
+                window.openEditShiftModal(employeeId, '', shift, dateStr);
+            }
+        });
+        
+        // VISUAL: Hover tooltip
+        shiftBar.title = `Shift: ${startTime} - ${endTime}\n${shift.shift_templates?.name || 'Custom Shift'}\nClick to edit`;
+        
+        return shiftBar;
+    }
+    
+    // LOGIC UPGRADE: Drag-and-drop for shifts
+    startDrag(e, shiftBar, shift) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        this.draggedShift = {
+            element: shiftBar,
+            shift: shift,
+            startX: e.clientX,
+            startLeft: parseInt(shiftBar.style.left)
+        };
+        
+        shiftBar.style.opacity = '0.7';
+        shiftBar.style.zIndex = '1000';
+        
+        document.addEventListener('mousemove', this.handleDrag = (e) => this.onDrag(e));
+        document.addEventListener('mouseup', this.endDrag = () => this.stopDrag());
+    }
+    
+    onDrag(e) {
+        if (!this.draggedShift) return;
+        
+        const deltaX = e.clientX - this.draggedShift.startX;
+        const newLeft = this.draggedShift.startLeft + deltaX;
+        
+        // Snap to day boundaries
+        const dayIndex = Math.round(newLeft / this.dayWidth);
+        const snappedLeft = dayIndex * this.dayWidth + 6;
+        
+        this.draggedShift.element.style.left = `${snappedLeft}px`;
+    }
+    
+    async stopDrag() {
+        if (!this.draggedShift) return;
+        
+        const shiftBar = this.draggedShift.element;
+        const shift = this.draggedShift.shift;
+        
+        // Calculate new date from position
+        const left = parseInt(shiftBar.style.left);
+        const dayIndex = Math.round((left - 6) / this.dayWidth);
+        const newDate = new Date(this.startDate);
+        newDate.setDate(this.startDate.getDate() + dayIndex);
+        const newDateStr = this.formatDate(newDate);
+        
+        // LOGIC UPGRADE: Update shift in Supabase
+        if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+            try {
+                await supabaseService.updateEmployeeShift(shift.id, {
+                    shift_date: newDateStr
+                });
+                
+                // Refresh shifts
+                this.shifts = await this.loadShiftsFromSupabase();
+                this.render();
+            } catch (error) {
+                console.error('Error updating shift:', error);
+                // Revert position
+                shiftBar.style.left = `${this.draggedShift.startLeft}px`;
+            }
+        }
+        
+        shiftBar.style.opacity = '1';
+        shiftBar.style.zIndex = '5';
+        
+        document.removeEventListener('mousemove', this.handleDrag);
+        document.removeEventListener('mouseup', this.endDrag);
+        
+        this.draggedShift = null;
+    }
+    
+    initDragAndDrop() {
+        // Additional drag setup if needed
     }
     
     createTimeOffElement(timeOff, employeeId) {
@@ -264,7 +565,6 @@ class GanttChart {
         const startDate = new Date(timeOff.start_date);
         const endDate = new Date(timeOff.end_date);
         
-        // Calculate position
         const daysFromStart = this.getDaysBetween(this.startDate, startDate) - 1;
         const duration = this.getDaysBetween(startDate, endDate);
         
@@ -286,7 +586,7 @@ class GanttChart {
                 rgba(16, 185, 129, 0.25) 20px
             );
             border: 2px dashed #10b981;
-            border-radius: 6px;
+            border-radius: 8px;
             z-index: 1;
             pointer-events: none;
             display: flex;
@@ -314,15 +614,14 @@ class GanttChart {
         const taskStart = new Date(task.startDate);
         const taskEnd = new Date(task.endDate);
         
-        // Calculate position
         const daysFromStart = this.getDaysBetween(this.startDate, taskStart) - 1;
         const taskDuration = this.getDaysBetween(taskStart, taskEnd);
         
         const left = daysFromStart * this.dayWidth + 4;
         const width = taskDuration * this.dayWidth - 8;
         
-        // Find which lane this task should be in (collision detection)
-        const taskHeight = 70; // Task height + margin
+        // Collision detection
+        const taskHeight = 70;
         let lane = 0;
         let collision = true;
         
@@ -331,7 +630,6 @@ class GanttChart {
             for (let i = 0; i < taskLanes.length; i++) {
                 const existingTask = taskLanes[i];
                 if (existingTask.lane === lane) {
-                    // Check if tasks overlap horizontally
                     const existingLeft = existingTask.left;
                     const existingRight = existingTask.left + existingTask.width;
                     const taskRight = left + width;
@@ -345,18 +643,14 @@ class GanttChart {
             }
         }
         
-        // Store this task's position for future collision checks
         taskLanes.push({ left, width, lane });
-        
-        // Calculate vertical position based on lane
         const topOffset = lane * taskHeight;
         
         taskDiv.style.left = `${left}px`;
         taskDiv.style.width = `${width}px`;
-        taskDiv.style.top = `${topOffset + 20}px`; // Base offset + lane offset
-        taskDiv.style.transform = 'none'; // Remove the centered transform
+        taskDiv.style.top = `${topOffset + 20}px`;
+        taskDiv.style.transform = 'none';
         
-        // Format time display
         const startTime = task.startTime || '0000';
         const endTime = task.endTime || '2359';
         const timeDisplay = `${this.formatTime(startTime)}-${this.formatTime(endTime)}`;
@@ -367,7 +661,6 @@ class GanttChart {
             <span class="task-time">${timeDisplay}</span>
         `;
         
-        // Add click event
         taskDiv.addEventListener('click', (e) => {
             e.stopPropagation();
             this.onTaskClick(task);
@@ -384,13 +677,11 @@ class GanttChart {
     }
     
     formatTime(timeStr) {
-        // Convert HHMM to HH:MM
         if (!timeStr || timeStr.length !== 4) return '00:00';
         return `${timeStr.substring(0, 2)}:${timeStr.substring(2, 4)}`;
     }
     
     onTaskClick(task) {
-        // To be implemented by admin or employee scripts
         console.log('Task clicked:', task);
     }
     
@@ -454,13 +745,8 @@ class GanttChart {
     }
 
     removeEmployee(employeeId) {
-        // Remove employee from data
         this.data.employees = this.data.employees.filter(emp => emp.id !== employeeId);
-        
-        // Remove all tasks for this employee
         this.data.tasks = this.data.tasks.filter(task => task.employeeId !== employeeId);
-        
-        // Save and re-render
         this.saveData();
         this.render();
     }

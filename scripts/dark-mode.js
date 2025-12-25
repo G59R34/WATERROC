@@ -4,20 +4,19 @@
 
 class DarkModeManager {
     constructor() {
-        // Only use stored theme if it exists, otherwise default to light (null = no theme attribute = light mode)
+        // OVERHAUL: Default to LIGHT MODE (bright Reflexis style)
         this.theme = this.getStoredTheme();
         this.init();
     }
 
     init() {
-        // Apply theme immediately to prevent flash
-        // If theme is stored, apply it; otherwise default to light mode
+        // OVERHAUL: Apply theme - default to LIGHT MODE
         if (this.theme) {
             this.applyTheme(this.theme);
         } else {
-            // Ensure light mode is the default (no data-theme attribute)
-            document.documentElement.removeAttribute('data-theme');
-            this.theme = 'light'; // Set for button display
+            // Default to light mode (bright whites/grays like Reflexis)
+            this.theme = 'light';
+            this.applyTheme('light');
         }
         
         // Create toggle button
@@ -58,19 +57,20 @@ class DarkModeManager {
 
     applyTheme(theme) {
         this.theme = theme;
+        // OVERHAUL: Light mode is default, dark mode is toggle
         if (theme === 'dark') {
             document.documentElement.setAttribute('data-theme', 'dark');
             localStorage.setItem('theme', 'dark');
         } else {
-            // Light mode: remove theme attribute (defaults to light)
-            document.documentElement.removeAttribute('data-theme');
+            // Light mode: set explicitly
+            document.documentElement.setAttribute('data-theme', 'light');
             localStorage.setItem('theme', 'light');
         }
         
-        // Update toggle button if it exists
+        // CRITICAL FIX: Update toggle button - keep "Toggle Theme" text
         const toggleBtn = document.getElementById('darkModeToggle');
         if (toggleBtn) {
-            toggleBtn.innerHTML = theme === 'dark' ? '☀️' : '🌙';
+            toggleBtn.textContent = 'Toggle Theme';
             toggleBtn.setAttribute('aria-label', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
         }
     }
@@ -104,19 +104,32 @@ class DarkModeManager {
             container = document.querySelector('header');
         }
         
-        // If still not found, create a container in the body
+        // FIXED DARK MODE: For login page, add toggle to login card
         if (!container) {
-            console.warn('Could not find header element for dark mode toggle, creating floating button');
-            container = document.body;
+            const loginCard = document.querySelector('.login-card');
+            if (loginCard) {
+                // Create a container in the login card header
+                const toggleContainer = document.createElement('div');
+                toggleContainer.className = 'login-theme-toggle';
+                toggleContainer.style.position = 'absolute';
+                toggleContainer.style.top = '15px';
+                toggleContainer.style.right = '15px';
+                loginCard.style.position = 'relative';
+                loginCard.appendChild(toggleContainer);
+                container = toggleContainer;
+            } else {
+                // Fallback: floating button
+                container = document.body;
+            }
         }
 
-        // Create toggle button
+        // CRITICAL FIX: Create toggle button with "Toggle Theme" text
         const toggleBtn = document.createElement('button');
         toggleBtn.id = 'darkModeToggle';
         toggleBtn.className = 'dark-mode-toggle';
-        // Determine current theme from DOM or stored value
+        // Default to light mode
         const currentTheme = document.documentElement.getAttribute('data-theme') || this.theme || 'light';
-        toggleBtn.innerHTML = currentTheme === 'dark' ? '☀️' : '🌙';
+        toggleBtn.textContent = 'Toggle Theme';
         toggleBtn.setAttribute('aria-label', currentTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
         toggleBtn.title = currentTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
         

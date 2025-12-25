@@ -1,6 +1,10 @@
 /* ============================================
-   WaterROC - Professional Design System
+   WaterROC - Corporate Utilitarian Enterprise Design
+   FINAL OVERHAUL: Square rectangular like Reflexis, corporate flat design
+   No shadows, no gradients, no animations - plain utilitarian
    ============================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 /* Reset & Base */
 * {
@@ -10,87 +14,32 @@
 }
 
 :root {
-    /* Modern Color Palette */
-    --primary-50: #eff6ff;
-    --primary-100: #dbeafe;
-    --primary-200: #bfdbfe;
-    --primary-300: #93c5fd;
-    --primary-400: #60a5fa;
-    --primary-500: #3b82f6;
-    --primary-600: #2563eb;
-    --primary-700: #1d4ed8;
-    --primary-800: #1e40af;
-    --primary-900: #1e3a8a;
+    /* FULL OVERHAUL: Muted corporate palette - blue/gray shades only, NO vibrant colors */
+    --primary-600: #4a90e2;
+    --primary-700: #357abd;
     
-    --secondary-50: #f8fafc;
-    --secondary-100: #f1f5f9;
-    --secondary-200: #e2e8f0;
-    --secondary-300: #cbd5e1;
-    --secondary-400: #94a3b8;
-    --secondary-500: #64748b;
-    --secondary-600: #475569;
-    --secondary-700: #334155;
-    --secondary-800: #1e293b;
-    --secondary-900: #0f172a;
+    /* Muted replacements for success/warning/danger - all gray/blue shades */
+    --success-600: #6c757d;
+    --success-700: #5a6268;
     
-    --success-500: #10b981;
-    --success-600: #059669;
-    --success-700: #047857;
+    --danger-600: #495057;
+    --danger-700: #343a40;
     
-    --danger-500: #ef4444;
-    --danger-600: #dc2626;
-    --danger-700: #b91c1c;
+    --warning-600: #5a9fd4;
+    --warning-700: #4a8fc4;
     
-    --warning-500: #f59e0b;
-    --warning-600: #d97706;
-    --warning-700: #b45309;
+    --purple-600: #868e96;
     
-    --purple-500: #8b5cf6;
-    --purple-600: #7c3aed;
-    --purple-700: #6d28d9;
-    
-    /* Semantic Colors */
+    /* Semantic Colors - all muted */
     --primary-color: var(--primary-600);
-    --primary-light: var(--primary-500);
-    --primary-dark: var(--primary-700);
-    --secondary-color: var(--secondary-500);
     --success-color: var(--success-600);
-    --success-light: var(--success-500);
     --danger-color: var(--danger-600);
-    --danger-light: var(--danger-500);
     --warning-color: var(--warning-600);
-    --warning-light: var(--warning-500);
-    --purple-color: var(--purple-600);
-    --purple-light: var(--purple-500);
     
-    /* Background Colors - Light Mode */
-    --bg-primary: #ffffff;
-    --bg-secondary: #f8fafc;
-    --bg-tertiary: #f1f5f9;
-    --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --bg-gradient-subtle: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+    /* NO SHADOWS - Flat design only */
+    --shadow-none: none;
     
-    /* Text Colors - Light Mode */
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
-    --text-tertiary: #64748b;
-    --text-inverse: #ffffff;
-    
-    /* Border Colors - Light Mode */
-    --border-light: #e2e8f0;
-    --border-medium: #cbd5e1;
-    --border-dark: #94a3b8;
-    
-    /* Shadows - Modern Elevation System */
-    --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-    --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
-    
-    /* Spacing Scale */
+    /* Spacing - Corporate whitespace */
     --space-1: 0.25rem;
     --space-2: 0.5rem;
     --space-3: 0.75rem;
@@ -100,26 +49,23 @@
     --space-8: 2rem;
     --space-10: 2.5rem;
     --space-12: 3rem;
-    --space-16: 4rem;
-    --space-20: 5rem;
     
-    /* Border Radius */
-    --radius-sm: 0.375rem;
-    --radius-md: 0.5rem;
-    --radius-lg: 0.75rem;
-    --radius-xl: 1rem;
-    --radius-2xl: 1.5rem;
-    --radius-full: 9999px;
+    /* Border Radius - COMPLETELY SQUARE */
+    --radius-sm: 0px;
+    --radius-md: 0px;
+    --radius-lg: 0px;
+    --radius-xl: 0px;
+    --radius-2xl: 0px;
+    --radius-full: 0px;
     
     /* Typography */
-    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-    --font-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     
-    /* Transitions */
-    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-slower: 500ms cubic-bezier(0.4, 0, 0.2, 1);
+    /* PURPOSELY SUPER SLOW TRANSITIONS - Very deliberate interactions */
+    --transition-fast: 800ms ease;
+    --transition-base: 1500ms ease;
+    --transition-slow: 2000ms ease;
+    --transition-none: none;
     
     /* Z-Index Scale */
     --z-base: 1;
@@ -133,267 +79,232 @@
     --z-notification: 10000;
 }
 
-/* Dark Mode Variables - Only override color-related variables */
+/* CRITICAL FIX: Bright light mode like Reflexis - pure white, high contrast */
+:root,
+[data-theme="light"] {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f0f0f0;
+    --bg-tertiary: #e0e0e0;
+    --bg-elevated: #ffffff;
+    
+    --text-primary: #333333;
+    --text-secondary: #555555;
+    --text-tertiary: #777777;
+    --text-inverse: #ffffff;
+    
+    --border-light: #dddddd;
+    --border-medium: #bbbbbb;
+    --border-dark: #999999;
+    
+    /* FULL OVERHAUL: Muted Reflexis blue accent */
+    --primary-600: #4a90e2;
+    --primary-700: #357abd;
+}
+
+/* FIXED DARK MODE: Seamless switch on login - muted grays, clean contrast */
 [data-theme="dark"] {
-    /* Background Colors - Dark Mode */
-    --bg-primary: #0f172a;
-    --bg-secondary: #1e293b;
-    --bg-tertiary: #334155;
-    --bg-gradient: linear-gradient(135deg, #4c1d95 0%, #581c87 100%);
-    --bg-gradient-subtle: linear-gradient(135deg, rgba(76, 29, 149, 0.1) 0%, rgba(88, 28, 135, 0.1) 100%);
+    --bg-primary: #333333;
+    --bg-secondary: #222222;
+    --bg-tertiary: #1a1a1a;
+    --bg-elevated: #2a2a2a;
     
-    /* Text Colors - Dark Mode */
-    --text-primary: #f1f5f9;
-    --text-secondary: #cbd5e1;
-    --text-tertiary: #94a3b8;
-    --text-inverse: #0f172a;
+    --text-primary: #eeeeee;
+    --text-secondary: #cccccc;
+    --text-tertiary: #aaaaaa;
+    --text-inverse: #ffffff;
     
-    /* Border Colors - Dark Mode */
-    --border-light: #334155;
-    --border-medium: #475569;
-    --border-dark: #64748b;
+    --border-light: #444444;
+    --border-medium: #555555;
+    --border-dark: #666666;
+    
+    /* Dark mode blue accent - slightly brighter for visibility */
+    --primary-600: #5a9fd4;
+    --primary-700: #4a8fc4;
 }
 
-/* Dark Mode Toggle Button */
-.dark-mode-toggle {
-    background: var(--bg-tertiary);
-    border: 2px solid var(--border-light);
-    border-radius: var(--radius-full);
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 1.25rem;
-    transition: all var(--transition-base);
-    margin-right: var(--space-3);
-    padding: 0;
-    box-shadow: var(--shadow-sm);
-}
-
-.dark-mode-toggle:hover {
-    transform: scale(1.1);
-    box-shadow: var(--shadow-md);
-    background: var(--bg-secondary);
-}
-
-.dark-mode-toggle:active {
-    transform: scale(0.95);
-}
-
-/* Dark Mode Specific Component Styles */
-[data-theme="dark"] .info-card,
-[data-theme="dark"] .modal-content,
-[data-theme="dark"] .profile-card,
-[data-theme="dark"] .controls-panel {
-    background: var(--bg-primary);
-    border: 1px solid var(--border-light);
-}
-
-[data-theme="dark"] .form-group input,
-[data-theme="dark"] .form-group select,
-[data-theme="dark"] .form-group textarea {
-    background: var(--bg-secondary);
-    border-color: var(--border-light);
-    color: var(--text-primary);
-}
-
-[data-theme="dark"] .login-card {
-    background: var(--bg-primary);
-    border-color: var(--border-light);
-}
-
-[data-theme="dark"] .dashboard-header {
-    background: var(--bg-gradient);
-}
-
-[data-theme="dark"] .gantt-container,
-[data-theme="dark"] .calendar-grid,
-[data-theme="dark"] .shift-cell {
-    background: var(--bg-primary);
-    border-color: var(--border-light);
-}
-
-[data-theme="dark"] .task-block,
-[data-theme="dark"] .shift-block {
-    border-color: var(--border-light);
-}
-
-[data-theme="dark"] table,
-[data-theme="dark"] th,
-[data-theme="dark"] td {
-    border-color: var(--border-light);
-}
-
-[data-theme="dark"] .notification-panel {
-    background: var(--bg-primary);
-    border-color: var(--border-light);
-}
-
-/* Base Styles */
+/* PURPOSELY SUPER SLOW: Very deliberate transitions */
 body {
-    font-family: var(--font-sans);
-    background: var(--bg-secondary);
+    font-family: Arial, Helvetica, sans-serif;
+    background: #ffffff;
     color: var(--text-primary);
-    line-height: 1.6;
-    font-size: 15px;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    transition: background-color var(--transition-base), color var(--transition-base);
+    line-height: 1.5;
+    font-size: 14px;
+    font-weight: 400;
+    transition: background-color 1.5s ease, color 1.5s ease;
 }
 
-/* Typography Scale */
+[data-theme="dark"] body {
+    background: #333333;
+    color: #eeeeee;
+}
+
+/* FIXED DARK MODE: All buttons adapt to theme */
+[data-theme="dark"] .btn-primary {
+    background: #5a9fd4;
+    border-color: #5a9fd4;
+}
+
+[data-theme="dark"] .btn-primary:hover {
+    background: #4a8fc4;
+    border-color: #4a8fc4;
+}
+
+[data-theme="dark"] .btn-secondary {
+    background: #444444;
+    color: #eeeeee;
+    border-color: #555555;
+}
+
+[data-theme="dark"] .btn-secondary:hover {
+    background: #555555;
+}
+
+/* ADDED UI: Better typography hierarchy - Arial/Helvetica sans-serif */
 h1, h2, h3, h4, h5, h6 {
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.2;
     color: var(--text-primary);
-    letter-spacing: -0.025em;
+    font-family: Arial, Helvetica, sans-serif;
+    margin-bottom: var(--space-3);
 }
 
-h1 { font-size: 2.25rem; }
-h2 { font-size: 1.875rem; }
-h3 { font-size: 1.5rem; }
-h4 { font-size: 1.25rem; }
-h5 { font-size: 1.125rem; }
-h6 { font-size: 1rem; }
+h1 { 
+    font-size: 1.75rem; 
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+h2 { 
+    font-size: 1.5rem; 
+    font-weight: 600;
+}
+h3 { 
+    font-size: 1.25rem; 
+    font-weight: 600;
+}
+h4 { 
+    font-size: 1.125rem; 
+    font-weight: 600;
+}
+h5 { 
+    font-size: 1rem; 
+    font-weight: 600;
+}
+h6 { 
+    font-size: 0.9375rem; 
+    font-weight: 600;
+}
 
 p {
     margin-bottom: var(--space-4);
     color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.5;
 }
 
 a {
     color: var(--primary-600);
     text-decoration: none;
-    transition: color var(--transition-fast);
 }
 
 a:hover {
     color: var(--primary-700);
+    text-decoration: underline;
 }
 
 /* ============================================
-   LOGIN PAGE
+   LOGIN PAGE - Employee login overhaul: Simple centered square form
+   CRITICAL FIX: Bright white background, centered form like Reflexis ESS
    ============================================ */
 
+/* PURPOSELY SUPER SLOW: Login container with very slow transitions */
 .login-container {
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background: var(--bg-gradient);
+    background: #ffffff;
     padding: var(--space-6);
-    position: relative;
-    overflow: hidden;
+    transition: background-color 1.5s ease;
 }
 
-.login-container::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: 
-        radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 40% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
-    animation: float 20s ease-in-out infinite;
+[data-theme="dark"] .login-container {
+    background: #333333;
 }
 
-@keyframes float {
-    0%, 100% { transform: translate(0, 0) rotate(0deg); }
-    33% { transform: translate(30px, -30px) rotate(120deg); }
-    66% { transform: translate(-20px, 20px) rotate(240deg); }
-}
-
+/* PURPOSELY SUPER SLOW: Login card with very slow transitions */
 .login-card {
-    background: var(--bg-primary);
-    border-radius: var(--radius-2xl);
-    box-shadow: var(--shadow-2xl);
+    background: #f9f9f9;
+    border: 1px solid #cccccc;
     width: 100%;
-    max-width: 480px;
-    overflow: hidden;
-    position: relative;
-    z-index: var(--z-base);
-    animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    max-width: 450px;
+    padding: var(--space-8) var(--space-10);
+    border-radius: 0px;
+    margin: 0 auto;
+    transition: background-color 1.5s ease, border-color 1.5s ease;
 }
 
-@keyframes slideUp {
-    from {
-        opacity: 0;
-        transform: translateY(40px) scale(0.95);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
+[data-theme="dark"] .login-card {
+    background: #222222;
+    border-color: #444444;
 }
 
 .logo {
-    background: var(--bg-gradient);
-    color: var(--text-inverse);
-    padding: var(--space-12) var(--space-8);
+    background: transparent;
+    color: var(--text-primary);
+    padding: 0;
     text-align: center;
-    position: relative;
-    overflow: hidden;
+    margin: 0 0 var(--space-8) 0;
 }
 
-.logo::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
-    animation: pulse 4s ease-in-out infinite;
+/* ADDED: Logo image styling */
+.logo-image {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto var(--space-3);
+    display: block;
+    object-fit: contain;
+    transition: transform 1s ease, opacity 1s ease;
 }
 
-@keyframes pulse {
-    0%, 100% { transform: scale(1); opacity: 0.5; }
-    50% { transform: scale(1.1); opacity: 0.8; }
+.logo-image:hover {
+    transform: scale(1.1);
+    opacity: 0.9;
 }
 
+/* FULL OVERHAUL: Bold centered title */
 .logo h1 {
-    font-size: 2.5rem;
-    margin-bottom: var(--space-3);
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    position: relative;
-    z-index: var(--z-base);
-    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    font-size: 1.5rem;
+    margin-bottom: var(--space-2);
+    color: var(--text-primary);
+    font-weight: 700;
+    text-align: center;
 }
 
 .logo p {
-    font-size: 1rem;
-    opacity: 0.95;
-    font-weight: 400;
-    position: relative;
-    z-index: var(--z-base);
-    color: var(--text-inverse);
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin: var(--space-1) 0;
+    line-height: 1.4;
 }
 
 .login-form {
-    padding: var(--space-10) var(--space-8);
+    padding: 0;
 }
 
 .login-form h2 {
-    margin-bottom: var(--space-8);
+    margin-bottom: var(--space-6);
     color: var(--text-primary);
-    font-size: 1.75rem;
-    font-weight: 700;
+    font-size: 1.25rem;
+    font-weight: 600;
+    text-align: center;
 }
 
 /* ============================================
-   FORMS
+   FORMS - Square flat corporate
    ============================================ */
 
 .form-group {
-    margin-bottom: var(--space-6);
+    margin-bottom: var(--space-4);
 }
 
 .form-group label {
@@ -402,165 +313,222 @@ a:hover {
     font-weight: 600;
     color: var(--text-primary);
     font-size: 0.875rem;
-    letter-spacing: 0.025em;
 }
 
+/* FULL OVERHAUL: Square rectangular inputs - no rounding, border 1px #999 */
 .form-group input,
 .form-group select,
 .form-group textarea {
     width: 100%;
-    padding: var(--space-3) var(--space-4);
-    border: 2px solid var(--border-light);
-    border-radius: var(--radius-lg);
-    font-size: 0.9375rem;
-    transition: all var(--transition-base);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid #999999;
     background: var(--bg-primary);
     color: var(--text-primary);
     font-family: inherit;
+    font-size: 0.9375rem;
+    border-radius: 0px;
+}
+
+/* PURPOSELY SUPER SLOW: Input focus transitions */
+.form-group input,
+.form-group select,
+.form-group textarea {
+    transition: border-color 1s ease, outline 1s ease, background-color 1s ease, color 1s ease;
 }
 
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
-    outline: none;
-    border-color: var(--primary-500);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    transform: translateY(-1px);
-}
-
-.form-group input:hover:not(:focus),
-.form-group select:hover:not(:focus),
-.form-group textarea:hover:not(:focus) {
-    border-color: var(--border-medium);
+    outline: 2px solid var(--primary-600);
+    outline-offset: -2px;
+    border-color: var(--primary-600);
 }
 
 .form-group textarea {
     resize: vertical;
-    min-height: 100px;
+    min-height: 80px;
 }
 
 .form-group small {
     display: block;
-    margin-top: var(--space-2);
+    margin-top: var(--space-1);
     font-size: 0.8125rem;
     color: var(--text-tertiary);
 }
 
+/* ADDED UI: Field error messages */
+.field-error {
+    display: none;
+    color: #ef4444;
+    font-size: 0.75rem;
+    margin-top: var(--space-1);
+}
+
+/* ADDED UI: Password strength hint */
+.password-hint {
+    display: none;
+    color: #f59e0b;
+    font-size: 0.75rem;
+    margin-top: var(--space-1);
+}
+
+/* ADDED UI: Checkbox group */
+.checkbox-group {
+    margin-bottom: var(--space-4);
+}
+
+.checkbox-group label {
+    font-weight: 400;
+    cursor: pointer;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+    cursor: pointer;
+}
+
+/* FIXED DARK MODE: Inputs adapt to theme */
+[data-theme="dark"] .form-group input,
+[data-theme="dark"] .form-group select,
+[data-theme="dark"] .form-group textarea {
+    background: #2a2a2a;
+    color: #eeeeee;
+    border-color: #555555;
+}
+
+[data-theme="dark"] .form-group input:focus,
+[data-theme="dark"] .form-group select:focus,
+[data-theme="dark"] .form-group textarea:focus {
+    border-color: #5a9fd4;
+    outline-color: #5a9fd4;
+}
+
 /* ============================================
-   BUTTONS
+   BUTTONS - Square flat corporate (NO hover effects)
    ============================================ */
 
+/* CRITICAL FIX: Square rectangular buttons - no rounding */
 .btn-primary,
 .btn-secondary,
 .btn-success,
 .btn-danger,
 .btn-warning {
-    padding: var(--space-3) var(--space-6);
-    border: none;
-    border-radius: var(--radius-lg);
+    padding: var(--space-2) var(--space-4);
+    border: 1px solid;
     font-size: 0.9375rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all var(--transition-base);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: var(--space-2);
-    position: relative;
-    overflow: hidden;
-    letter-spacing: 0.025em;
-    text-transform: none;
     font-family: inherit;
+    white-space: nowrap;
+    border-radius: 0px;
 }
 
-.btn-primary::before,
-.btn-secondary::before,
-.btn-success::before,
-.btn-danger::before,
-.btn-warning::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    border-radius: var(--radius-full);
-    background: rgba(255, 255, 255, 0.2);
-    transform: translate(-50%, -50%);
-    transition: width 0.6s, height 0.6s;
-}
-
-.btn-primary:hover::before,
-.btn-secondary:hover::before,
-.btn-success:hover::before,
-.btn-danger:hover::before,
-.btn-warning:hover::before {
-    width: 300px;
-    height: 300px;
-}
-
+/* PURPOSELY SUPER SLOW: Button transitions */
 .btn-primary {
-    background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-500) 100%);
+    background: var(--primary-600);
     color: var(--text-inverse);
-    box-shadow: var(--shadow-md);
+    border-color: var(--primary-600);
+    transition: background-color 1s ease, border-color 1s ease, transform 1s ease, opacity 1s ease;
 }
 
 .btn-primary:hover {
+    background: var(--primary-700);
+    border-color: var(--primary-700);
     transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-    background: linear-gradient(135deg, var(--primary-700) 0%, var(--primary-600) 100%);
+    opacity: 0.9;
 }
 
 .btn-primary:active {
     transform: translateY(0);
+    transition: transform 0.3s ease;
 }
 
 .btn-secondary {
-    background: linear-gradient(135deg, var(--secondary-500) 0%, var(--secondary-600) 100%);
-    color: var(--text-inverse);
-    box-shadow: var(--shadow-md);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border-color: var(--border-light);
+    transition: background-color 1s ease, border-color 1s ease, transform 1s ease, opacity 1s ease;
 }
 
 .btn-secondary:hover {
+    background: var(--bg-secondary);
+    border-color: var(--border-medium);
     transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-    background: linear-gradient(135deg, var(--secondary-600) 0%, var(--secondary-700) 100%);
+    opacity: 0.9;
+}
+
+.btn-secondary:active {
+    transform: translateY(0);
+    transition: transform 0.3s ease;
 }
 
 .btn-success {
-    background: linear-gradient(135deg, var(--success-600) 0%, var(--success-500) 100%);
+    background: var(--success-600);
     color: var(--text-inverse);
-    box-shadow: var(--shadow-md);
-}
-
-.btn-success:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-    background: linear-gradient(135deg, var(--success-700) 0%, var(--success-600) 100%);
+    border-color: var(--success-600);
 }
 
 .btn-danger {
-    background: linear-gradient(135deg, var(--danger-600) 0%, var(--danger-500) 100%);
+    background: var(--danger-600);
     color: var(--text-inverse);
-    box-shadow: var(--shadow-md);
-}
-
-.btn-danger:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-    background: linear-gradient(135deg, var(--danger-700) 0%, var(--danger-600) 100%);
+    border-color: var(--danger-600);
 }
 
 .btn-warning {
-    background: linear-gradient(135deg, var(--warning-600) 0%, var(--warning-500) 100%);
+    background: var(--warning-600);
     color: var(--text-inverse);
-    box-shadow: var(--shadow-md);
+    border-color: var(--warning-600);
+}
+
+/* FULL OVERHAUL: Muted blue/gray button variant */
+.btn-primary.btn-muted {
+    background: #5a9fd4;
+    border-color: #5a9fd4;
+    color: var(--text-inverse);
+}
+
+.btn-primary.btn-muted:hover {
+    background: #4a8fc4;
+    border-color: #4a8fc4;
+}
+
+/* FULL OVERHAUL: Replace all success/warning/danger with muted colors */
+.btn-success {
+    background: #6c757d;
+    color: var(--text-inverse);
+    border-color: #6c757d;
+}
+
+.btn-success:hover {
+    background: #5a6268;
+    border-color: #5a6268;
+}
+
+.btn-warning {
+    background: #5a9fd4;
+    color: var(--text-inverse);
+    border-color: #5a9fd4;
 }
 
 .btn-warning:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-    background: linear-gradient(135deg, var(--warning-700) 0%, var(--warning-600) 100%);
+    background: #4a8fc4;
+    border-color: #4a8fc4;
+}
+
+.btn-danger {
+    background: #495057;
+    color: var(--text-inverse);
+    border-color: #495057;
+}
+
+.btn-danger:hover {
+    background: #343a40;
+    border-color: #343a40;
 }
 
 .toggle-form {
@@ -579,73 +547,569 @@ a:hover {
     color: var(--primary-600);
     text-decoration: none;
     font-weight: 600;
-    transition: color var(--transition-fast);
 }
 
 .toggle-form a:hover {
-    color: var(--primary-700);
     text-decoration: underline;
 }
 
+/* FULL OVERHAUL: QR code button and modal */
+.btn-qr {
+    width: 100%;
+    margin-top: var(--space-3);
+    background: #4a90e2;
+    border-color: #4a90e2;
+    color: var(--text-inverse);
+}
+
+.btn-qr:hover {
+    background: #357abd;
+    border-color: #357abd;
+}
+
+/* PURPOSELY SUPER SLOW: QR modal transitions */
+.qr-modal {
+    display: none;
+    position: fixed;
+    z-index: var(--z-modal);
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    justify-content: center;
+    align-items: center;
+    animation: fadeIn 1.5s ease;
+}
+
+/* FULL OVERHAUL: QR modal - 600x600 square centered */
+.qr-modal-content {
+    background-color: #ffffff;
+    padding: var(--space-6);
+    width: 600px;
+    height: 600px;
+    max-width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    border: 1px solid #cccccc;
+    border-radius: 0px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    animation: slideDown 2s ease;
+    transition: background-color 1.5s ease, border-color 1.5s ease;
+}
+
+.qr-modal-close {
+    position: absolute;
+    top: var(--space-3);
+    right: var(--space-3);
+    font-size: 1.5rem;
+    font-weight: 700;
+    cursor: pointer;
+    color: var(--text-secondary);
+    background: transparent;
+    border: none;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0px;
+}
+
+.qr-modal-close:hover {
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+}
+
+.qr-modal-content h3 {
+    margin-bottom: var(--space-4);
+    color: var(--text-primary);
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+/* FULL OVERHAUL: QR reader container */
+#qr-reader {
+    width: 500px;
+    height: 500px;
+    margin: var(--space-4) auto;
+    max-width: 100%;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.qr-help-text {
+    text-align: center;
+    color: var(--text-tertiary);
+    font-size: 0.875rem;
+    margin-top: var(--space-3);
+}
+
+/* ADDED UI: QR scan status */
+.qr-status {
+    text-align: center;
+    font-size: 0.875rem;
+    margin-top: var(--space-2);
+    padding: var(--space-2);
+    border-radius: 0px;
+}
+
+/* ADDED UI: Loading overlay and spinner */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    color: white;
+}
+
+/* PURPOSELY SUPER SLOW: Loading spinner */
+.loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 3s linear infinite;
+    margin-bottom: var(--space-4);
+}
+
+/* ADDED: Global loading overlay for fake loading screens */
+.global-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.75);
+    z-index: 99999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    animation: fadeIn 1.5s ease;
+    transition: opacity 0.5s ease;
+    pointer-events: auto; /* Allow clicks on overlay itself */
+}
+
+/* CRITICAL: Don't block interactions with elements behind overlay when it's transparent or hidden */
+.global-loading-overlay[style*="opacity: 0"],
+.global-loading-overlay[style*="display: none"] {
+    pointer-events: none !important;
+}
+
+.global-loading-content {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-light);
+    padding: var(--space-8);
+    text-align: center;
+    min-width: 300px;
+    border-radius: 0px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.loading-message {
+    color: var(--text-primary);
+    font-size: 1rem;
+    margin: var(--space-4) 0;
+    font-weight: 500;
+}
+
+.loading-progress-container {
+    width: 100%;
+    height: 8px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    margin-top: var(--space-4);
+    overflow: hidden;
+    border-radius: 0px;
+}
+
+.loading-progress-bar {
+    height: 100%;
+    background: var(--primary-600);
+    width: 0%;
+    transition: width 0.3s ease;
+    border-radius: 0px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ADDED UI: Error message popup */
+/* PURPOSELY SUPER SLOW: Error message transitions */
+.error-message {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #ef4444;
+    color: white;
+    padding: var(--space-3) var(--space-4);
+    border-radius: 0px;
+    z-index: 10001;
+    max-width: 400px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    animation: slideInRight 1.5s ease;
+    transition: opacity 1s ease, transform 1s ease;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(200px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+[data-theme="dark"] .error-message {
+    background: #dc2626;
+}
+
+/* ADDED UI: Login progress bar */
+.login-progress {
+    width: 100%;
+    height: 4px;
+    background: var(--bg-tertiary);
+    margin-bottom: var(--space-3);
+    overflow: hidden;
+    border-radius: 0px;
+}
+
+/* PURPOSELY SUPER SLOW: Progress bar */
+.progress-bar {
+    height: 100%;
+    background: var(--primary-600);
+    width: 0%;
+    animation: progress 5s ease-in-out infinite;
+}
+
+@keyframes progress {
+    0% { width: 0%; }
+    50% { width: 70%; }
+    100% { width: 100%; }
+}
+
+/* ADDED UI: Footer with version/copyright */
+.login-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-light);
+    padding: var(--space-2) var(--space-4);
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    z-index: 100;
+}
+
+[data-theme="dark"] .login-footer {
+    background: #222222;
+    border-top-color: #444444;
+    color: #aaaaaa;
+}
+
+.login-footer p {
+    margin: 0;
+}
+
+/* FIXED DARK MODE: Logo adapts to theme */
+[data-theme="dark"] .logo h1,
+[data-theme="dark"] .logo p {
+    color: #eeeeee;
+}
+
+/* FIXED DARK MODE: Login theme toggle positioning */
+.login-theme-toggle {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+}
+
+.login-theme-toggle .dark-mode-toggle {
+    margin: 0;
+}
+
+/* FIXED DARK MODE: All form elements adapt */
+[data-theme="dark"] .form-group label {
+    color: #eeeeee;
+}
+
+[data-theme="dark"] .toggle-form p,
+[data-theme="dark"] .toggle-form a {
+    color: #cccccc;
+}
+
+[data-theme="dark"] .toggle-form a:hover {
+    color: #5a9fd4;
+}
+
+/* ADDED UI: Tooltip support (using title attribute, enhanced with CSS) */
+[title] {
+    cursor: help;
+    position: relative;
+}
+
+/* ADDED UI: Gantt controls bar */
+.gantt-controls-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-3);
+    border-bottom: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+    gap: var(--space-3);
+}
+
+.gantt-controls-left {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex: 1;
+}
+
+.gantt-controls-right {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.gantt-search {
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border-light);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    border-radius: 0px;
+    min-width: 200px;
+}
+
+.gantt-search:focus {
+    outline: 2px solid var(--primary-600);
+    outline-offset: -2px;
+    border-color: var(--primary-600);
+}
+
+.btn-small {
+    padding: var(--space-1) var(--space-2);
+    font-size: 0.875rem;
+    min-width: 32px;
+}
+
+[data-theme="dark"] .gantt-controls-bar {
+    background: #222222;
+    border-bottom-color: #444444;
+}
+
+[data-theme="dark"] .gantt-search {
+    background: #2a2a2a;
+    color: #eeeeee;
+    border-color: #555555;
+}
+
+/* ADDED UI: Dashboard footer */
+.dashboard-footer {
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-light);
+    padding: var(--space-3) var(--space-6);
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    margin-top: auto;
+}
+
+[data-theme="dark"] .dashboard-footer {
+    background: #222222;
+    border-top-color: #444444;
+    color: #aaaaaa;
+}
+
+.dashboard-footer p {
+    margin: 0;
+}
+
+/* ADDED UI: Responsive adjustments for mobile */
+@media (max-width: 768px) {
+    .gantt-controls-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--space-2);
+    }
+    
+    .gantt-controls-left,
+    .gantt-controls-right {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .gantt-search {
+        min-width: 0;
+        flex: 1;
+    }
+    
+    .login-card {
+        max-width: 100%;
+        padding: var(--space-6);
+    }
+    
+    .login-footer {
+        font-size: 0.7rem;
+        padding: var(--space-1) var(--space-2);
+    }
+    
+    .dashboard-footer {
+        font-size: 0.7rem;
+        padding: var(--space-2);
+    }
+}
+
+/* ADDED UI: Subtle borders and dividers */
+.controls-section {
+    border-bottom: 1px solid var(--border-light);
+    padding-bottom: var(--space-4);
+}
+
+.controls-section:last-child {
+    border-bottom: none;
+}
+
+[data-theme="dark"] .controls-section {
+    border-bottom-color: #444444;
+}
+
+/* ADDED UI: Better spacing and alignment */
+.control-group {
+    gap: var(--space-2);
+}
+
+.control-group button {
+    text-align: left;
+    justify-content: flex-start;
+}
+
+/* FIXED DARK MODE: Inputs in dark mode */
+[data-theme="dark"] .date-controls input {
+    background: #2a2a2a;
+    color: #eeeeee;
+    border-color: #555555;
+}
+
+[data-theme="dark"] .gantt-search {
+    background: #2a2a2a;
+    color: #eeeeee;
+    border-color: #555555;
+}
+
+@media (max-width: 768px) {
+    .qr-modal-content {
+        width: 95%;
+        padding: var(--space-4);
+    }
+    
+    #qr-reader {
+        width: 100%;
+        height: auto;
+        min-height: 300px;
+    }
+}
+
 /* ============================================
-   DASHBOARD
+   DASHBOARD - Corporate layout
    ============================================ */
 
+/* CRITICAL FIX: Bright white dashboard background in light mode */
 .dashboard {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    background: var(--bg-secondary);
+    background: #ffffff;
 }
 
+[data-theme="dark"] .dashboard {
+    background: #333333;
+}
+
+/* FULL OVERHAUL: Square header bar #f0f0f0 like Reflexis */
 .dashboard-header {
-    background: var(--bg-gradient);
-    border: none;
-    padding: var(--space-6) var(--space-10);
+    background: #f0f0f0;
+    border-bottom: 1px solid var(--border-light);
+    padding: var(--space-3) var(--space-6);
     display: flex;
     justify-content: space-between;
     align-items: center;
     position: sticky;
     top: 0;
     z-index: var(--z-sticky);
-    box-shadow: var(--shadow-lg);
-    backdrop-filter: blur(10px);
+}
+
+[data-theme="dark"] .dashboard-header {
+    background: var(--bg-primary);
+}
+
+/* ADDED: Header logo styling */
+.header-logo {
+    width: 32px;
+    height: 32px;
+    margin-right: var(--space-2);
+    object-fit: contain;
+    vertical-align: middle;
+    transition: transform 1s ease, opacity 1s ease;
+}
+
+.header-logo:hover {
+    transform: scale(1.15);
+    opacity: 0.9;
 }
 
 .dashboard-header h1 {
-    font-size: 1.875rem;
-    color: var(--text-inverse);
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    font-size: 1.25rem;
+    color: var(--text-primary);
+    font-weight: 600;
+    display: inline-block;
+    vertical-align: middle;
 }
 
 .header-left,
 .header-right {
     display: flex;
     align-items: center;
-    gap: var(--space-6);
+    gap: var(--space-3);
 }
 
 .user-info {
-    color: var(--text-inverse);
-    font-weight: 600;
-    opacity: 0.95;
+    color: var(--text-secondary);
+    font-weight: 500;
     font-size: 0.9375rem;
 }
 
 .dashboard-content {
     flex: 1;
-    padding: var(--space-8) var(--space-10);
+    padding: var(--space-6);
     display: flex !important;
     flex-direction: row !important;
-    gap: var(--space-8);
+    gap: var(--space-6);
     min-height: 0;
     overflow: visible;
     align-items: flex-start;
 }
 
-/* Employee page - ensure content fits viewport and stays horizontal */
 body.employee-page .dashboard-content {
     max-height: calc(100vh - 120px);
     overflow: visible;
@@ -655,29 +1119,27 @@ body.employee-page .dashboard-content {
 }
 
 /* ============================================
-   CONTROLS PANEL
+   CONTROLS PANEL - Square flat sidebar
    ============================================ */
 
+/* CRITICAL FIX: Bright light panel background */
 .controls-panel {
-    background: var(--bg-primary);
-    border-radius: var(--radius-2xl);
-    padding: var(--space-8);
-    box-shadow: var(--shadow-xl);
-    width: 340px;
-    height: fit-content;
+    background: #ffffff;
     border: 1px solid var(--border-light);
-    transition: all var(--transition-base);
+    padding: var(--space-4);
+    width: 280px;
+    height: fit-content;
     position: sticky;
-    top: calc(var(--space-6) * 2 + 60px);
+    top: calc(var(--space-3) * 2 + 40px);
+    border-radius: 0px;
 }
 
-.controls-panel:hover {
-    box-shadow: var(--shadow-2xl);
-    transform: translateY(-2px);
+[data-theme="dark"] .controls-panel {
+    background: var(--bg-primary);
 }
 
 .controls-section {
-    margin-bottom: var(--space-8);
+    margin-bottom: var(--space-6);
 }
 
 .controls-section:last-child {
@@ -685,36 +1147,45 @@ body.employee-page .dashboard-content {
 }
 
 .controls-section h3 {
-    margin-bottom: var(--space-4);
+    margin-bottom: var(--space-3);
     color: var(--text-primary);
-    font-size: 1rem;
+    font-size: 0.75rem;
     font-weight: 700;
-    letter-spacing: -0.01em;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
 }
 
 .control-group {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
+    gap: var(--space-2);
+}
+
+.control-group button {
+    width: 100%;
+    justify-content: flex-start;
+    padding: var(--space-2) var(--space-3);
+    text-align: left;
 }
 
 .date-controls {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
+    gap: var(--space-2);
 }
 
 .date-controls input {
-    padding: var(--space-3);
-    border: 2px solid var(--border-light);
-    border-radius: var(--radius-lg);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border-light);
     font-size: 0.9375rem;
-    transition: all var(--transition-base);
+    background: var(--bg-primary);
+    color: var(--text-primary);
 }
 
 .date-controls input:focus {
-    border-color: var(--primary-500);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    outline: 2px solid var(--primary-600);
+    outline-offset: -2px;
+    border-color: var(--primary-600);
 }
 
 .date-controls span {
@@ -724,141 +1195,141 @@ body.employee-page .dashboard-content {
     font-weight: 500;
 }
 
-/* Color Legend */
+/* Color Legend - Square badges */
 .color-legend {
     display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--space-2);
 }
 
 .legend-item {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-2);
-    border-radius: var(--radius-md);
-    transition: background var(--transition-fast);
-}
-
-.legend-item:hover {
-    background: var(--bg-tertiary);
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    font-size: 0.8125rem;
 }
 
 .color-box {
-    width: 28px;
-    height: 20px;
-    border-radius: var(--radius-sm);
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    box-shadow: var(--shadow-sm);
+    width: 14px;
+    height: 14px;
+    border: 1px solid var(--border-light);
+    flex-shrink: 0;
+}
+
+.legend-item span:not(.color-box) {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    font-weight: 500;
 }
 
 /* ============================================
    INFO PANEL
    ============================================ */
 
+/* CRITICAL FIX: Bright light info panel */
 .info-panel {
-    background: var(--bg-primary);
-    border-radius: var(--radius-2xl);
-    padding: var(--space-6);
-    box-shadow: var(--shadow-xl);
-    width: 340px;
-    min-width: 340px;
-    max-width: 340px;
+    background: #ffffff;
+    border: 1px solid var(--border-light);
+    padding: var(--space-4);
+    width: 280px;
+    min-width: 280px;
+    max-width: 280px;
     flex-shrink: 0;
     flex-grow: 0;
     display: flex;
     flex-direction: column;
-    gap: var(--space-6);
-    border: 1px solid var(--border-light);
+    gap: var(--space-4);
     align-self: stretch;
     height: fit-content;
     order: 1;
+    border-radius: 0px;
 }
 
-/* Employee page - ensure sidebar stays fixed width and appears first */
+[data-theme="dark"] .info-panel {
+    background: var(--bg-primary);
+}
+
 body.employee-page .info-panel {
-    width: 340px !important;
-    min-width: 340px !important;
-    max-width: 340px !important;
-    flex: 0 0 340px !important;
+    width: 280px !important;
+    min-width: 280px !important;
+    max-width: 280px !important;
+    flex: 0 0 280px !important;
     order: 1 !important;
     display: flex !important;
 }
 
+/* CRITICAL FIX: Bright light info cards */
 .info-card {
-    padding: var(--space-6);
-    background: var(--bg-gradient-subtle);
-    border-radius: var(--radius-xl);
-    border-left: 4px solid var(--primary-600);
+    padding: var(--space-4);
+    background: #f0f0f0;
+    border: 1px solid var(--border-light);
     position: relative;
-    overflow: hidden;
-    transition: all var(--transition-base);
+    border-radius: 0px;
+}
+
+[data-theme="dark"] .info-card {
+    background: var(--bg-secondary);
 }
 
 .info-card::before {
     content: '';
     position: absolute;
     top: 0;
-    right: 0;
-    width: 120px;
-    height: 120px;
-    background: radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
-    border-radius: var(--radius-full);
-    transform: translate(50%, -50%);
-}
-
-.info-card:hover {
-    transform: translateX(4px);
-    box-shadow: var(--shadow-lg);
+    left: 0;
+    width: 3px;
+    height: 100%;
+    background: var(--primary-600);
 }
 
 .info-card h3 {
-    margin-bottom: var(--space-3);
+    margin-bottom: var(--space-2);
     color: var(--text-primary);
-    font-size: 1.125rem;
-    font-weight: 700;
-    position: relative;
-    z-index: var(--z-base);
+    font-size: 1rem;
+    font-weight: 600;
 }
 
 .info-card p {
     color: var(--text-secondary);
     font-size: 0.9375rem;
-    line-height: 1.6;
-    position: relative;
-    z-index: var(--z-base);
+    line-height: 1.5;
     margin: 0;
 }
 
 .readonly-notice {
     border-left-color: var(--warning-600);
-    background: linear-gradient(135deg, rgba(217, 119, 6, 0.05) 0%, rgba(245, 158, 11, 0.05) 100%);
 }
 
 .readonly-notice::before {
-    background: radial-gradient(circle, rgba(217, 119, 6, 0.1) 0%, transparent 70%);
+    background: var(--warning-600);
 }
 
 /* ============================================
-   GANTT CONTAINER
+   GANTT CONTAINER - Square flat
    ============================================ */
 
+/* CRITICAL FIX: Bright white Gantt container */
 .gantt-container {
     flex: 1;
-    background: var(--bg-primary);
+    background: #ffffff;
     display: flex;
     flex-direction: column;
-    border-radius: var(--radius-2xl);
-    padding: var(--space-8);
-    box-shadow: var(--shadow-xl);
+    padding: var(--space-4);
     overflow: hidden;
     border: 1px solid var(--border-light);
     min-height: 0;
     min-width: 0;
     order: 2;
+    border-radius: 0px;
 }
 
-/* Employee page - ensure container fits viewport and takes remaining space */
+[data-theme="dark"] .gantt-container {
+    background: var(--bg-primary);
+}
+
 body.employee-page .gantt-container {
     max-height: calc(100vh - 200px);
     flex: 1 1 auto !important;
@@ -870,61 +1341,44 @@ body.employee-page .gantt-container {
     flex-direction: column !important;
 }
 
-/* Employee page specific - Gantt chart takes most space */
-body.employee-page .gantt-container > #ganttChart {
-    flex: 1;
-    min-height: 0;
-}
-
-/* Admin page - keep original behavior */
 body:not(.employee-page) .gantt-container > #ganttChart {
     height: calc(100vh - 250px);
 }
 
 .schedule-summary {
-    background: var(--bg-primary);
-    border-radius: 8px;
-    padding: 12px 16px;
-    margin-top: 12px;
-    box-shadow: var(--shadow-sm);
+    background: var(--bg-secondary);
     border: 1px solid var(--border-light);
+    padding: var(--space-4);
+    margin-top: var(--space-4);
     flex-shrink: 0;
     max-height: 120px;
     overflow: hidden;
 }
 
 .schedule-summary h3 {
-    margin: 0 0 12px 0;
-    font-size: 1rem;
-    font-weight: 700;
+    margin: 0 0 var(--space-3) 0;
+    font-size: 0.9375rem;
+    font-weight: 600;
     color: var(--text-primary);
 }
 
 .summary-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
+    gap: var(--space-3);
 }
 
 .summary-card {
-    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
-    border-radius: 8px;
-    padding: 12px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-light);
+    padding: var(--space-3);
     display: flex;
     align-items: center;
-    gap: 10px;
-    border: 1px solid var(--border-light);
-    transition: all 0.2s ease;
-}
-
-.summary-card:hover {
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-sm);
-    border-color: var(--primary-color);
+    gap: var(--space-2);
 }
 
 .summary-icon {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     line-height: 1;
     flex-shrink: 0;
 }
@@ -937,24 +1391,22 @@ body:not(.employee-page) .gantt-container > #ganttChart {
 .summary-label {
     font-size: 0.75rem;
     color: var(--text-secondary);
-    margin-bottom: 4px;
+    margin-bottom: var(--space-1);
     font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .summary-value {
-    font-size: 1.5rem;
-    font-weight: 700;
+    font-size: 1.25rem;
+    font-weight: 600;
     color: var(--text-primary);
     line-height: 1;
 }
 
 /* ============================================
-   MODALS
+   MODALS - Square flat corporate
    ============================================ */
 
+/* PURPOSELY SUPER SLOW: Modal transitions */
 .modal {
     display: none;
     position: fixed;
@@ -963,9 +1415,8 @@ body:not(.employee-page) .gantt-container > #ganttChart {
     top: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(15, 23, 42, 0.75);
-    backdrop-filter: blur(4px);
-    animation: fadeIn var(--transition-slow);
+    background-color: rgba(0, 0, 0, 0.5);
+    animation: fadeIn 1.5s ease;
 }
 
 @keyframes fadeIn {
@@ -973,39 +1424,29 @@ body:not(.employee-page) .gantt-container > #ganttChart {
     to { opacity: 1; }
 }
 
+/* CRITICAL FIX: Bright white modal */
 .modal-content {
-    background-color: var(--bg-primary);
+    background-color: #ffffff;
     margin: 3% auto;
-    padding: var(--space-10);
-    border-radius: var(--radius-2xl);
+    padding: var(--space-6);
     width: 90%;
-    max-width: 540px;
+    max-width: 500px;
     max-height: 90vh;
     overflow-y: auto;
-    box-shadow: var(--shadow-2xl);
-    animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     border: 1px solid var(--border-light);
+    border-radius: 0px;
+}
+
+[data-theme="dark"] .modal-content {
+    background-color: var(--bg-primary);
 }
 
 .modal-content-large {
     max-width: 800px;
-    max-height: 95vh;
 }
 
 .modal-content-xlarge {
     max-width: 1200px;
-    max-height: 95vh;
-}
-
-@keyframes slideDown {
-    from {
-        transform: translateY(-40px) scale(0.95);
-        opacity: 0;
-    }
-    to {
-        transform: translateY(0) scale(1);
-        opacity: 1;
-    }
 }
 
 .close {
@@ -1014,28 +1455,24 @@ body:not(.employee-page) .gantt-container > #ganttChart {
     font-size: 1.5rem;
     font-weight: 700;
     cursor: pointer;
-    transition: all var(--transition-fast);
     line-height: 1;
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: var(--radius-md);
 }
 
 .close:hover {
     color: var(--text-primary);
     background: var(--bg-tertiary);
-    transform: rotate(90deg);
 }
 
 .modal-content h2 {
     margin-bottom: var(--space-6);
     color: var(--text-primary);
     font-size: 1.5rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
+    font-weight: 600;
 }
 
 .modal-header {
@@ -1044,7 +1481,7 @@ body:not(.employee-page) .gantt-container > #ganttChart {
     align-items: center;
     margin-bottom: var(--space-6);
     padding-bottom: var(--space-4);
-    border-bottom: 2px solid var(--border-light);
+    border-bottom: 1px solid var(--border-light);
 }
 
 .modal-header h2 {
@@ -1052,50 +1489,20 @@ body:not(.employee-page) .gantt-container > #ganttChart {
 }
 
 .modal-body {
-    padding: var(--space-6) 0;
-}
-
-/* My Shifts Modal Day Cards */
-.my-shifts-day-card {
-    background: var(--bg-primary);
-    border: 2px solid var(--border-light);
-    border-radius: 8px;
-    padding: 15px;
-    transition: all 0.2s ease;
-}
-
-.my-shifts-day-card:hover {
-    border-color: var(--primary-color);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-[data-theme="dark"] .my-shifts-day-card {
-    background: var(--bg-secondary);
-    border-color: var(--border-medium);
-}
-
-[data-theme="dark"] .my-shifts-day-card:hover {
-    border-color: var(--primary-500);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-/* My Shifts Modal Week Display */
-#myShiftsWeekDisplay {
-    color: var(--text-primary);
-    font-weight: 600;
+    padding: var(--space-4) 0;
 }
 
 .modal-actions {
     display: flex;
-    gap: var(--space-3);
+    gap: var(--space-2);
     margin-top: var(--space-6);
-    padding-top: var(--space-6);
-    border-top: 2px solid var(--border-light);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--border-light);
 }
 
 .form-actions {
     display: flex;
-    gap: var(--space-3);
+    gap: var(--space-2);
     margin-top: var(--space-6);
 }
 
@@ -1108,15 +1515,14 @@ body:not(.employee-page) .gantt-container > #ganttChart {
    ============================================ */
 
 .task-details-content {
-    padding: var(--space-6) 0;
+    padding: var(--space-4) 0;
 }
 
 .task-details-content p {
-    margin: var(--space-3) 0;
-    padding: var(--space-4);
-    background: var(--bg-tertiary);
-    border-radius: var(--radius-lg);
-    border-left: 3px solid var(--primary-500);
+    margin: var(--space-2) 0;
+    padding: var(--space-3);
+    background: var(--bg-secondary);
+    border-left: 3px solid var(--primary-600);
 }
 
 .task-details-content strong {
@@ -1127,7 +1533,7 @@ body:not(.employee-page) .gantt-container > #ganttChart {
 .task-actions {
     margin-top: var(--space-6);
     display: flex;
-    gap: var(--space-3);
+    gap: var(--space-2);
 }
 
 .task-actions button {
@@ -1141,53 +1547,45 @@ body:not(.employee-page) .gantt-container > #ganttChart {
 .task-messages-section {
     margin-top: var(--space-8);
     padding-top: var(--space-6);
-    border-top: 2px solid var(--border-light);
+    border-top: 1px solid var(--border-light);
 }
 
 .task-messages-section h3 {
     margin-bottom: var(--space-4);
     color: var(--text-primary);
-    font-size: 1.125rem;
-    font-weight: 700;
+    font-size: 1rem;
+    font-weight: 600;
 }
 
 .task-messages-list {
     max-height: 400px;
     overflow-y: auto;
     margin-bottom: var(--space-4);
-    padding: var(--space-4);
-    background: var(--bg-tertiary);
-    border-radius: var(--radius-xl);
+    padding: var(--space-3);
+    background: var(--bg-secondary);
 }
 
 .message-item {
-    padding: var(--space-4);
-    margin-bottom: var(--space-3);
-    border-radius: var(--radius-lg);
+    padding: var(--space-3);
+    margin-bottom: var(--space-2);
     position: relative;
-    transition: all var(--transition-base);
 }
 
 .message-item.from-employee {
-    background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
-    border-left: 3px solid var(--primary-500);
+    background: rgba(37, 99, 235, 0.1);
+    border-left: 3px solid var(--primary-600);
 }
 
 .message-item.from-admin {
-    background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
-    border-left: 3px solid var(--purple-500);
-}
-
-.message-item:hover {
-    transform: translateX(4px);
-    box-shadow: var(--shadow-md);
+    background: rgba(124, 58, 237, 0.1);
+    border-left: 3px solid var(--purple-600);
 }
 
 .message-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: var(--space-2);
+    margin-bottom: var(--space-1);
 }
 
 .message-author {
@@ -1203,7 +1601,7 @@ body:not(.employee-page) .gantt-container > #ganttChart {
 
 .message-text {
     color: var(--text-primary);
-    line-height: 1.6;
+    line-height: 1.5;
     font-size: 0.9375rem;
     white-space: pre-wrap;
     word-wrap: break-word;
@@ -1212,34 +1610,32 @@ body:not(.employee-page) .gantt-container > #ganttChart {
 .task-message-input {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
+    gap: var(--space-2);
 }
 
 .task-message-input textarea {
     width: 100%;
-    padding: var(--space-3);
-    border: 2px solid var(--border-light);
-    border-radius: var(--radius-lg);
+    padding: var(--space-2);
+    border: 1px solid var(--border-light);
     font-family: inherit;
     font-size: 0.9375rem;
     resize: vertical;
-    transition: all var(--transition-base);
 }
 
 .task-message-input textarea:focus {
-    outline: none;
-    border-color: var(--primary-500);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    outline: 2px solid var(--primary-600);
+    outline-offset: -2px;
+    border-color: var(--primary-600);
 }
 
 .task-message-input button {
     align-self: flex-end;
-    padding: var(--space-3) var(--space-6);
+    padding: var(--space-2) var(--space-4);
 }
 
 .messages-empty {
     text-align: center;
-    padding: var(--space-10);
+    padding: var(--space-8);
     color: var(--text-tertiary);
     font-style: italic;
 }
@@ -1250,43 +1646,35 @@ body:not(.employee-page) .gantt-container > #ganttChart {
 
 .task-acknowledgements-section {
     margin: var(--space-6) 0;
-    padding: var(--space-5);
-    background: var(--bg-tertiary);
-    border-radius: var(--radius-xl);
+    padding: var(--space-4);
+    background: var(--bg-secondary);
 }
 
 .task-acknowledgements-section h3 {
     margin-bottom: var(--space-3);
-    font-size: 1rem;
+    font-size: 0.9375rem;
     color: var(--text-primary);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .ack-list {
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
+    gap: var(--space-1);
 }
 
 .ack-item {
     display: flex;
     align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-3);
+    gap: var(--space-2);
+    padding: var(--space-2);
     background: var(--bg-primary);
-    border-radius: var(--radius-lg);
     font-size: 0.9375rem;
-    transition: all var(--transition-fast);
-}
-
-.ack-item:hover {
-    transform: translateX(4px);
-    box-shadow: var(--shadow-sm);
 }
 
 .ack-item .ack-icon {
     color: var(--success-600);
-    font-size: 1.25rem;
+    font-size: 1rem;
     font-weight: 700;
 }
 
@@ -1304,64 +1692,50 @@ body:not(.employee-page) .gantt-container > #ganttChart {
 .ack-empty {
     color: var(--text-tertiary);
     font-size: 0.9375rem;
-    padding: var(--space-4);
+    padding: var(--space-3);
     text-align: center;
 }
 
 /* ============================================
-   NOTIFICATION SYSTEM
+   NOTIFICATION SYSTEM - Flat corporate
    ============================================ */
 
+/* FULL OVERHAUL: Square notification button */
 .notification-btn {
     position: relative;
-    background: rgba(255, 255, 255, 0.2);
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    color: var(--text-inverse);
-    padding: var(--space-3) var(--space-4);
-    border-radius: var(--radius-xl);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-light);
+    color: var(--text-primary);
+    padding: var(--space-2) var(--space-3);
     cursor: pointer;
-    font-size: 1.25rem;
-    transition: all var(--transition-base);
-    backdrop-filter: blur(10px);
-}
-
-.notification-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
-    transform: scale(1.05);
-    box-shadow: var(--shadow-lg);
+    font-size: 1.125rem;
+    border-radius: 0px;
 }
 
 .notification-badge {
     position: absolute;
-    top: -6px;
-    right: -6px;
-    background: linear-gradient(135deg, var(--danger-500) 0%, var(--danger-600) 100%);
+    top: -4px;
+    right: -4px;
+    background: var(--danger-600);
     color: var(--text-inverse);
     font-size: 0.75rem;
     font-weight: 700;
-    padding: 3px 7px;
-    border-radius: var(--radius-full);
-    min-width: 20px;
+    padding: 2px 6px;
+    min-width: 18px;
     text-align: center;
     display: none;
-    box-shadow: var(--shadow-md);
-    animation: pulse-badge 2s ease-in-out infinite;
 }
 
-@keyframes pulse-badge {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.1); }
-}
-
+/* PURPOSELY SUPER SLOW: Notification panel transitions */
 .notification-panel {
     position: fixed;
     top: 0;
-    right: -440px;
-    width: 440px;
+    right: -400px;
+    width: 400px;
     height: 100vh;
     background: var(--bg-primary);
-    box-shadow: var(--shadow-2xl);
-    transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    border-left: 1px solid var(--border-light);
+    transition: right 1.5s ease;
     z-index: var(--z-notification);
     display: flex;
     flex-direction: column;
@@ -1372,86 +1746,51 @@ body:not(.employee-page) .gantt-container > #ganttChart {
 }
 
 .notification-header {
-    padding: var(--space-8);
-    background: var(--bg-gradient);
+    padding: var(--space-4);
+    background: var(--primary-600);
     color: var(--text-inverse);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: var(--shadow-lg);
-    position: relative;
-    overflow: hidden;
-}
-
-.notification-header::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
-    animation: pulse 4s ease-in-out infinite;
 }
 
 .notification-header h3 {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     margin: 0;
-    font-weight: 800;
-    position: relative;
-    z-index: var(--z-base);
-    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    font-weight: 600;
+    color: var(--text-inverse);
 }
 
 .notification-actions {
     display: flex;
-    gap: var(--space-3);
-    position: relative;
-    z-index: var(--z-base);
+    gap: var(--space-2);
 }
 
 .notification-action-btn {
-    background: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.3);
     color: var(--text-inverse);
-    padding: var(--space-2) var(--space-4);
-    border-radius: var(--radius-lg);
+    padding: var(--space-1) var(--space-2);
     cursor: pointer;
     font-size: 0.875rem;
     font-weight: 600;
-    transition: all var(--transition-base);
-    backdrop-filter: blur(10px);
-}
-
-.notification-action-btn:hover {
-    background: rgba(255, 255, 255, 0.35);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
 }
 
 .notification-list {
     flex: 1;
     overflow-y: auto;
-    padding: var(--space-4);
+    padding: var(--space-3);
 }
 
 .notification-item {
     display: flex;
-    gap: var(--space-4);
-    padding: var(--space-5);
-    border-radius: var(--radius-xl);
-    margin-bottom: var(--space-3);
+    gap: var(--space-3);
+    padding: var(--space-3);
+    margin-bottom: var(--space-2);
     cursor: pointer;
-    transition: all var(--transition-base);
     position: relative;
-    background: var(--bg-gradient-subtle);
+    background: var(--bg-secondary);
     border: 1px solid var(--border-light);
-}
-
-.notification-item:hover {
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-    transform: translateX(-4px);
-    box-shadow: var(--shadow-md);
 }
 
 .notification-item.notification-read {
@@ -1460,15 +1799,14 @@ body:not(.employee-page) .gantt-container > #ganttChart {
 }
 
 .notification-icon {
-    font-size: 2rem;
+    font-size: 1.5rem;
     flex-shrink: 0;
-    width: 56px;
-    height: 56px;
+    width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--bg-gradient-subtle);
-    border-radius: var(--radius-xl);
+    background: var(--bg-tertiary);
 }
 
 .notification-content {
@@ -1478,9 +1816,9 @@ body:not(.employee-page) .gantt-container > #ganttChart {
 .notification-message {
     font-size: 0.9375rem;
     color: var(--text-primary);
-    margin: 0 0 var(--space-2) 0;
+    margin: 0 0 var(--space-1) 0;
     font-weight: 500;
-    line-height: 1.5;
+    line-height: 1.4;
 }
 
 .notification-time {
@@ -1491,25 +1829,11 @@ body:not(.employee-page) .gantt-container > #ganttChart {
 
 .notification-unread-dot {
     position: absolute;
-    top: var(--space-6);
-    right: var(--space-5);
-    width: 12px;
-    height: 12px;
-    background: var(--bg-gradient);
-    border-radius: var(--radius-full);
-    box-shadow: var(--shadow-md);
-    animation: pulse-dot 2s ease-in-out infinite;
-}
-
-@keyframes pulse-dot {
-    0%, 100% { 
-        transform: scale(1); 
-        opacity: 1;
-    }
-    50% { 
-        transform: scale(1.2); 
-        opacity: 0.8;
-    }
+    top: var(--space-3);
+    right: var(--space-3);
+    width: 8px;
+    height: 8px;
+    background: var(--primary-600);
 }
 
 .notification-overlay {
@@ -1518,10 +1842,8 @@ body:not(.employee-page) .gantt-container > #ganttChart {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(15, 23, 42, 0.6);
-    backdrop-filter: blur(4px);
+    background: rgba(0, 0, 0, 0.5);
     z-index: calc(var(--z-notification) - 1);
-    animation: fadeIn var(--transition-slow);
     display: none;
 }
 
@@ -1534,24 +1856,24 @@ body:not(.employee-page) .gantt-container > #ganttChart {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: var(--space-20) var(--space-10);
+    padding: var(--space-16) var(--space-8);
     text-align: center;
 }
 
 .notification-empty-icon {
-    font-size: 4rem;
-    margin-bottom: var(--space-6);
+    font-size: 3rem;
+    margin-bottom: var(--space-4);
     opacity: 0.3;
 }
 
 .notification-empty-text {
-    font-size: 1.125rem;
+    font-size: 1rem;
     color: var(--text-tertiary);
     font-weight: 500;
 }
 
 /* ============================================
-   ANNOUNCEMENT BANNER
+   ANNOUNCEMENT BANNER - Flat corporate
    ============================================ */
 
 .announcement-banner-container {
@@ -1561,68 +1883,40 @@ body:not(.employee-page) .gantt-container > #ganttChart {
 
 .announcement-banner {
     position: relative;
-    padding: var(--space-6) var(--space-8);
+    padding: var(--space-4) var(--space-6);
     margin: 0;
-    border-bottom: 3px solid;
+    border-bottom: 2px solid;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: var(--space-6);
-    animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    box-shadow: var(--shadow-lg);
-    backdrop-filter: blur(10px);
-}
-
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    gap: var(--space-4);
 }
 
 .announcement-banner.priority-urgent {
-    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    background: rgba(220, 38, 38, 0.1);
     border-color: var(--danger-600);
-    animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1), bannerPulse 2s ease-in-out infinite;
-}
-
-@keyframes bannerPulse {
-    0%, 100% {
-        border-color: var(--danger-600);
-        box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3), 0 0 0 0 rgba(220, 38, 38, 0.4);
-    }
-    50% {
-        border-color: var(--danger-500);
-        box-shadow: 0 6px 16px rgba(220, 38, 38, 0.4), 0 0 0 10px rgba(220, 38, 38, 0);
-    }
 }
 
 .announcement-banner.priority-important {
-    background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
+    background: rgba(245, 158, 11, 0.1);
     border-color: var(--warning-600);
-    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
 }
 
 .announcement-banner.priority-normal {
-    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-    border-color: var(--primary-500);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+    background: rgba(37, 99, 235, 0.1);
+    border-color: var(--primary-600);
 }
 
 .announcement-banner-content {
     flex: 1;
     display: flex;
     align-items: center;
-    gap: var(--space-4);
+    gap: var(--space-3);
     min-width: 0;
 }
 
 .announcement-banner-icon {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     flex-shrink: 0;
 }
 
@@ -1632,14 +1926,14 @@ body:not(.employee-page) .gantt-container > #ganttChart {
 }
 
 .announcement-banner-title {
-    font-weight: 700;
-    font-size: 1rem;
+    font-weight: 600;
+    font-size: 0.9375rem;
     margin-bottom: var(--space-1);
     color: var(--text-primary);
 }
 
 .announcement-banner-message {
-    font-size: 0.9375rem;
+    font-size: 0.875rem;
     color: var(--text-secondary);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1652,7 +1946,7 @@ body:not(.employee-page) .gantt-container > #ganttChart {
 .announcement-banner-meta {
     display: flex;
     align-items: center;
-    gap: var(--space-3);
+    gap: var(--space-2);
     flex-shrink: 0;
 }
 
@@ -1663,29 +1957,166 @@ body:not(.employee-page) .gantt-container > #ganttChart {
 }
 
 .announcement-banner-dismiss {
-    background: rgba(0, 0, 0, 0.1);
-    border: none;
-    border-radius: var(--radius-full);
-    width: 40px;
-    height: 40px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-light);
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    font-size: 1.25rem;
+    font-size: 1.125rem;
     color: var(--text-primary);
-    transition: all var(--transition-base);
     flex-shrink: 0;
 }
 
 .announcement-banner-dismiss:hover {
-    background: rgba(0, 0, 0, 0.2);
-    transform: scale(1.1) rotate(90deg);
-    box-shadow: var(--shadow-md);
+    background: var(--bg-secondary);
 }
 
-.announcement-banner-dismiss:active {
-    transform: scale(0.9) rotate(90deg);
+/* ============================================
+   DARK MODE TOGGLE - Square flat button
+   ============================================ */
+
+/* CRITICAL FIX: Square rectangular toggle button */
+.dark-mode-toggle {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-light);
+    width: auto;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.875rem;
+    padding: 0 var(--space-3);
+    color: var(--text-primary);
+    font-weight: 500;
+    border-radius: 0px;
+}
+
+.dark-mode-toggle {
+    transition: background-color 1s ease, transform 1s ease, opacity 1s ease;
+}
+
+.dark-mode-toggle:hover {
+    background: var(--bg-secondary);
+    transform: scale(1.1);
+    opacity: 0.9;
+}
+
+.dark-mode-toggle:active {
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+}
+
+/* ============================================
+   ATTENDANCE PANEL
+   ============================================ */
+
+.attendance-panel {
+    position: fixed;
+    right: 20px;
+    bottom: 80px;
+    width: 400px;
+    max-height: 70vh;
+    overflow-y: auto;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-light);
+    padding: var(--space-4);
+    z-index: 99998;
+    display: none;
+    font-family: var(--font-sans);
+}
+
+.attendance-panel-title {
+    margin-top: 0;
+    margin-bottom: var(--space-3);
+    color: var(--text-primary);
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+.attendance-section-title {
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 600;
+    margin-top: var(--space-4);
+    margin-bottom: var(--space-2);
+}
+
+.attendance-section-title:first-of-type {
+    margin-top: 0;
+}
+
+.attendance-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.attendance-item {
+    margin-bottom: var(--space-2);
+    border-bottom: 1px solid var(--border-light);
+    padding-bottom: var(--space-2);
+    color: var(--text-primary);
+}
+
+.attendance-item strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.attendance-device-info {
+    color: var(--text-tertiary);
+    font-size: 0.8125rem;
+    display: block;
+    margin-top: var(--space-1);
+}
+
+.attendance-empty {
+    color: var(--text-secondary);
+    padding: var(--space-2) 0;
+}
+
+.attendance-summary {
+    margin-bottom: var(--space-2);
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+}
+
+.attendance-employee-group {
+    margin-bottom: var(--space-4);
+}
+
+.attendance-employee-name {
+    margin: var(--space-2) 0;
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+    font-weight: 600;
+}
+
+.attendance-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: var(--space-2);
+}
+
+.attendance-table th,
+.attendance-table td {
+    padding: var(--space-1) var(--space-2);
+    border-bottom: 1px solid var(--border-light);
+    text-align: left;
+    color: var(--text-primary);
+}
+
+.attendance-table th {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.attendance-table tbody tr:last-child td {
+    border-bottom: none;
 }
 
 /* ============================================
@@ -1697,7 +2128,6 @@ body:not(.employee-page) .gantt-container > #ganttChart {
         flex-direction: column;
     }
     
-    /* Keep employee page horizontal layout even on smaller screens if possible */
     body.employee-page .dashboard-content {
         flex-direction: row !important;
         display: flex !important;
@@ -1708,12 +2138,11 @@ body:not(.employee-page) .gantt-container > #ganttChart {
         position: static;
     }
     
-    /* Don't override info-panel on employee page at 1024px */
     body.employee-page .info-panel {
-        width: 340px !important;
-        min-width: 340px !important;
-        max-width: 340px !important;
-        flex: 0 0 340px !important;
+        width: 280px !important;
+        min-width: 280px !important;
+        max-width: 280px !important;
+        flex: 0 0 280px !important;
     }
     
     @media (max-width: 768px) {
@@ -1732,16 +2161,16 @@ body:not(.employee-page) .gantt-container > #ganttChart {
 
 @media (max-width: 768px) {
     .dashboard-header {
-        padding: var(--space-4) var(--space-6);
+        padding: var(--space-2) var(--space-4);
         flex-wrap: wrap;
     }
     
     .dashboard-header h1 {
-        font-size: 1.5rem;
+        font-size: 1.125rem;
     }
     
     .header-right {
-        gap: var(--space-3);
+        gap: var(--space-2);
     }
     
     .user-info {
@@ -1749,24 +2178,20 @@ body:not(.employee-page) .gantt-container > #ganttChart {
     }
     
     .dashboard-content {
-        padding: var(--space-4);
+        padding: var(--space-3);
     }
     
     .controls-panel,
     .gantt-container {
-        padding: var(--space-4);
+        padding: var(--space-3);
     }
     
     .info-card {
-        padding: var(--space-4);
+        padding: var(--space-3);
     }
     
     .info-card h3 {
-        font-size: 1rem;
-    }
-    
-    .info-card button {
-        width: 100%;
+        font-size: 0.9375rem;
     }
     
     .form-row {
@@ -1780,9 +2205,9 @@ body:not(.employee-page) .gantt-container > #ganttChart {
     .modal-content {
         width: 95%;
         max-width: 95%;
-        margin: var(--space-6) auto;
+        margin: var(--space-4) auto;
         max-height: 90vh;
-        padding: var(--space-6);
+        padding: var(--space-4);
     }
     
     .modal-actions {
@@ -1796,7 +2221,7 @@ body:not(.employee-page) .gantt-container > #ganttChart {
     .announcement-banner {
         flex-direction: column;
         align-items: stretch;
-        padding: var(--space-4);
+        padding: var(--space-3);
     }
     
     .announcement-banner-content {
@@ -1811,8 +2236,8 @@ body:not(.employee-page) .gantt-container > #ganttChart {
     
     .announcement-banner-dismiss {
         position: absolute;
-        top: var(--space-3);
-        right: var(--space-3);
+        top: var(--space-2);
+        right: var(--space-2);
     }
 }
 
@@ -1823,19 +2248,19 @@ body:not(.employee-page) .gantt-container > #ganttChart {
     }
     
     .dashboard-header {
-        padding: var(--space-3) var(--space-4);
+        padding: var(--space-2) var(--space-3);
     }
     
     .dashboard-header h1 {
-        font-size: 1.25rem;
+        font-size: 1rem;
     }
     
     .header-right {
-        gap: var(--space-2);
+        gap: var(--space-1);
     }
     
     .notification-btn {
-        padding: var(--space-2) var(--space-3);
+        padding: var(--space-1) var(--space-2);
         font-size: 1rem;
     }
     
@@ -1843,162 +2268,44 @@ body:not(.employee-page) .gantt-container > #ganttChart {
     .btn-secondary,
     .btn-success,
     .btn-danger {
-        padding: var(--space-3) var(--space-4);
-        font-size: 0.9375rem;
+        padding: var(--space-2) var(--space-3);
+        font-size: 0.875rem;
     }
     
     .dashboard-content {
-        padding: var(--space-3);
+        padding: var(--space-2);
     }
     
     .controls-panel,
     .gantt-container,
     .info-card {
-        padding: var(--space-4);
+        padding: var(--space-3);
     }
     
     .login-container {
-        padding: var(--space-4);
+        padding: var(--space-3);
     }
     
     .logo h1 {
-        font-size: 2rem;
+        font-size: 1.75rem;
     }
     
     .logo p {
-        font-size: 0.9375rem;
+        font-size: 0.875rem;
     }
     
     .login-form {
-        padding: var(--space-6) var(--space-5);
+        padding: var(--space-4) var(--space-3);
     }
     
     .login-form h2 {
-        font-size: 1.5rem;
-        margin-bottom: var(--space-6);
+        font-size: 1.25rem;
+        margin-bottom: var(--space-4);
     }
     
     .form-group input,
     .form-group select {
-        padding: var(--space-3);
-        font-size: 0.9375rem;
+        padding: var(--space-2);
+        font-size: 0.875rem;
     }
-}
-
-/* ============================================
-   ATTENDANCE PANEL
-   ============================================ */
-
-.attendance-panel {
-    position: fixed;
-    right: 20px;
-    bottom: 80px;
-    width: 450px;
-    max-height: 75vh;
-    overflow-y: auto;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-light);
-    padding: 20px;
-    border-radius: 16px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-    z-index: 99998;
-    display: none;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-}
-
-.attendance-panel-title {
-    margin-top: 0;
-    margin-bottom: 16px;
-    color: var(--text-primary);
-    font-size: 1.25rem;
-    font-weight: 700;
-}
-
-.attendance-section-title {
-    color: var(--text-primary);
-    font-size: 1.1rem;
-    font-weight: 600;
-    margin-top: 20px;
-    margin-bottom: 12px;
-}
-
-.attendance-section-title:first-of-type {
-    margin-top: 0;
-}
-
-.attendance-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-.attendance-item {
-    margin-bottom: 8px;
-    border-bottom: 1px solid var(--border-light);
-    padding-bottom: 6px;
-    color: var(--text-primary);
-}
-
-.attendance-item strong {
-    color: var(--text-primary);
-    font-weight: 600;
-}
-
-.attendance-device-info {
-    color: var(--text-tertiary);
-    font-size: 0.85rem;
-    display: block;
-    margin-top: 4px;
-}
-
-.attendance-empty {
-    color: var(--text-secondary);
-    padding: 12px 0;
-}
-
-.attendance-summary {
-    margin-bottom: 8px;
-    color: var(--text-secondary);
-    font-size: 0.8125rem;
-}
-
-.attendance-employee-group {
-    margin-bottom: 18px;
-}
-
-.attendance-employee-name {
-    margin: 6px 0;
-    color: var(--text-primary);
-    font-size: 1rem;
-    font-weight: 600;
-}
-
-.attendance-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 6px;
-}
-
-.attendance-table th,
-.attendance-table td {
-    padding: 6px 8px;
-    border-bottom: 1px solid var(--border-light);
-    text-align: left;
-    color: var(--text-primary);
-}
-
-.attendance-table th {
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.attendance-table tbody tr:last-child td {
-    border-bottom: none;
-}
-
-/* Dark mode for attendance panel */
-[data-theme="dark"] .attendance-panel {
-    background: var(--bg-primary);
-    border-color: var(--border-medium);
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
 }

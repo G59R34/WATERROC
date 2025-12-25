@@ -1,7 +1,7 @@
 /* Shift Scheduling Styles */
 
 .shifts-container {
-    padding: 30px;
+    padding: var(--space-6) var(--space-8);
     max-width: 1400px;
     margin: 0 auto;
 }
@@ -36,11 +36,12 @@
 
 /* Calendar Grid */
 .shift-calendar {
-    background: var(--card-bg);
-    border-radius: 12px;
-    padding: 25px;
-    box-shadow: var(--shadow);
-    margin-bottom: 30px;
+    background: var(--bg-primary);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-light);
+    margin-bottom: var(--space-6);
     overflow-x: auto;
 }
 
@@ -54,11 +55,11 @@
 .calendar-header {
     font-weight: 600;
     text-align: center;
-    padding: 15px 10px;
-    background: linear-gradient(135deg, var(--primary-color), var(--purple-color));
+    padding: var(--space-4) var(--space-3);
+    background: linear-gradient(135deg, var(--primary-600), var(--purple-600));
     color: white;
-    border-radius: 8px;
-    font-size: 14px;
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
 }
 
 .calendar-header.employee-column {
@@ -73,7 +74,7 @@
     font-weight: 600;
     padding: 20px 10px;
     background: var(--bg-secondary);
-    border-radius: 8px;
+    border-radius: 0px;
     display: flex;
     align-items: center;
     color: var(--text-primary);
@@ -81,27 +82,28 @@
 
 .shift-cell {
     min-height: 80px;
-    border: 2px dashed var(--border-color);
-    border-radius: 8px;
-    padding: 8px;
+    border: 1.5px dashed var(--border-light);
+    border-radius: var(--radius-md);
+    padding: var(--space-2);
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: var(--space-1);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all var(--transition-base);
     background: var(--bg-primary);
 }
 
 .shift-cell:hover {
     background: var(--bg-secondary);
-    border-color: var(--primary-color);
+    border-color: var(--primary-500);
+    box-shadow: var(--shadow-xs);
 }
 
 .shift-block {
     background: linear-gradient(135deg, var(--primary-color), var(--primary-500));
     color: white;
     padding: 10px;
-    border-radius: 6px;
+    border-radius: 0px;
     font-size: 13px;
     cursor: pointer;
     transition: all 0.2s;
@@ -138,7 +140,7 @@
 /* Time Off Section */
 .time-off-section {
     background: var(--card-bg);
-    border-radius: 12px;
+    border-radius: 0px;
     padding: 25px;
     box-shadow: var(--shadow);
 }
@@ -160,7 +162,7 @@
     align-items: center;
     padding: 15px;
     background: var(--bg-secondary);
-    border-radius: 8px;
+    border-radius: 0px;
     border-left: 4px solid var(--warning-color);
 }
 
@@ -201,7 +203,7 @@
 
 .time-off-status {
     padding: 6px 12px;
-    border-radius: 20px;
+    border-radius: 0px;
     font-size: 12px;
     font-weight: 600;
     text-transform: uppercase;
@@ -242,7 +244,7 @@
     color: white;
     border: none;
     padding: 8px 16px;
-    border-radius: 6px;
+    border-radius: 0px;
     cursor: pointer;
     font-size: 13px;
     transition: all 0.2s;
@@ -257,7 +259,7 @@
     color: white;
     border: none;
     padding: 8px 16px;
-    border-radius: 6px;
+    border-radius: 0px;
     cursor: pointer;
     font-size: 13px;
     transition: all 0.2s;
@@ -272,7 +274,7 @@
     color: white;
     border: none;
     padding: 8px 16px;
-    border-radius: 6px;
+    border-radius: 0px;
     cursor: pointer;
     font-size: 13px;
     transition: all 0.2s;

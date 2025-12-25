@@ -4,58 +4,121 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WaterROC - Login</title>
-    <link rel="icon" type="image/png" href="/favicon.png">
-    <link rel="shortcut icon" type="image/png" href="/favicon.png">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="shortcut icon" type="image/png" href="favicon.png">
     <link rel="stylesheet" href="styles/main.css">
     <script src="scripts/dark-mode.js" defer></script>
+    <!-- ADDED UI: QR code scanner library -->
+    <script src="https://unpkg.com/html5-qrcode@latest/html5-qrcode.min.js"></script>
 </head>
 <body>
+    <!-- ADDED UI: Loading overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner"></div>
+        <p>Loading...</p>
+    </div>
+    
+    <!-- ADDED UI: Error message container -->
+    <div id="errorMessage" class="error-message" style="display: none;"></div>
+    
+    <!-- FIXED DARK MODE: Square centered card, adapts to theme -->
     <div class="login-container">
         <div class="login-card">
             <div class="logo">
-                <h1>WaterROC</h1>
+                <!-- ADDED: Favicon logo image -->
+                <img src="favicon.png" alt="WaterROC Logo" class="logo-image" onerror="this.style.display='none';">
+                <h1>WaterROC Login</h1>
                 <p>Waterstream Resource Operations Center</p>
-                <p>Version 2.1.4</p>
-                <p>NOTE: Signing in as ADMIN requires an invite</p>
             </div>
             <div class="login-form">
                 <h2 id="formTitle">Sign In</h2>
                 <form id="loginForm">
+                    <!-- LOGIC: Form validation on login -->
                     <div class="form-group">
-                        <label for="username">Username or Email</label>
-                        <input  type="text" id="username" name="username" required>
+                        <label for="username">Employee ID / Username</label>
+                        <input type="text" id="username" name="username" required title="Enter your employee ID or username">
+                        <small class="field-error" id="usernameError"></small>
                     </div>
                     <div class="form-group" id="emailGroup" style="display: none;">
                         <label for="email">Email Address</label>
-                        <input type="email" id="email" name="email">
+                        <input type="email" id="email" name="email" title="Enter your email address">
+                        <small class="field-error" id="emailError"></small>
                     </div>
                     <div class="form-group" id="fullNameGroup" style="display: none;">
                         <label for="fullName">Full Name</label>
-                        <input type="text" id="fullName" name="fullName">
+                        <input type="text" id="fullName" name="fullName" title="Enter your full name">
+                        <small class="field-error" id="fullNameError"></small>
                     </div>
                     <div class="form-group">
                         <label for="password">Password</label>
-                        <input type="password" id="password" name="password" required>
+                        <input type="password" id="password" name="password" required title="Enter your password">
+                        <small class="field-error" id="passwordError"></small>
+                        <!-- ADDED UI: Password strength hint -->
+                        <small class="password-hint" id="passwordHint" style="display: none;">Password should be at least 6 characters</small>
                     </div>
                     <div class="form-group">
                         <label for="role">Role</label>
-                        <select id="role" name="role" required>
+                        <select id="role" name="role" required title="Select your role">
                             <option value="admin">Admin</option>
                             <option value="employee">Employee</option>
                         </select>
                     </div>
-                    <button type="submit" class="btn-primary" id="submitBtn">Login</button>
+                    <!-- ADDED UI: Remember me checkbox -->
+                    <div class="form-group checkbox-group">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="rememberMe" style="width: auto; margin: 0;">
+                            <span>Remember me</span>
+                        </label>
+                    </div>
+                    <!-- ADDED UI: Progress bar for loading -->
+                    <div id="loginProgress" class="login-progress" style="display: none;">
+                        <div class="progress-bar"></div>
+                    </div>
+                    <button type="submit" class="btn-primary" id="submitBtn" title="Click to login">Login</button>
                 </form>
+                <!-- ADDED UI: QR code scan button with tooltip -->
+                <button type="button" class="btn-primary btn-qr" id="scanQRBtn" title="Scan QR code to auto-fill login credentials">Scan QR Code</button>
                 <div class="toggle-form">
-                    <p>Don't have an account? <a href="#" id="toggleSignup">Sign Up</a></p>
+                    <p>Don't have an account? <a href="#" id="toggleSignup" title="Create a new account">Sign Up</a></p>
+                    <!-- ADDED UI: Forgot password link -->
+                    <p style="margin-top: 10px;"><a href="#" id="forgotPassword" title="Reset your password">Forgot Password?</a></p>
                 </div>
-             
             </div>
         </div>
     </div>
+    
+    <!-- ADDED UI: QR scanner modal with better styling -->
+    <div id="qrModal" class="qr-modal">
+        <div class="qr-modal-content">
+            <button class="qr-modal-close" id="qrModalClose" title="Close QR scanner">&times;</button>
+            <h3>Scan QR Code</h3>
+            <div id="qr-reader"></div>
+            <p class="qr-help-text">Allow camera access to scan QR code</p>
+            <!-- ADDED UI: QR scan status -->
+            <div id="qrStatus" class="qr-status" style="display: none;"></div>
+        </div>
+    </div>
+    
+    <!-- ADDED UI: Footer with version/copyright -->
+    <footer class="login-footer">
+        <p>WaterROC v2.1.4 &copy; 1983 Waterstream Resource Operations Center</p>
+    </footer>
+    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="scripts/supabase.js"></script>
     <script src="scripts/config.js"></script>
     <script src="scripts/login.js"></script>
+    <!-- ADDED UI: Enhanced QR code handler -->
+    <script src="scripts/qr-login.js"></script>
+    <!-- LOGIC: Enhanced login validation -->
+    <script src="scripts/login-validation.js"></script>
+    <script>
+        // DISABLED: Page load screen was blocking login functionality
+        // window.addEventListener('load', function() {
+        //     if (typeof showPageLoadScreen !== 'undefined') {
+        //         showPageLoadScreen();
+        //     }
+        // });
+    </script>
 </body>
 </html>

@@ -90,7 +90,13 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     templateForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        await saveTemplate();
+        if (typeof showFormLoadingScreen !== 'undefined') {
+            showFormLoadingScreen('template', async () => {
+                await saveTemplate();
+            });
+        } else {
+            await saveTemplate();
+        }
     });
 
     // Load task templates

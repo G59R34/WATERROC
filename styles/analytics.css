@@ -1,7 +1,7 @@
 /* Analytics Dashboard Styles */
 
 .analytics-container {
-    padding: 30px;
+    padding: var(--space-6) var(--space-8);
     max-width: 1400px;
     margin: 0 auto;
 }
@@ -10,11 +10,12 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 30px;
-    padding: 20px;
-    background: var(--card-bg);
-    border-radius: 12px;
-    box-shadow: var(--shadow);
+    margin-bottom: var(--space-6);
+    padding: var(--space-6);
+    background: var(--bg-primary);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-light);
 }
 
 .analytics-controls h2 {
@@ -35,10 +36,21 @@
 
 .date-range-selector select,
 .date-range-selector input[type="date"] {
-    padding: 8px 12px;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    font-size: 14px;
+    padding: var(--space-3) var(--space-4);
+    border: 1.5px solid var(--border-light);
+    border-radius: var(--radius-md);
+    font-size: 0.9375rem;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    transition: all var(--transition-base);
+    box-shadow: var(--shadow-xs);
+}
+
+.date-range-selector select:focus,
+.date-range-selector input[type="date"]:focus {
+    outline: none;
+    border-color: var(--primary-500);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1), var(--shadow-sm);
 }
 
 #customDateRange {
@@ -56,19 +68,21 @@
 }
 
 .summary-card {
-    background: linear-gradient(135deg, var(--card-bg) 0%, #f8fafc 100%);
-    border-radius: 12px;
-    padding: 25px;
-    box-shadow: var(--shadow);
+    background: var(--bg-primary);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-light);
     display: flex;
     align-items: center;
-    gap: 20px;
-    transition: transform 0.2s, box-shadow 0.2s;
+    gap: var(--space-5);
+    transition: all var(--transition-base);
 }
 
 .summary-card:hover {
     transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-medium);
 }
 
 .summary-icon {
@@ -105,11 +119,12 @@
 
 /* Analytics Sections */
 .analytics-section {
-    background: var(--card-bg);
-    border-radius: 12px;
-    padding: 25px;
-    box-shadow: var(--shadow);
-    margin-bottom: 30px;
+    background: var(--bg-primary);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-light);
+    margin-bottom: var(--space-6);
 }
 
 .analytics-section h3 {
@@ -140,7 +155,7 @@
 }
 
 .analytics-table thead {
-    background: linear-gradient(135deg, var(--primary-color), var(--purple-color));
+    background: linear-gradient(135deg, var(--primary-600), var(--purple-600));
 }
 
 .analytics-table th {
@@ -159,7 +174,7 @@
 }
 
 .analytics-table tbody tr:hover {
-    background: #f8fafc;
+    background: var(--bg-secondary);
 }
 
 .analytics-table td {
@@ -178,7 +193,7 @@
 .performance-badge {
     display: inline-block;
     padding: 6px 12px;
-    border-radius: 20px;
+    border-radius: 0px;
     font-size: 12px;
     font-weight: 600;
     text-transform: uppercase;
@@ -208,7 +223,7 @@
 .progress-bar {
     background: var(--border-color);
     height: 8px;
-    border-radius: 10px;
+    border-radius: 0px;
     overflow: hidden;
     margin-top: 5px;
 }
@@ -235,7 +250,7 @@
 .status-bar {
     height: 30px;
     background: var(--border-color);
-    border-radius: 8px;
+    border-radius: 0px;
     overflow: hidden;
     position: relative;
 }
@@ -296,11 +311,17 @@
 
 .activity-item {
     display: flex;
-    gap: 15px;
-    padding: 15px;
-    background: #f8fafc;
-    border-radius: 8px;
-    border-left: 4px solid var(--primary-color);
+    gap: var(--space-4);
+    padding: var(--space-4);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border-left: 3px solid var(--primary-600);
+    transition: all var(--transition-base);
+}
+
+.activity-item:hover {
+    background: var(--bg-tertiary);
+    transform: translateX(2px);
 }
 
 .activity-icon {
