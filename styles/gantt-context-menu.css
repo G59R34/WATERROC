@@ -1,74 +1,38 @@
-/* Gantt Chart Context Menu Styles */
+/* Context Menu Styles */
 .gantt-context-menu {
     position: fixed;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-xl);
-    padding: var(--space-2);
+    background: #ffffff;
+    border: 1px solid var(--border-medium);
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     z-index: 10000;
     min-width: 180px;
+    padding: 4px 0;
     display: none;
-    animation: contextMenuFadeIn 0.15s ease-out;
 }
 
-@keyframes contextMenuFadeIn {
-    from {
-        opacity: 0;
-        transform: scale(0.95) translateY(-5px);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-    }
+[data-theme="dark"] .gantt-context-menu {
+    background: var(--bg-primary);
+    border-color: var(--border-dark);
 }
 
 .context-menu-item {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-3) var(--space-4);
-    border-radius: var(--radius-md);
+    padding: 8px 16px;
     cursor: pointer;
-    transition: all var(--transition-fast);
+    font-size: 0.875rem;
     color: var(--text-primary);
-    font-size: 0.9375rem;
-    font-weight: 500;
+    transition: background-color 0.2s;
+    user-select: none;
 }
 
 .context-menu-item:hover {
     background: var(--bg-secondary);
-    transform: translateX(2px);
 }
 
-[data-theme="dark"] .context-menu-item:hover {
-    background: var(--bg-tertiary);
+.context-menu-item.danger {
+    color: #ef4444;
 }
 
-.context-menu-item:active {
-    transform: translateX(1px);
+.context-menu-item.danger:hover {
+    background: rgba(239, 68, 68, 0.1);
 }
-
-.context-menu-icon {
-    font-size: 1.125rem;
-    width: 20px;
-    text-align: center;
-    flex-shrink: 0;
-}
-
-.context-menu-text {
-    flex: 1;
-}
-
-/* Dark mode specific styles */
-[data-theme="dark"] .gantt-context-menu {
-    background: var(--bg-primary);
-    border-color: var(--border-light);
-    box-shadow: var(--shadow-2xl);
-}
-
-[data-theme="dark"] .context-menu-item {
-    color: var(--text-primary);
-}
-
-

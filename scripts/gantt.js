@@ -23,6 +23,20 @@ class GanttChart {
         this.dragOffset = { x: 0, y: 0 };
         this.timeIndicatorInterval = null; // Time indicator update interval
         
+        // Multi-select state
+        this.isSelecting = false;
+        this.selectionStart = { x: 0, y: 0 };
+        this.selectionBox = null;
+        this.selectedItems = new Set(); // Track selected items by their element
+        this.selectionMode = false; // Toggle selection mode
+        
+        // Multi-select state
+        this.isSelecting = false;
+        this.selectionStart = { x: 0, y: 0 };
+        this.selectionBox = null;
+        this.selectedItems = new Set(); // Track selected items by their element
+        this.selectionMode = false; // Toggle selection mode
+        
         // Zoom/Scale levels
         this.zoomLevels = {
             week: { name: 'Week View', dayWidth: 120, showHours: false, rangeType: 'week' },
@@ -40,10 +54,18 @@ class GanttChart {
         // Track initialization state
         this._initialized = false;
         
+        // Initialize context menu
+        this.contextMenu = null;
+        
         // Call init asynchronously
         this.init().then(() => {
             this._initialized = true;
             console.log('✅ GanttChart init() completed');
+            
+            // Initialize context menu after chart is ready
+            if (typeof GanttContextMenu !== 'undefined') {
+                this.contextMenu = new GanttContextMenu(this);
+            }
         }).catch(error => {
             console.error('Error in GanttChart init():', error);
             this._initialized = false;
@@ -299,6 +321,9 @@ class GanttChart {
         // Add current time indicator
         this.addTimeIndicator(body);
         this.startTimeIndicator();
+        
+        // Initialize multi-select
+        this.initMultiSelect(body);
         
         // Smooth scrolling sync
         const timelineHeader = header.querySelector('.gantt-timeline-header');
@@ -1423,11 +1448,43 @@ class GanttChart {
             shiftBar.addEventListener('mousedown', (e) => this.startDrag(e, shiftBar, shift));
         }
         
-        // Click to edit
+        // Click to edit (but allow multi-select with Ctrl/Cmd)
         shiftBar.addEventListener('click', (e) => {
             e.stopPropagation();
+            
+            // If Ctrl/Cmd is held, toggle selection instead of opening edit modal
+            if (e.ctrlKey || e.metaKey) {
+                if (this.selectedItems.has(shiftBar)) {
+                    this.selectedItems.delete(shiftBar);
+                    shiftBar.classList.remove('gantt-selected');
+                } else {
+                    this.selectedItems.add(shiftBar);
+                    shiftBar.classList.add('gantt-selected');
+                }
+                return;
+            }
+            
+            // If item is selected, don't open edit modal (user might want to delete multiple)
+            if (this.selectedItems.has(shiftBar) && this.selectedItems.size > 1) {
+                return;
+            }
+            
+            // Clear selection if clicking on a single item
+            if (!this.selectedItems.has(shiftBar)) {
+                this.clearSelection();
+            }
+            
             if (window.openEditShiftModal) {
                 window.openEditShiftModal(employeeId, '', shift, dateStr);
+            }
+        });
+        
+        // Right-click context menu
+        shiftBar.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (this.contextMenu) {
+                this.contextMenu.show(e, shift, 'shift');
             }
         });
         
@@ -1690,7 +1747,39 @@ class GanttChart {
         
         taskDiv.addEventListener('click', (e) => {
             e.stopPropagation();
+            
+            // If Ctrl/Cmd is held, toggle selection instead of opening task
+            if (e.ctrlKey || e.metaKey) {
+                if (this.selectedItems.has(taskDiv)) {
+                    this.selectedItems.delete(taskDiv);
+                    taskDiv.classList.remove('gantt-selected');
+                } else {
+                    this.selectedItems.add(taskDiv);
+                    taskDiv.classList.add('gantt-selected');
+                }
+                return;
+            }
+            
+            // If item is selected, don't open task (user might want to delete multiple)
+            if (this.selectedItems.has(taskDiv) && this.selectedItems.size > 1) {
+                return;
+            }
+            
+            // Clear selection if clicking on a single item
+            if (!this.selectedItems.has(taskDiv)) {
+                this.clearSelection();
+            }
+            
             this.onTaskClick(task);
+        });
+        
+        // Right-click context menu
+        taskDiv.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (this.contextMenu) {
+                this.contextMenu.show(e, task, 'task');
+            }
         });
         
         return taskDiv;
@@ -1795,7 +1884,39 @@ class GanttChart {
         
         taskDiv.addEventListener('click', (e) => {
             e.stopPropagation();
+            
+            // If Ctrl/Cmd is held, toggle selection instead of opening task
+            if (e.ctrlKey || e.metaKey) {
+                if (this.selectedItems.has(taskDiv)) {
+                    this.selectedItems.delete(taskDiv);
+                    taskDiv.classList.remove('gantt-selected');
+                } else {
+                    this.selectedItems.add(taskDiv);
+                    taskDiv.classList.add('gantt-selected');
+                }
+                return;
+            }
+            
+            // If item is selected, don't open task (user might want to delete multiple)
+            if (this.selectedItems.has(taskDiv) && this.selectedItems.size > 1) {
+                return;
+            }
+            
+            // Clear selection if clicking on a single item
+            if (!this.selectedItems.has(taskDiv)) {
+                this.clearSelection();
+            }
+            
             this.onTaskClick(task);
+        });
+        
+        // Right-click context menu
+        taskDiv.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (this.contextMenu) {
+                this.contextMenu.show(e, task, 'task');
+            }
         });
         
         return taskDiv;
@@ -1958,6 +2079,42 @@ class GanttChart {
             
             taskDiv.title = `${hourlyTask.name}\n${startTime} - ${endTime}\n${hourlyTask.work_area || 'other'}`;
             
+            // Click handler for hourly tasks in hour view (allow multi-select)
+            taskDiv.addEventListener('click', (e) => {
+                e.stopPropagation();
+                
+                // If Ctrl/Cmd is held, toggle selection
+                if (e.ctrlKey || e.metaKey) {
+                    if (this.selectedItems.has(taskDiv)) {
+                        this.selectedItems.delete(taskDiv);
+                        taskDiv.classList.remove('gantt-selected');
+                    } else {
+                        this.selectedItems.add(taskDiv);
+                        taskDiv.classList.add('gantt-selected');
+                    }
+                    return;
+                }
+                
+                // If item is selected, don't do anything (user might want to delete multiple)
+                if (this.selectedItems.has(taskDiv) && this.selectedItems.size > 1) {
+                    return;
+                }
+                
+                // Clear selection if clicking on a single item
+                if (!this.selectedItems.has(taskDiv)) {
+                    this.clearSelection();
+                }
+            });
+            
+            // Right-click context menu for hourly tasks in hour view
+            taskDiv.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (this.contextMenu) {
+                    this.contextMenu.show(e, hourlyTask, 'hourlyTask');
+                }
+            });
+            
             return taskDiv;
         }
         
@@ -2076,13 +2233,45 @@ class GanttChart {
             <span class="hourly-task-time" style="margin-left: 4px; font-size: 0.7rem; opacity: 0.9;">${startTime}</span>
         `;
         
-        // Click to open hourly Gantt for that day
+        // Click to open hourly Gantt for that day (but allow multi-select with Ctrl/Cmd)
         taskDiv.addEventListener('click', (e) => {
             e.stopPropagation();
+            
+            // If Ctrl/Cmd is held, toggle selection instead of opening hourly Gantt
+            if (e.ctrlKey || e.metaKey) {
+                if (this.selectedItems.has(taskDiv)) {
+                    this.selectedItems.delete(taskDiv);
+                    taskDiv.classList.remove('gantt-selected');
+                } else {
+                    this.selectedItems.add(taskDiv);
+                    taskDiv.classList.add('gantt-selected');
+                }
+                return;
+            }
+            
+            // If item is selected, don't open hourly Gantt (user might want to delete multiple)
+            if (this.selectedItems.has(taskDiv) && this.selectedItems.size > 1) {
+                return;
+            }
+            
+            // Clear selection if clicking on a single item
+            if (!this.selectedItems.has(taskDiv)) {
+                this.clearSelection();
+            }
+            
             if (window.openHourlyGantt) {
                 window.openHourlyGantt(dateStr);
             } else {
                 console.log('Hourly task clicked:', hourlyTask);
+            }
+        });
+        
+        // Right-click context menu for hourly tasks in normal view
+        taskDiv.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (this.contextMenu) {
+                this.contextMenu.show(e, hourlyTask, 'hourlyTask');
             }
         });
         
@@ -2200,6 +2389,282 @@ class GanttChart {
     
     getTask(taskId) {
         return this.data.tasks.find(t => t.id === parseInt(taskId));
+    }
+    
+    // Initialize multi-select functionality
+    initMultiSelect(body) {
+        let isMouseDown = false;
+        let startX = 0;
+        let startY = 0;
+        
+        // Create selection box element
+        this.selectionBox = document.createElement('div');
+        this.selectionBox.className = 'gantt-selection-box';
+        this.selectionBox.style.display = 'none';
+        body.appendChild(this.selectionBox);
+        
+        // Mouse down - start selection
+        body.addEventListener('mousedown', (e) => {
+            // Don't start selection if clicking directly on an item
+            if (e.target.closest('.gantt-shift-bar, .gantt-task, .gantt-hourly-task')) {
+                return;
+            }
+            
+            // Only start selection if clicking on empty space
+            if (e.target === body || e.target.classList.contains('gantt-day-cell') || 
+                e.target.classList.contains('gantt-timeline-cell') || 
+                e.target.classList.contains('gantt-row') ||
+                e.target.classList.contains('gantt-body')) {
+                
+                // Prevent text selection
+                e.preventDefault();
+                
+                // Check if Ctrl/Cmd key is held for multi-select mode
+                if (e.ctrlKey || e.metaKey) {
+                    this.selectionMode = true;
+                }
+                
+                isMouseDown = true;
+                this.isSelecting = true;
+                
+                // Disable text selection on body during drag
+                body.style.userSelect = 'none';
+                body.style.webkitUserSelect = 'none';
+                body.style.mozUserSelect = 'none';
+                body.style.msUserSelect = 'none';
+                
+                const rect = body.getBoundingClientRect();
+                startX = e.clientX - rect.left + body.scrollLeft;
+                startY = e.clientY - rect.top + body.scrollTop;
+                
+                this.selectionStart = { x: startX, y: startY };
+                
+                this.selectionBox.style.left = `${startX}px`;
+                this.selectionBox.style.top = `${startY}px`;
+                this.selectionBox.style.width = '0px';
+                this.selectionBox.style.height = '0px';
+                this.selectionBox.style.display = 'block';
+                
+                // Clear previous selection if not in multi-select mode
+                if (!this.selectionMode) {
+                    this.clearSelection();
+                }
+            }
+        });
+        
+        // Mouse move - update selection box
+        body.addEventListener('mousemove', (e) => {
+            if (isMouseDown && this.isSelecting) {
+                // Prevent text selection during drag
+                e.preventDefault();
+                
+                const rect = body.getBoundingClientRect();
+                const currentX = e.clientX - rect.left + body.scrollLeft;
+                const currentY = e.clientY - rect.top + body.scrollTop;
+                
+                const left = Math.min(startX, currentX);
+                const top = Math.min(startY, currentY);
+                const width = Math.abs(currentX - startX);
+                const height = Math.abs(currentY - startY);
+                
+                this.selectionBox.style.left = `${left}px`;
+                this.selectionBox.style.top = `${top}px`;
+                this.selectionBox.style.width = `${width}px`;
+                this.selectionBox.style.height = `${height}px`;
+                
+                // Update selected items
+                this.updateSelection(left, top, width, height);
+            }
+        });
+        
+        // Mouse up - finish selection
+        body.addEventListener('mouseup', (e) => {
+            if (isMouseDown) {
+                // Re-enable text selection
+                body.style.userSelect = '';
+                body.style.webkitUserSelect = '';
+                body.style.mozUserSelect = '';
+                body.style.msUserSelect = '';
+                
+                isMouseDown = false;
+                this.isSelecting = false;
+                this.selectionBox.style.display = 'none';
+                this.selectionMode = false;
+            }
+        });
+        
+        // Also prevent text selection on mouse leave (in case mouse is released outside)
+        body.addEventListener('mouseleave', (e) => {
+            if (isMouseDown) {
+                // Re-enable text selection
+                body.style.userSelect = '';
+                body.style.webkitUserSelect = '';
+                body.style.mozUserSelect = '';
+                body.style.msUserSelect = '';
+                
+                isMouseDown = false;
+                this.isSelecting = false;
+                this.selectionBox.style.display = 'none';
+                this.selectionMode = false;
+            }
+        });
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Delete selected items with Delete or Backspace
+            if ((e.key === 'Delete' || e.key === 'Backspace') && this.selectedItems.size > 0) {
+                e.preventDefault();
+                this.deleteSelectedItems();
+            }
+            
+            // Escape to clear selection
+            if (e.key === 'Escape') {
+                this.clearSelection();
+            }
+        });
+    }
+    
+    // Update selection based on selection box
+    updateSelection(left, top, width, height) {
+        const allItems = this.container.querySelectorAll('.gantt-shift-bar, .gantt-task, .gantt-hourly-task');
+        
+        allItems.forEach(item => {
+            const rect = item.getBoundingClientRect();
+            const bodyRect = this.container.querySelector('.gantt-body').getBoundingClientRect();
+            const bodyScroll = this.container.querySelector('.gantt-body');
+            
+            const itemLeft = rect.left - bodyRect.left + (bodyScroll?.scrollLeft || 0);
+            const itemTop = rect.top - bodyRect.top + (bodyScroll?.scrollTop || 0);
+            const itemRight = itemLeft + rect.width;
+            const itemBottom = itemTop + rect.height;
+            
+            // Check if item overlaps with selection box
+            const overlaps = !(itemRight < left || itemLeft > left + width || 
+                             itemBottom < top || itemTop > top + height);
+            
+            if (overlaps) {
+                if (!this.selectedItems.has(item)) {
+                    this.selectedItems.add(item);
+                    item.classList.add('gantt-selected');
+                }
+            } else {
+                // Only remove from selection if not in multi-select mode
+                if (!this.selectionMode && this.selectedItems.has(item)) {
+                    this.selectedItems.delete(item);
+                    item.classList.remove('gantt-selected');
+                }
+            }
+        });
+        
+        // Log current selection count for debugging
+        if (this.selectedItems.size > 0) {
+            console.log(`📦 ${this.selectedItems.size} item(s) selected`);
+        }
+    }
+    
+    // Clear all selections
+    clearSelection() {
+        this.selectedItems.forEach(item => {
+            item.classList.remove('gantt-selected');
+        });
+        this.selectedItems.clear();
+    }
+    
+    // Delete all selected items
+    async deleteSelectedItems() {
+        if (this.selectedItems.size === 0) {
+            console.log('No items selected for deletion');
+            return;
+        }
+        
+        const count = this.selectedItems.size;
+        console.log(`🗑️ Attempting to delete ${count} selected item(s)`);
+        
+        if (!confirm(`Are you sure you want to delete ${count} item(s)?`)) {
+            return;
+        }
+        
+        // Create a copy of the set to avoid issues during iteration
+        const itemsToDelete = Array.from(this.selectedItems);
+        console.log('📋 Items to delete:', itemsToDelete.map(item => ({
+            type: item.className.split(' ')[0],
+            id: item.dataset.shiftId || item.dataset.taskId,
+            name: item.textContent?.trim() || 'Unknown'
+        })));
+        
+        let successCount = 0;
+        let failCount = 0;
+        
+        for (const item of itemsToDelete) {
+            try {
+                const itemType = item.classList.contains('gantt-shift-bar') ? 'shift' :
+                                item.classList.contains('gantt-hourly-task') ? 'hourlyTask' : 'task';
+                
+                const itemId = item.dataset.shiftId || item.dataset.taskId;
+                
+                console.log(`🗑️ Deleting ${itemType} with ID: ${itemId}`);
+                
+                if (!itemId) {
+                    console.warn('Item missing ID:', item);
+                    failCount++;
+                    continue;
+                }
+                
+                if (itemType === 'shift') {
+                    if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+                        const result = await supabaseService.deleteEmployeeShift(parseInt(itemId));
+                        if (result) successCount++;
+                        else failCount++;
+                    } else {
+                        failCount++;
+                    }
+                } else if (itemType === 'hourlyTask') {
+                    if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+                        const result = await supabaseService.deleteHourlyTask(parseInt(itemId));
+                        if (result) successCount++;
+                        else failCount++;
+                    } else {
+                        failCount++;
+                    }
+                } else if (itemType === 'task') {
+                    if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+                        const result = await supabaseService.deleteTask(parseInt(itemId));
+                        if (result) successCount++;
+                        else failCount++;
+                    } else {
+                        // Fallback to local deletion
+                        if (this.deleteTask) {
+                            await this.deleteTask(itemId);
+                            successCount++;
+                        } else {
+                            failCount++;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error deleting item:', error);
+                failCount++;
+            }
+        }
+        
+        // Clear selection
+        this.clearSelection();
+        
+        // Refresh the chart
+        if (typeof this.render === 'function') {
+            await this.render();
+        }
+        
+        if (typeof syncFromSupabase === 'function') {
+            await syncFromSupabase();
+        }
+        
+        // Show result
+        if (failCount === 0) {
+            alert(`✅ Successfully deleted ${successCount} item(s)!`);
+        } else {
+            alert(`⚠️ Deleted ${successCount} item(s), ${failCount} failed.`);
+        }
     }
     
     // Add current time indicator element to the body

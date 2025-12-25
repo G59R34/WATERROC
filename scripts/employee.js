@@ -26,6 +26,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Initialize Gantt Chart in read-only mode first
     const gantt = new GanttChart('ganttChart', false);
     
+    // Make gantt globally accessible
+    window.gantt = gantt;
+    
     // Logout functionality - set this up FIRST before any async operations
     document.getElementById('logoutBtn').addEventListener('click', async function(e) {
         e.preventDefault();
@@ -1901,6 +1904,56 @@ document.addEventListener('DOMContentLoaded', async function() {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+    
+    // Set up zoom controls for Gantt chart
+    const zoomInBtn = document.getElementById('zoomInBtn');
+    const zoomOutBtn = document.getElementById('zoomOutBtn');
+    const zoomResetBtn = document.getElementById('zoomResetBtn');
+    const scaleSelector = document.getElementById('ganttScaleSelector');
+    
+    if (zoomInBtn && gantt) {
+        zoomInBtn.addEventListener('click', function() {
+            if (gantt) {
+                gantt.zoomIn();
+                // Update selector to match
+                if (scaleSelector) {
+                    scaleSelector.value = gantt.currentZoomLevel;
+                }
+            }
+        });
+    }
+    
+    if (zoomOutBtn && gantt) {
+        zoomOutBtn.addEventListener('click', function() {
+            if (gantt) {
+                gantt.zoomOut();
+                // Update selector to match
+                if (scaleSelector) {
+                    scaleSelector.value = gantt.currentZoomLevel;
+                }
+            }
+        });
+    }
+    
+    if (zoomResetBtn && gantt) {
+        zoomResetBtn.addEventListener('click', function() {
+            if (gantt) {
+                gantt.resetZoom();
+                // Update selector to match
+                if (scaleSelector) {
+                    scaleSelector.value = gantt.currentZoomLevel;
+                }
+            }
+        });
+    }
+    
+    if (scaleSelector && gantt) {
+        scaleSelector.addEventListener('change', function() {
+            if (gantt) {
+                gantt.setZoomLevel(this.value);
+            }
+        });
     }
 });
 

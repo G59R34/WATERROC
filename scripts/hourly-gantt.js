@@ -10,6 +10,12 @@ class HourlyGanttChart {
         this.workAreas = ['music-prod', 'video-creation', 'administrative', 'other', 'note-other'];
         this.tasks = [];
         
+        // Initialize context menu
+        this.contextMenu = null;
+        if (typeof GanttContextMenu !== 'undefined') {
+            this.contextMenu = new GanttContextMenu(this);
+        }
+        
         this.init();
     }
     
@@ -422,6 +428,11 @@ class HourlyGanttChart {
         const workBar = document.createElement('div');
         workBar.className = `hourly-gantt-work-bar work-bar-${area}`;
         
+        // Add data attributes for context menu
+        workBar.dataset.shiftId = shift.id;
+        workBar.dataset.employeeId = employee.id;
+        workBar.dataset.date = this.formatDate(this.selectedDate);
+        
         const startTime = shift.start_time.substring(0, 5); // "HH:MM"
         const endTime = shift.end_time.substring(0, 5);
         
@@ -439,6 +450,10 @@ class HourlyGanttChart {
         workBar.style.cursor = 'pointer';
         workBar.style.pointerEvents = 'auto';
         
+        // Store shift and employee data on the element for context menu
+        workBar.shift = shift;
+        workBar.employee = employee;
+        
         // Make clickable to edit shift
         if (this.isEditable) {
             workBar.addEventListener('click', (e) => {
@@ -448,6 +463,16 @@ class HourlyGanttChart {
                 }
             });
         }
+        
+        // Add right-click context menu for shifts
+        workBar.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (this.contextMenu) {
+                // Pass the workBar element which has shift and employee attached
+                this.contextMenu.show(e, workBar, 'shift');
+            }
+        });
         
         console.log('Work bar created:', {
             area,

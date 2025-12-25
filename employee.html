@@ -97,6 +97,21 @@
             </div>
             
             <div class="gantt-container">
+                <!-- Gantt controls bar with scale selector and zoom buttons -->
+                <div class="gantt-controls-bar">
+                    <div class="gantt-controls-left">
+                        <!-- Scale selector and zoom buttons for Gantt -->
+                        <select id="ganttScaleSelector" class="gantt-scale-selector" title="Select zoom level">
+                            <option value="week">Week View</option>
+                            <option value="month" selected>Month View</option>
+                            <option value="day">Day View</option>
+                            <option value="hour">Hour View</option>
+                        </select>
+                        <button id="zoomOutBtn" class="btn-secondary btn-small" title="Zoom out">−</button>
+                        <button id="zoomInBtn" class="btn-secondary btn-small" title="Zoom in">+</button>
+                        <button id="zoomResetBtn" class="btn-secondary btn-small" title="Reset zoom">Reset</button>
+                    </div>
+                </div>
                 <div id="ganttChart" class="gantt-chart readonly"></div>
                 
                 <!-- Summary Section -->

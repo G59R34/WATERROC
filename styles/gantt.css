@@ -183,6 +183,10 @@ body:not(.employee-page) .gantt-chart {
     flex-direction: column;
     overflow: auto;
     position: relative;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 /* CRITICAL FIX: Bright white Gantt rows */
@@ -294,6 +298,10 @@ body:not(.employee-page) .gantt-chart {
     position: relative;
     min-width: fit-content;
     width: 100%;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 /* Hour view: timeline cell should stretch full width */
@@ -312,6 +320,10 @@ body:not(.employee-page) .gantt-chart {
     background: #ffffff;
     position: relative;
     flex-shrink: 0;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 /* Hour view: full-width day cell */
@@ -775,6 +787,32 @@ body:not(.employee-page) .gantt-chart {
     border: 2px solid white;
     box-shadow: 0 0 12px rgba(239, 68, 68, 0.8);
     animation: pulse-cursor 2s ease-in-out infinite;
+}
+
+/* Multi-Select Styles */
+.gantt-selection-box {
+    position: absolute;
+    border: 2px dashed #3b82f6;
+    background: rgba(59, 130, 246, 0.1);
+    pointer-events: none;
+    z-index: 1000;
+    box-sizing: border-box;
+}
+
+.gantt-selected {
+    outline: 2px solid #3b82f6 !important;
+    outline-offset: 2px;
+    background: rgba(59, 130, 246, 0.2) !important;
+}
+
+[data-theme="dark"] .gantt-selection-box {
+    border-color: #60a5fa;
+    background: rgba(96, 165, 250, 0.1);
+}
+
+[data-theme="dark"] .gantt-selected {
+    outline-color: #60a5fa;
+    background: rgba(96, 165, 250, 0.2) !important;
 }
 
 @keyframes pulse-cursor {

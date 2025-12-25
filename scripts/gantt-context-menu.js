@@ -1,263 +1,358 @@
+// ============================================
 // Gantt Chart Context Menu
-// ===================================
-// Handles right-click context menu for adding and deleting tasks
+// Right-click menu for tasks, shifts, and hourly tasks
+// ============================================
 
 class GanttContextMenu {
     constructor(ganttChart) {
-        this.gantt = ganttChart;
+        this.ganttChart = ganttChart;
         this.menu = null;
-        this.currentContext = null; // { employeeId, date, taskId }
+        this.currentItem = null;
+        this.currentItemType = null; // 'task', 'shift', 'hourlyTask'
         this.init();
     }
-
+    
     init() {
-        this.createMenu();
-        this.setupEventListeners();
-    }
-
-    createMenu() {
-        // Remove existing menu if it exists
-        const existing = document.getElementById('ganttContextMenu');
-        if (existing) {
-            existing.remove();
-        }
-
-        // Create menu element
+        // Create context menu element
         this.menu = document.createElement('div');
-        this.menu.id = 'ganttContextMenu';
+        this.menu.id = 'gantt-context-menu';
         this.menu.className = 'gantt-context-menu';
-        this.menu.innerHTML = `
-            <div class="context-menu-item" data-action="add-task">
-                <span class="context-menu-icon">➕</span>
-                <span class="context-menu-text">Add Task</span>
-            </div>
-            <div class="context-menu-item" data-action="delete-task" style="display: none;">
-                <span class="context-menu-icon">🗑️</span>
-                <span class="context-menu-text">Delete Task</span>
-            </div>
-        `;
-
+        this.menu.style.display = 'none';
         document.body.appendChild(this.menu);
-
-        // Add click handlers
-        this.menu.querySelector('[data-action="add-task"]').addEventListener('click', () => {
-            this.handleAddTask();
-        });
-
-        this.menu.querySelector('[data-action="delete-task"]').addEventListener('click', () => {
-            this.handleDeleteTask();
-        });
-    }
-
-    setupEventListeners() {
-        // Hide menu on click outside
+        
+        // Close menu on outside click
         document.addEventListener('click', (e) => {
-            if (this.menu && !this.menu.contains(e.target)) {
+            if (!this.menu.contains(e.target) && !e.target.closest('[data-context-menu-item]')) {
                 this.hide();
             }
         });
-
-        // Hide menu on scroll
-        document.addEventListener('scroll', () => {
-            this.hide();
-        }, true);
-
-        // Prevent default context menu on Gantt chart
-        // Use event delegation since the chart re-renders
-        if (this.gantt.container) {
-            this.gantt.container.addEventListener('contextmenu', (e) => {
-                // Only handle if clicking on a day cell or task
-                const dayCell = e.target.closest('.gantt-day-cell');
-                const taskElement = e.target.closest('.gantt-task');
-                
-                if (dayCell || taskElement) {
-                    e.preventDefault();
-                    this.handleContextMenu(e);
-                }
-            });
-        }
-    }
-
-    handleContextMenu(e) {
-        // Find the clicked day cell and employee row
-        const dayCell = e.target.closest('.gantt-day-cell');
-        const employeeRow = e.target.closest('.gantt-row');
-        const taskElement = e.target.closest('.gantt-task');
-
-        if (!dayCell || !employeeRow) {
-            return;
-        }
-
-        // Get employee ID from row
-        const employeeCell = employeeRow.querySelector('.gantt-employee-cell');
-        if (!employeeCell) return;
-
-        const employeeId = employeeCell.dataset.employeeId;
-        if (!employeeId) return;
-
-        // Get date from day cell
-        const dateStr = dayCell.dataset.date;
-        if (!dateStr) return;
-
-        // Check if there's a task at this location
-        let taskId = null;
-        if (taskElement) {
-            taskId = taskElement.dataset.taskId;
-        } else {
-            // Check if any task overlaps with this cell
-            const tasks = employeeRow.querySelectorAll('.gantt-task');
-            const cellRect = dayCell.getBoundingClientRect();
-            const clickX = e.clientX;
-
-            for (const task of tasks) {
-                const taskRect = task.getBoundingClientRect();
-                if (clickX >= taskRect.left && clickX <= taskRect.right) {
-                    taskId = task.dataset.taskId;
-                    break;
-                }
+        
+        // Close menu on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.hide();
             }
-        }
-
-        // Store context
-        this.currentContext = {
-            employeeId: parseInt(employeeId),
-            date: dateStr,
-            taskId: taskId ? parseInt(taskId) : null
-        };
-
-        // Show/hide delete option based on whether task exists
-        const deleteItem = this.menu.querySelector('[data-action="delete-task"]');
-        if (taskId) {
-            deleteItem.style.display = 'block';
-        } else {
-            deleteItem.style.display = 'none';
-        }
-
-        // Position menu
-        this.show(e.clientX, e.clientY);
+        });
     }
-
-    show(x, y) {
-        if (!this.menu) return;
-
-        this.menu.style.display = 'block';
+    
+    show(event, item, itemType) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        this.currentItem = item;
+        this.currentItemType = itemType;
+        
+        // Build menu items based on type
+        let menuItems = [];
+        
+        if (itemType === 'shift') {
+            menuItems = [
+                { label: '✏️ Edit Shift', action: () => this.handleEditShift() },
+                { label: '➕ Add Shift', action: () => this.handleAddShift() },
+                { label: '🗑️ Delete Shift', action: () => this.handleDeleteShift(), danger: true }
+            ];
+        } else if (itemType === 'task') {
+            menuItems = [
+                { label: '✏️ Edit Task', action: () => this.handleEditTask() },
+                { label: '➕ Add Task', action: () => this.handleAddTask() },
+                { label: '🗑️ Delete Task', action: () => this.handleDeleteTask(), danger: true }
+            ];
+        } else if (itemType === 'hourlyTask') {
+            menuItems = [
+                { label: '✏️ Edit Hourly Task', action: () => this.handleEditHourlyTask() },
+                { label: '➕ Add Hourly Task', action: () => this.handleAddHourlyTask() },
+                { label: '🗑️ Delete Hourly Task', action: () => this.handleDeleteHourlyTask(), danger: true }
+            ];
+        }
+        
+        // Build menu HTML
+        this.menu.innerHTML = menuItems.map(item => `
+            <div class="context-menu-item ${item.danger ? 'danger' : ''}" data-action="${item.label}">
+                ${item.label}
+            </div>
+        `).join('');
+        
+        // Add click handlers
+        this.menu.querySelectorAll('.context-menu-item').forEach((menuItem, index) => {
+            menuItem.addEventListener('click', (e) => {
+                e.stopPropagation();
+                menuItems[index].action();
+                this.hide();
+            });
+        });
+        
+        // Position menu
+        const x = event.clientX;
+        const y = event.clientY;
         this.menu.style.left = `${x}px`;
         this.menu.style.top = `${y}px`;
-
+        this.menu.style.display = 'block';
+        
         // Adjust if menu goes off screen
         const rect = this.menu.getBoundingClientRect();
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-
-        if (rect.right > viewportWidth) {
-            this.menu.style.left = `${x - rect.width}px`;
+        if (rect.right > window.innerWidth) {
+            this.menu.style.left = `${window.innerWidth - rect.width - 10}px`;
         }
-
-        if (rect.bottom > viewportHeight) {
-            this.menu.style.top = `${y - rect.height}px`;
+        if (rect.bottom > window.innerHeight) {
+            this.menu.style.top = `${window.innerHeight - rect.height - 10}px`;
         }
     }
-
+    
     hide() {
         if (this.menu) {
             this.menu.style.display = 'none';
         }
-        this.currentContext = null;
+        this.currentItem = null;
+        this.currentItemType = null;
     }
-
-    handleAddTask() {
-        if (!this.currentContext) return;
-
-        const { employeeId, date } = this.currentContext;
-        this.hide();
-
-        // Small delay to ensure DOM is ready
-        setTimeout(() => {
-            // Trigger add task modal with pre-filled employee and date
-            if (typeof window.openAddTaskModal === 'function') {
-                window.openAddTaskModal(employeeId, date);
-            } else {
-                // Fallback: open the add task modal normally
-                const addTaskModal = document.getElementById('addTaskModal');
-                if (addTaskModal) {
-                    // Update employee dropdown first
-                    if (typeof updateEmployeeDropdown === 'function') {
-                        updateEmployeeDropdown();
+    
+    // Shift handlers
+    handleEditShift() {
+        if (!this.currentItem || !window.openEditShiftModal) return;
+        
+        // Support both direct shift object and element with shift/employee properties (for hourly Gantt)
+        const shift = this.currentItem.shift || this.currentItem;
+        const employee = this.currentItem.employee;
+        const employeeId = employee?.id || this.currentItem.employee_id || this.currentItem.dataset?.employeeId;
+        const employeeName = employee?.name || '';
+        let shiftDate = shift.shift_date || this.currentItem.dataset?.date;
+        
+        // For hourly Gantt, use the selected date if available
+        if (!shiftDate && this.ganttChart && this.ganttChart.selectedDate) {
+            shiftDate = this.ganttChart.formatDate(this.ganttChart.selectedDate);
+        }
+        
+        window.openEditShiftModal(employeeId, employeeName, shift, shiftDate);
+    }
+    
+    handleAddShift() {
+        // Get employee and date from the clicked element
+        const employeeId = this.currentItem?.employee_id || this.currentItem?.dataset?.employeeId;
+        const date = this.currentItem?.shift_date || this.currentItem?.dataset?.date || this.ganttChart.formatDate(new Date());
+        
+        if (window.openEditShiftModal) {
+            window.openEditShiftModal(employeeId, '', null, date);
+        } else if (window.openAddShiftModal) {
+            window.openAddShiftModal(employeeId, date);
+        }
+    }
+    
+    async handleDeleteShift() {
+        if (!this.currentItem) return;
+        
+        const shift = this.currentItem;
+        const shiftId = shift.id || shift.dataset?.shiftId;
+        
+        if (!shiftId) {
+            alert('Error: Could not find shift ID');
+            return;
+        }
+        
+        if (!confirm('Are you sure you want to delete this shift?')) {
+            return;
+        }
+        
+        try {
+            if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+                const result = await supabaseService.deleteEmployeeShift(shiftId);
+                
+                if (result) {
+                    // Refresh the Gantt chart (works for both GanttChart and HourlyGanttChart)
+                    if (this.ganttChart && typeof this.ganttChart.render === 'function') {
+                        await this.ganttChart.render();
                     }
                     
-                    // Pre-fill employee if possible
-                    const employeeSelect = document.getElementById('taskEmployee');
-                    if (employeeSelect && employeeId) {
-                        // Wait a bit for dropdown to populate
-                        setTimeout(() => {
-                            employeeSelect.value = employeeId;
-                        }, 100);
-                    }
-
-                    // Pre-fill dates
-                    const startDateInput = document.getElementById('taskStart');
-                    const endDateInput = document.getElementById('taskEnd');
-                    if (startDateInput && date) {
-                        startDateInput.value = date;
-                    }
-                    if (endDateInput && date) {
-                        endDateInput.value = date;
-                    }
-
-                    // Reset "send to all" checkbox
-                    const sendToAllCheckbox = document.getElementById('taskSendToAll');
-                    if (sendToAllCheckbox) {
-                        sendToAllCheckbox.checked = false;
+                    // Also refresh if syncFromSupabase exists (for main Gantt)
+                    if (typeof syncFromSupabase === 'function') {
+                        await syncFromSupabase();
                     }
                     
-                    const employeeGroup = document.getElementById('taskEmployeeGroup');
-                    if (employeeGroup) {
-                        employeeGroup.style.display = 'block';
+                    // Refresh hourly Gantt if it exists
+                    if (typeof currentHourlyGantt !== 'undefined' && currentHourlyGantt) {
+                        await currentHourlyGantt.render();
                     }
-
-                    addTaskModal.style.display = 'block';
+                    
+                    alert('✅ Shift deleted successfully!');
                 } else {
-                    console.error('Add task modal not found');
+                    alert('❌ Failed to delete shift');
                 }
+            } else {
+                alert('❌ Database service not available');
             }
-        }, 50);
+        } catch (error) {
+            console.error('Error deleting shift:', error);
+            alert('❌ Failed to delete shift: ' + error.message);
+        }
     }
-
+    
+    // Task handlers
+    handleEditTask() {
+        if (!this.currentItem) return;
+        
+        const task = this.currentItem;
+        const taskId = task.id || task.dataset?.taskId;
+        
+        // Check if there's a task edit modal function
+        if (window.openEditTaskModal) {
+            window.openEditTaskModal(taskId);
+        } else if (window.editTask) {
+            window.editTask(task);
+        } else {
+            // Fallback: open task modal if it exists
+            const modal = document.getElementById('editTaskModal');
+            if (modal) {
+                // Populate and show modal
+                document.getElementById('editTaskId')?.setAttribute('value', taskId);
+                modal.style.display = 'block';
+            } else {
+                alert('Task editing not available');
+            }
+        }
+    }
+    
+    handleAddTask() {
+        const employeeId = this.currentItem?.employeeId || this.currentItem?.dataset?.employeeId;
+        const date = this.currentItem?.startDate || this.currentItem?.dataset?.date || this.ganttChart.formatDate(new Date());
+        
+        if (window.openAddTaskModal) {
+            window.openAddTaskModal(employeeId, date);
+        } else {
+            // Try to open task creation modal
+            const modal = document.getElementById('addTaskModal') || document.getElementById('taskModal');
+            if (modal) {
+                modal.style.display = 'block';
+            } else {
+                alert('Task creation not available');
+            }
+        }
+    }
+    
     async handleDeleteTask() {
-        if (!this.currentContext || !this.currentContext.taskId) return;
-
-        const taskId = this.currentContext.taskId;
-        this.hide();
-
+        if (!this.currentItem) return;
+        
+        const task = this.currentItem;
+        const taskId = task.id || task.dataset?.taskId;
+        
+        if (!taskId) {
+            alert('Error: Could not find task ID');
+            return;
+        }
+        
         if (!confirm('Are you sure you want to delete this task?')) {
             return;
         }
-
-        // Delete from Supabase if available
-        if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
-            try {
-                await supabaseService.deleteTask(taskId);
+        
+        try {
+            if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+                const result = await supabaseService.deleteTask(taskId);
                 
-                // Refresh from database if sync function exists
-                if (typeof window.syncFromSupabase === 'function') {
-                    await window.syncFromSupabase();
+                if (result) {
+                    // Refresh the Gantt chart
+                    if (this.ganttChart && typeof this.ganttChart.deleteTask === 'function') {
+                        await this.ganttChart.deleteTask(taskId);
+                    }
+                    
+                    if (this.ganttChart && typeof this.ganttChart.render === 'function') {
+                        await this.ganttChart.render();
+                    }
+                    
+                    alert('✅ Task deleted successfully!');
                 } else {
-                    // Fallback: delete from local Gantt chart
-                    this.gantt.deleteTask(taskId);
+                    alert('❌ Failed to delete task');
                 }
-            } catch (error) {
-                console.error('Error deleting task:', error);
-                alert('Error deleting task. Please try again.');
+            } else {
+                // Fallback to local deletion
+                if (this.ganttChart && typeof this.ganttChart.deleteTask === 'function') {
+                    await this.ganttChart.deleteTask(taskId);
+                    alert('✅ Task deleted successfully!');
+                } else {
+                    alert('❌ Could not delete task');
+                }
             }
-        } else {
-            // Delete from local Gantt chart
-            this.gantt.deleteTask(taskId);
+        } catch (error) {
+            console.error('Error deleting task:', error);
+            alert('❌ Failed to delete task: ' + error.message);
         }
-
-        alert('Task deleted successfully!');
+    }
+    
+    // Hourly task handlers
+    handleEditHourlyTask() {
+        if (!this.currentItem || !window.editHourlyTask) return;
+        
+        const task = this.currentItem;
+        
+        // Convert to format expected by editHourlyTask
+        const hourlyTask = {
+            id: task.id || task.dataset?.taskId,
+            name: task.name || task.dataset?.name,
+            work_area: task.work_area || task.dataset?.workArea,
+            start_time: task.start_time || task.dataset?.startTime,
+            end_time: task.end_time || task.dataset?.endTime,
+            task_date: task.task_date || task.dataset?.date,
+            status: task.status || task.dataset?.status,
+            employee_id: task.employee_id || task.dataset?.employeeId
+        };
+        
+        window.editHourlyTask(hourlyTask);
+    }
+    
+    handleAddHourlyTask() {
+        const employeeId = this.currentItem?.employee_id || this.currentItem?.dataset?.employeeId;
+        const date = this.currentItem?.task_date || this.currentItem?.dataset?.date || this.ganttChart.formatDate(new Date());
+        
+        if (window.openAddHourlyTaskModal) {
+            window.openAddHourlyTaskModal(employeeId, date);
+        } else {
+            // Try to open hourly task creation modal
+            const modal = document.getElementById('addHourlyTaskModal') || document.getElementById('hourlyTaskModal');
+            if (modal) {
+                modal.style.display = 'block';
+            } else {
+                alert('Hourly task creation not available');
+            }
+        }
+    }
+    
+    async handleDeleteHourlyTask() {
+        if (!this.currentItem) return;
+        
+        const task = this.currentItem;
+        const taskId = task.id || task.dataset?.taskId;
+        
+        if (!taskId) {
+            alert('Error: Could not find hourly task ID');
+            return;
+        }
+        
+        if (!confirm('Are you sure you want to delete this hourly task?')) {
+            return;
+        }
+        
+        try {
+            if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+                const result = await supabaseService.deleteHourlyTask(taskId);
+                
+                if (result) {
+                    // Refresh the Gantt chart
+                    if (this.ganttChart && typeof this.ganttChart.render === 'function') {
+                        await this.ganttChart.render();
+                    }
+                    
+                    // Also refresh hourly gantt if it exists
+                    if (typeof currentHourlyGantt !== 'undefined' && currentHourlyGantt) {
+                        await currentHourlyGantt.render();
+                    }
+                    
+                    alert('✅ Hourly task deleted successfully!');
+                } else {
+                    alert('❌ Failed to delete hourly task');
+                }
+            } else {
+                alert('❌ Database service not available');
+            }
+        } catch (error) {
+            console.error('Error deleting hourly task:', error);
+            alert('❌ Failed to delete hourly task: ' + error.message);
+        }
     }
 }
-
-// Make it globally accessible
-window.GanttContextMenu = GanttContextMenu;
-
