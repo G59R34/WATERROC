@@ -21,26 +21,17 @@ class EmployeeStatusMonitor {
             'default': '🔒 WOMP WOMP! Your access has been revoked. You have been logged out.'
         };
         
-        // DISABLED: Status monitor causes constant page reloads
         // Initialize when DOM is loaded
-        console.log('⏸️ Employee Status Monitor is DISABLED to prevent page reloads');
-        // Do not initialize - completely disabled
-        /*
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => this.initialize());
         } else {
             this.initialize();
         }
-        */
     }
     
     async initialize() {
         console.log('🔍 Initializing Employee Status Monitor...');
         console.log('📍 Current page:', window.location.pathname);
-        
-        // TEMPORARILY DISABLED TO PREVENT RELOADS
-        console.log('⏸️ Status monitoring temporarily disabled to prevent page reloads');
-        return;
         
         // Don't run on login page
         if (window.location.pathname.includes('index.html') || window.location.pathname === '/' || window.location.pathname === '') {
@@ -182,15 +173,10 @@ class EmployeeStatusMonitor {
         this.isActive = true;
         console.log('🚀 Starting employee status monitoring for employee ID:', this.currentEmployeeId);
         
-        // DISABLED: Real-time subscription causes too many reloads
-        // Using polling only instead
-        console.log('📊 Using polling-based monitoring (real-time subscription disabled to prevent reloads)');
-        
-        // DISABLED: Periodic polling causes reloads
-        // Only do initial status check, no continuous polling
+        // Use polling only (no real-time subscription to prevent reload loops)
         this.startStatusPolling();
         
-        // Initial status check only (one time on page load)
+        // Initial status check on page load
         await this.checkCurrentStatus();
         
         /* DISABLED REAL-TIME SUBSCRIPTION - CAUSES TOO MANY RELOADS
@@ -506,17 +492,14 @@ class EmployeeStatusMonitor {
             clearInterval(this.statusCheckInterval);
         }
         
-        // DISABLED: Polling was causing too many reloads
-        // Only check status on initial load, not continuously
-        console.log('⏰ Status polling DISABLED to prevent reloads');
-        
-        /* DISABLED POLLING - CAUSES TOO MANY RELOADS
-        // Poll every 30 seconds instead of 5 to reduce server load and prevent constant reloading
+        // Poll every 30 seconds to check for status changes
+        // This is less frequent to reduce server load and prevent constant reloading
         this.statusCheckInterval = setInterval(() => {
-            this.checkCurrentStatus();
-        }, 30000);
+            if (!this.isCheckingStatus) {
+                this.checkCurrentStatus();
+            }
+        }, 30000); // Check every 30 seconds
         console.log('⏰ Status polling started - checking every 30 seconds');
-        */
     }
     
     async checkCurrentStatus() {
