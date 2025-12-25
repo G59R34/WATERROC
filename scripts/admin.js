@@ -1280,11 +1280,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
             
             if (confirm('Are you sure you want to delete this task?')) {
-                // Show loading screen
-                if (typeof showActionLoadingScreen !== 'undefined') {
-                    showActionLoadingScreen('delete task');
-                }
-                
                 console.log('🗑️ Deleting task ID:', taskId);
                 
                 try {
@@ -1881,6 +1876,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         document.getElementById('editShiftStartTime').value = shift ? shift.start_time.substring(0, 5) : '09:00';
         document.getElementById('editShiftEndTime').value = shift ? shift.end_time.substring(0, 5) : '17:00';
         
+        // Show/hide delete button based on whether shift exists
+        const deleteBtn = document.getElementById('deleteShiftBtn');
+        if (deleteBtn) {
+            deleteBtn.style.display = shift ? 'inline-block' : 'none';
+        }
+        
         document.getElementById('editShiftModal').style.display = 'block';
     };
     
@@ -1896,6 +1897,43 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     document.getElementById('cancelEditShift')?.addEventListener('click', () => {
         document.getElementById('editShiftModal').style.display = 'none';
+    });
+    
+    // Delete Shift Button
+    document.getElementById('deleteShiftBtn')?.addEventListener('click', async function() {
+        const shiftId = parseInt(document.getElementById('editShiftId').value);
+        
+        if (!shiftId || isNaN(shiftId)) {
+            alert('Error: No shift selected to delete');
+            return;
+        }
+        
+        if (confirm('Are you sure you want to delete this shift?')) {
+            try {
+                const result = await supabaseService.deleteEmployeeShift(shiftId);
+                
+                if (result) {
+                    document.getElementById('editShiftModal').style.display = 'none';
+                    
+                    // Refresh hourly gantt if open
+                    if (currentHourlyGantt) {
+                        await currentHourlyGantt.render();
+                    }
+                    
+                    // Refresh main Gantt chart
+                    if (typeof syncFromSupabase === 'function') {
+                        await syncFromSupabase();
+                    }
+                    
+                    alert('✅ Shift deleted successfully!');
+                } else {
+                    alert('❌ Failed to delete shift');
+                }
+            } catch (error) {
+                console.error('Error deleting shift:', error);
+                alert('❌ Failed to delete shift: ' + error.message);
+            }
+        }
     });
     
     // Edit Hourly Task Modal handlers
@@ -1927,11 +1965,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         
         if (confirm('Are you sure you want to delete this task?')) {
-            // Show loading screen
-            if (typeof showActionLoadingScreen !== 'undefined') {
-                showActionLoadingScreen('delete hourly task');
-            }
-            
             await deleteHourlyTask();
         }
     });
@@ -2054,6 +2087,11 @@ document.addEventListener('DOMContentLoaded', async function() {
             // Refresh hourly gantt if open
             if (currentHourlyGantt) {
                 await currentHourlyGantt.render();
+            }
+            
+            // Refresh main Gantt chart if available
+            if (typeof syncFromSupabase === 'function') {
+                await syncFromSupabase();
             }
         } catch (error) {
             console.error('Error updating shift:', error);

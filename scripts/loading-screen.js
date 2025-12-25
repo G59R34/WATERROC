@@ -145,7 +145,7 @@ function showPageLoadScreen() {
 }
 
 // Show loading screen for form submissions
-function showFormLoadingScreen(formName = 'form') {
+function showFormLoadingScreen(formName = 'form', callback = null) {
     const messages = [
         'Submitting ' + formName + '...',
         'Processing ' + formName + '...',
@@ -167,7 +167,7 @@ function showFormLoadingScreen(formName = 'form') {
         'Making it look official...'
     ];
     const randomMessage = messages[Math.floor(Math.random() * messages.length)];
-    showLoadingScreen(randomMessage);
+    showLoadingScreen(randomMessage, callback);
 }
 
 // Show loading screen for data fetching
