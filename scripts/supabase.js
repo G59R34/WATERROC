@@ -4701,15 +4701,19 @@ class SupabaseService {
 
             if (stockError) throw stockError;
 
-            const currentValue = parseFloat(stock.current_price) * parseFloat(investment.shares);
-            const profit = currentValue - parseFloat(investment.current_value);
+            const shares = parseFloat(investment.shares);
+            const currentPrice = parseFloat(stock.current_price);
+            const purchasePrice = parseFloat(investment.purchase_price);
+            const currentValue = currentPrice * shares;
+            const purchaseValue = purchasePrice * shares;
+            const profit = currentValue - purchaseValue;
 
-            // Add to wallet
+            // Add to wallet (add the sale proceeds)
             const walletResult = await this.updateEmployeeWallet(
                 investment.employee_id,
                 currentValue,
                 profit >= 0 ? 'stock_sell' : 'stock_loss',
-                `Sold ${investment.shares} shares of ${investment.stock_symbol}`
+                `Sold ${shares} shares of ${investment.stock_symbol} at $${currentPrice.toFixed(2)}`
             );
 
             if (walletResult.error) {
@@ -4829,16 +4833,25 @@ class SupabaseService {
         if (!this.isReady()) return { data: null, error: 'Supabase not initialized' };
 
         try {
-            // Fetch stock data from Yahoo Finance API (free, no API key needed)
+            // Fetch stock data from Yahoo Finance API via CORS proxy (free, no API key needed)
+            // Using allorigins.win as a free CORS proxy
             const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`;
+            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`;
             
             let stockData;
             try {
-                const response = await fetch(yahooUrl);
+                const response = await fetch(proxyUrl);
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
-                const data = await response.json();
+                const proxyData = await response.json();
+                
+                // Parse the proxied response
+                if (!proxyData.contents) {
+                    throw new Error('Invalid response from proxy');
+                }
+                
+                const data = JSON.parse(proxyData.contents);
                 
                 if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
                     throw new Error('Stock symbol not found');
@@ -4966,16 +4979,25 @@ class SupabaseService {
                 const stock = realStocks[i];
                 
                 try {
-                    // Fetch current price from Yahoo Finance
+                    // Fetch current price from Yahoo Finance via CORS proxy
                     const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${stock.symbol}?interval=1d&range=1d`;
-                    const response = await fetch(yahooUrl);
+                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`;
+                    const response = await fetch(proxyUrl);
                     
                     if (!response.ok) {
                         console.warn(`⚠️ Failed to fetch ${stock.symbol}: HTTP ${response.status}`);
                         continue;
                     }
                     
-                    const data = await response.json();
+                    const proxyData = await response.json();
+                    
+                    // Parse the proxied response
+                    if (!proxyData.contents) {
+                        console.warn(`⚠️ Invalid response for ${stock.symbol}`);
+                        continue;
+                    }
+                    
+                    const data = JSON.parse(proxyData.contents);
                     
                     if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
                         console.warn(`⚠️ No data for ${stock.symbol}`);

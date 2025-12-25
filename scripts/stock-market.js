@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     let stocks = [];
     let investments = [];
     let stockCharts = {}; // Store chart instances
+    let investmentCharts = {}; // Store investment chart instances
     
     // Check authentication
     const userRole = sessionStorage.getItem('userRole');
@@ -203,7 +204,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                         <div style="font-size: 11px; color: #6b7280; margin-bottom: 8px;">
                             Value: $${(parseFloat(stock?.current_price || 0) * parseFloat(investment.shares)).toFixed(2)}
                         </div>
-                        <button class="btn-secondary" 
+                        <button class="btn-secondary sell-investment-btn" 
                                 style="padding: 6px 12px; font-size: 12px;"
                                 data-investment-id="${investment.id}">
                             Sell
@@ -218,10 +219,23 @@ document.addEventListener('DOMContentLoaded', async function() {
             await loadInvestmentChart(investment);
         }
         
-        // Add sell event listeners (only for buttons, not the whole item)
-        document.querySelectorAll('button[data-investment-id]').forEach(btn => {
-            btn.addEventListener('click', async function() {
+        // Add sell event listeners (only for sell buttons, not the whole item)
+        // Remove old listeners first to prevent duplicates
+        document.querySelectorAll('.sell-investment-btn').forEach(btn => {
+            // Clone and replace to remove old event listeners
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            
+            // Add fresh event listener
+            newBtn.addEventListener('click', async function(e) {
+                e.stopPropagation(); // Prevent event bubbling
                 const investmentId = parseInt(this.getAttribute('data-investment-id'));
+                if (!investmentId || isNaN(investmentId)) {
+                    console.error('Invalid investment ID:', this.getAttribute('data-investment-id'));
+                    alert('Error: Invalid investment ID');
+                    return;
+                }
+                
                 if (confirm('Are you sure you want to sell this investment?')) {
                     await sellStock(investmentId);
                 }
@@ -243,10 +257,14 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         
         const investment = investments.find(inv => inv.id === investmentId);
-        const profit = result.data.current_value - parseFloat(investment.current_value);
-        const profitText = profit >= 0 ? `Profit: $${profit.toFixed(2)}` : `Loss: $${Math.abs(profit).toFixed(2)}`;
-        
-        alert(`✅ Stock sold! ${profitText}`);
+        if (!investment) {
+            console.error('Investment not found:', investmentId);
+            alert('✅ Stock sold successfully!');
+        } else {
+            const profit = result.data.current_value - parseFloat(investment.current_value || investment.purchase_price * investment.shares);
+            const profitText = profit >= 0 ? `Profit: $${profit.toFixed(2)}` : `Loss: $${Math.abs(profit).toFixed(2)}`;
+            alert(`✅ Stock sold! ${profitText}`);
+        }
         
         // Reload data
         await loadWallet();
