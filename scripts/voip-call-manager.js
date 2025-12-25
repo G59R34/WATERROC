@@ -20,12 +20,26 @@ class VOIPCallManager {
         this.onIncomingCall = null;
         this.onCallEnded = null;
         
-        // WebRTC configuration (using free STUN servers)
+        // WebRTC configuration with multiple STUN servers for better connectivity
+        // Note: For production, consider adding TURN servers for users behind strict NATs
         this.rtcConfig = {
             iceServers: [
+                // Google STUN servers
                 { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' }
-            ]
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun4.l.google.com:19302' },
+                // Additional public STUN servers
+                { urls: 'stun:stun.stunprotocol.org:3478' },
+                { urls: 'stun:stun.voiparound.com' },
+                { urls: 'stun:stun.voipbuster.com' },
+                { urls: 'stun:stun.voipstunt.com' },
+                { urls: 'stun:stun.voxgratia.org' },
+                // Mozilla STUN server
+                { urls: 'stun:stun.mozilla.org:3478' }
+            ],
+            iceCandidatePoolSize: 10
         };
     }
 
@@ -196,12 +210,15 @@ class VOIPCallManager {
             // Handle ICE candidates
             this.peerConnection.onicecandidate = (event) => {
                 if (event.candidate) {
+                    console.log('🧊 ICE candidate generated:', event.candidate.type, event.candidate.candidate.substring(0, 50));
                     this.supabaseService.sendCallSignal(
                         this.currentCallId,
                         receiverId,
                         'ice-candidate',
                         event.candidate
                     );
+                } else {
+                    console.log('✅ ICE candidate gathering complete');
                 }
             };
 
@@ -235,16 +252,58 @@ class VOIPCallManager {
 
             // Handle connection state changes
             this.peerConnection.onconnectionstatechange = () => {
-                console.log('Connection state:', this.peerConnection.connectionState);
-                if (this.peerConnection.connectionState === 'failed' || 
-                    this.peerConnection.connectionState === 'disconnected') {
+                const state = this.peerConnection.connectionState;
+                console.log('🔌 Connection state:', state);
+                
+                if (state === 'connected') {
+                    console.log('✅ WebRTC connection established');
+                } else if (state === 'connecting') {
+                    console.log('🔄 WebRTC connecting...');
+                } else if (state === 'disconnected') {
+                    console.warn('⚠️ WebRTC disconnected, attempting to reconnect...');
+                    // Give it a moment to reconnect
+                    setTimeout(() => {
+                        if (this.peerConnection && this.peerConnection.connectionState === 'disconnected') {
+                            console.error('❌ Connection failed to reconnect');
+                            this.endCall('failed');
+                        }
+                    }, 5000);
+                } else if (state === 'failed') {
+                    console.error('❌ WebRTC connection failed');
                     this.endCall('failed');
+                } else if (state === 'closed') {
+                    console.log('🔌 WebRTC connection closed');
                 }
             };
+            
+            // Handle ICE connection state
+            this.peerConnection.oniceconnectionstatechange = () => {
+                const iceState = this.peerConnection.iceConnectionState;
+                console.log('🧊 ICE connection state:', iceState);
+                
+                if (iceState === 'failed' || iceState === 'disconnected') {
+                    console.warn('⚠️ ICE connection issue:', iceState);
+                    // Try to restart ICE
+                    if (iceState === 'failed') {
+                        console.log('🔄 Attempting ICE restart...');
+                        this.peerConnection.restartIce();
+                    }
+                }
+            };
+            
+            // Handle ICE gathering state
+            this.peerConnection.onicegatheringstatechange = () => {
+                console.log('🧊 ICE gathering state:', this.peerConnection.iceGatheringState);
+            };
 
-            // Create offer
-            const offer = await this.peerConnection.createOffer();
+            // Create offer with proper options for better connectivity
+            const offerOptions = {
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: callType === 'video'
+            };
+            const offer = await this.peerConnection.createOffer(offerOptions);
             await this.peerConnection.setLocalDescription(offer);
+            console.log('📤 Created offer, waiting for answer...');
 
             // Create call log
             const callLog = await this.supabaseService.createCallLog(
@@ -352,12 +411,15 @@ class VOIPCallManager {
             // Handle ICE candidates
             this.peerConnection.onicecandidate = (event) => {
                 if (event.candidate) {
+                    console.log('🧊 ICE candidate generated:', event.candidate.type, event.candidate.candidate.substring(0, 50));
                     this.supabaseService.sendCallSignal(
                         this.currentCallId,
                         signalData.callerId,
                         'ice-candidate',
                         event.candidate
                     );
+                } else {
+                    console.log('✅ ICE candidate gathering complete');
                 }
             };
 
@@ -389,14 +451,65 @@ class VOIPCallManager {
                 }
             };
 
+            // Handle connection state changes
+            this.peerConnection.onconnectionstatechange = () => {
+                const state = this.peerConnection.connectionState;
+                console.log('🔌 Connection state:', state);
+                
+                if (state === 'connected') {
+                    console.log('✅ WebRTC connection established');
+                } else if (state === 'connecting') {
+                    console.log('🔄 WebRTC connecting...');
+                } else if (state === 'disconnected') {
+                    console.warn('⚠️ WebRTC disconnected, attempting to reconnect...');
+                    // Give it a moment to reconnect
+                    setTimeout(() => {
+                        if (this.peerConnection && this.peerConnection.connectionState === 'disconnected') {
+                            console.error('❌ Connection failed to reconnect');
+                            this.endCall('failed');
+                        }
+                    }, 5000);
+                } else if (state === 'failed') {
+                    console.error('❌ WebRTC connection failed');
+                    this.endCall('failed');
+                } else if (state === 'closed') {
+                    console.log('🔌 WebRTC connection closed');
+                }
+            };
+            
+            // Handle ICE connection state
+            this.peerConnection.oniceconnectionstatechange = () => {
+                const iceState = this.peerConnection.iceConnectionState;
+                console.log('🧊 ICE connection state:', iceState);
+                
+                if (iceState === 'failed' || iceState === 'disconnected') {
+                    console.warn('⚠️ ICE connection issue:', iceState);
+                    // Try to restart ICE
+                    if (iceState === 'failed') {
+                        console.log('🔄 Attempting ICE restart...');
+                        this.peerConnection.restartIce();
+                    }
+                }
+            };
+            
+            // Handle ICE gathering state
+            this.peerConnection.onicegatheringstatechange = () => {
+                console.log('🧊 ICE gathering state:', this.peerConnection.iceGatheringState);
+            };
+
             // Set remote description from offer
             await this.peerConnection.setRemoteDescription(
                 new RTCSessionDescription(signalData.offer)
             );
 
-            // Create answer
-            const answer = await this.peerConnection.createAnswer();
+            // Create answer with proper options
+            const answerOptions = {
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: signalData.callType === 'video'
+            };
+            const answer = await this.peerConnection.createAnswer(answerOptions);
             await this.peerConnection.setLocalDescription(answer);
+            console.log('📤 Created answer, sending to caller...');
 
             // Send answer signal
             await this.supabaseService.sendCallSignal(
@@ -511,12 +624,88 @@ class VOIPCallManager {
             this.signalUnsubscribe();
         }
 
+        console.log('📡 Setting up signaling subscription for call:', callId);
+        
         this.signalUnsubscribe = this.supabaseService.subscribeToCallSignaling(
             callId,
             async (signal) => {
+                console.log('📨 Received signal:', signal.signal_type);
                 await this.handleSignal(signal);
             }
         );
+        
+        // Also start polling as fallback (every 1 second for signaling)
+        this.startSignalingPoll(callId);
+    }
+    
+    /**
+     * Poll for signaling messages as fallback
+     */
+    startSignalingPoll(callId) {
+        // Clear any existing polling
+        if (this.signalingPollInterval) {
+            clearInterval(this.signalingPollInterval);
+        }
+        
+        let lastSignalId = null;
+        
+        this.signalingPollInterval = setInterval(async () => {
+            if (!this.supabaseService || !this.supabaseService.isReady()) return;
+            if (!this.isCallActive && !this.isIncomingCall) {
+                clearInterval(this.signalingPollInterval);
+                return;
+            }
+            
+            try {
+                // Poll for new signals
+                const { data: signals, error } = await this.supabaseService.client
+                    .from('call_signaling')
+                    .select('*')
+                    .eq('call_id', callId)
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+                
+                if (error) {
+                    console.error('Error polling for signals:', error);
+                    return;
+                }
+                
+                if (signals && signals.length > 0) {
+                    // Process signals we haven't seen yet
+                    const newSignals = lastSignalId 
+                        ? signals.filter(s => s.id > lastSignalId)
+                        : signals;
+                    
+                    for (const signal of newSignals.reverse()) {
+                        console.log('📨 Polling found signal:', signal.signal_type);
+                        // Parse signal_data if it's a JSON string
+                        if (signal.signal_data && typeof signal.signal_data === 'string') {
+                            try {
+                                signal.signal_data = JSON.parse(signal.signal_data);
+                            } catch (e) {
+                                console.warn('Could not parse signal_data:', e);
+                            }
+                        }
+                        await this.handleSignal(signal);
+                    }
+                    
+                    if (signals.length > 0) {
+                        lastSignalId = signals[0].id;
+                    }
+                }
+            } catch (error) {
+                console.error('Error in signaling poll:', error);
+            }
+        }, 1000); // Poll every 1 second
+        
+        console.log('🔄 Started signaling poll for call:', callId);
+    }
+    
+    stopSignalingPoll() {
+        if (this.signalingPollInterval) {
+            clearInterval(this.signalingPollInterval);
+            this.signalingPollInterval = null;
+        }
     }
 
     /**
@@ -524,12 +713,26 @@ class VOIPCallManager {
      */
     async handleSignal(signal) {
         try {
-            switch (signal.signal_type) {
+            // Handle both direct signal objects and signals with signal_data wrapper
+            const signalType = signal.signal_type;
+            const signalData = signal.signal_data || signal;
+            
+            if (!signalType) {
+                console.warn('⚠️ Received signal without type:', signal);
+                return;
+            }
+            
+            console.log('📨 Handling signal:', signalType);
+            
+            switch (signalType) {
                 case 'call-accept':
                     // Remote peer accepted the call
-                    await this.peerConnection.setRemoteDescription(
-                        new RTCSessionDescription(signal.signal_data.answer)
-                    );
+                    if (this.peerConnection && signalData && signalData.answer) {
+                        await this.peerConnection.setRemoteDescription(
+                            new RTCSessionDescription(signalData.answer)
+                        );
+                        console.log('✅ Set remote description from answer');
+                    }
                     if (this.currentCallLogId) {
                         await this.supabaseService.updateCallLog(this.currentCallLogId, 'answered');
                     }
@@ -553,15 +756,28 @@ class VOIPCallManager {
 
                 case 'ice-candidate':
                     // Add ICE candidate
-                    if (this.peerConnection && signal.signal_data) {
-                        await this.peerConnection.addIceCandidate(
-                            new RTCIceCandidate(signal.signal_data)
-                        );
+                    if (this.peerConnection) {
+                        try {
+                            // Handle both direct candidate object and wrapped in signal_data
+                            const candidateData = signalData;
+                            
+                            if (candidateData && (candidateData.candidate || candidateData.sdpMLineIndex !== undefined)) {
+                                const candidate = new RTCIceCandidate(candidateData);
+                                await this.peerConnection.addIceCandidate(candidate);
+                                console.log('✅ ICE candidate added:', candidate.type);
+                            }
+                        } catch (error) {
+                            // Ignore errors for duplicate or invalid candidates
+                            if (error.name !== 'OperationError' && error.name !== 'TypeError') {
+                                console.warn('⚠️ Error adding ICE candidate:', error);
+                            }
+                        }
                     }
                     break;
             }
         } catch (error) {
-            console.error('Error handling signal:', error);
+            console.error('❌ Error handling signal:', error);
+            console.error('   Signal data:', signal);
         }
     }
 
@@ -592,6 +808,9 @@ class VOIPCallManager {
             clearInterval(this.incomingCallPollInterval);
             this.incomingCallPollInterval = null;
         }
+        
+        // Stop signaling poll
+        this.stopSignalingPoll();
 
         // Cleanup signaling data
         if (this.currentCallId) {

@@ -3730,21 +3730,36 @@ class SupabaseService {
      * @returns {Function} Unsubscribe function
      */
     subscribeToCallSignaling(callId, callback) {
-        if (!this.isReady()) return () => {};
+        if (!this.isReady()) {
+            console.error('Supabase not ready for call signaling subscription');
+            return () => {};
+        }
+
+        console.log('📡 Subscribing to call signaling for call:', callId);
 
         const channel = this.client
-            .channel(`call-signaling-${callId}`)
+            .channel(`call-signaling-${callId}-${Date.now()}`)
             .on('postgres_changes', {
                 event: 'INSERT',
                 schema: 'public',
                 table: 'call_signaling',
                 filter: `call_id=eq.${callId}`
             }, (payload) => {
+                console.log('📨 Received signaling payload for call:', callId, payload.new?.signal_type);
                 callback(payload.new);
             })
-            .subscribe();
+            .subscribe((status, err) => {
+                if (err) {
+                    console.error('❌ Call signaling subscription error:', err);
+                } else if (status === 'SUBSCRIBED') {
+                    console.log('✅ Successfully subscribed to call signaling for:', callId);
+                } else {
+                    console.log('📡 Call signaling subscription status:', status);
+                }
+            });
 
         return () => {
+            console.log('🔌 Unsubscribing from call signaling:', callId);
             this.client.removeChannel(channel);
         };
     }
