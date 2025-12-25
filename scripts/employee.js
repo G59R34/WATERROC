@@ -765,10 +765,13 @@ document.addEventListener('DOMContentLoaded', async function() {
                 return;
             }
             
+            console.log('Loading transactions for employee ID:', employee.id, 'Type:', typeof employee.id);
             allTransactions = await supabaseService.getEmployeeTransactions(employee.id, 500);
+            console.log('Loaded transactions:', allTransactions.length, allTransactions);
             
             if (allTransactions.length === 0) {
                 content.innerHTML = '<div style="text-align: center; padding: 40px; color: #64748b;">No transactions found</div>';
+                console.warn('No transactions found for employee ID:', employee.id);
                 return;
             }
             

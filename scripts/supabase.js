@@ -4405,15 +4405,27 @@ class SupabaseService {
 
             // Log transaction (non-blocking - don't fail wallet update if transaction log fails)
             try {
-                await this.client
+                // Ensure employeeId is a number
+                const id = typeof employeeId === 'string' ? parseInt(employeeId) : employeeId;
+                console.log('Logging transaction:', { employee_id: id, type: transactionType, amount, description });
+                
+                const { data, error } = await this.client
                     .from('transactions')
                     .insert({
-                        employee_id: employeeId,
+                        employee_id: id,
                         transaction_type: transactionType,
                         amount: amount,
                         description: description,
                         balance_after: finalBalance
-                    });
+                    })
+                    .select();
+                
+                if (error) {
+                    console.error('Transaction insert error:', error);
+                    throw error;
+                }
+                
+                console.log('Transaction logged successfully:', data);
             } catch (txError) {
                 // Don't fail wallet update if transaction logging fails
                 console.warn('Could not log transaction (non-critical):', txError);
@@ -5045,14 +5057,23 @@ class SupabaseService {
         if (!this.isReady()) return [];
 
         try {
+            // Ensure employeeId is a number
+            const id = typeof employeeId === 'string' ? parseInt(employeeId) : employeeId;
+            console.log('Fetching transactions for employee ID:', id, 'Type:', typeof id);
+            
             const { data, error } = await this.client
                 .from('transactions')
                 .select('*')
-                .eq('employee_id', employeeId)
+                .eq('employee_id', id)
                 .order('created_at', { ascending: false })
                 .limit(limit);
 
-            if (error) throw error;
+            if (error) {
+                console.error('Error fetching transactions:', error);
+                throw error;
+            }
+            
+            console.log('Fetched transactions:', data?.length || 0, data);
             return data || [];
         } catch (error) {
             console.error('Error getting employee transactions:', error);
