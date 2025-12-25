@@ -438,9 +438,16 @@ class HourlyGanttChart {
         const taskBar = document.createElement('div');
         taskBar.className = `hourly-gantt-task status-${task.status}`;
         
+        // Add data attributes for context menu
+        taskBar.dataset.taskId = task.id;
+        
         // Handle both Supabase format (start_time) and old format (startTime)
         const startTime = task.start_time || task.startTime;
         const endTime = task.end_time || task.endTime;
+        
+        // Add time data attributes for context menu detection
+        taskBar.dataset.startTime = startTime;
+        taskBar.dataset.endTime = endTime;
         
         console.log('Task times:', startTime, endTime);
         

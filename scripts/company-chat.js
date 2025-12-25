@@ -7,6 +7,7 @@ class CompanyChat {
         this.messages = [];
         this.subscription = null;
         this.currentUser = null;
+        this.isAdmin = false;
         this.chatContainer = null;
         this.chatPanel = null;
         this.messageInput = null;
@@ -31,8 +32,16 @@ class CompanyChat {
             return;
         }
 
+        // Check if user is admin
+        this.isAdmin = await supabaseService.isAdmin();
+
         // Create chat UI
         this.createChatUI();
+        
+        // Show/hide admin controls after UI is created
+        if (this.clearChatBtn) {
+            this.clearChatBtn.style.display = this.isAdmin ? 'block' : 'none';
+        }
         
         // Load initial messages
         await this.loadMessages();
@@ -119,6 +128,34 @@ class CompanyChat {
         headerTitle.textContent = '💬 Company Chat';
         headerTitle.style.cssText = 'margin: 0; font-size: 1.25rem; font-weight: 700;';
         
+        const headerActions = document.createElement('div');
+        headerActions.style.cssText = 'display: flex; gap: 8px; align-items: center;';
+        
+        // Add Clear Chat button for admins (will be shown/hidden based on admin status)
+        const clearChatBtn = document.createElement('button');
+        clearChatBtn.id = 'clearChatBtn';
+        clearChatBtn.innerHTML = '🗑️ Clear';
+        clearChatBtn.title = 'Clear all messages (Admin only)';
+        clearChatBtn.style.cssText = `
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: none;
+        `;
+        clearChatBtn.addEventListener('mouseenter', () => {
+            clearChatBtn.style.background = 'rgba(255, 255, 255, 0.3)';
+        });
+        clearChatBtn.addEventListener('mouseleave', () => {
+            clearChatBtn.style.background = 'rgba(255, 255, 255, 0.2)';
+        });
+        clearChatBtn.addEventListener('click', () => this.clearChat());
+        
         const closeBtn = document.createElement('button');
         closeBtn.innerHTML = '✕';
         closeBtn.style.cssText = `
@@ -137,9 +174,14 @@ class CompanyChat {
         });
         closeBtn.addEventListener('click', () => this.toggleChat());
         
+        headerActions.appendChild(clearChatBtn);
+        headerActions.appendChild(closeBtn);
         chatHeader.appendChild(headerTitle);
-        chatHeader.appendChild(closeBtn);
+        chatHeader.appendChild(headerActions);
         this.chatPanel.appendChild(chatHeader);
+        
+        // Store reference to clear button
+        this.clearChatBtn = clearChatBtn;
 
         // Messages container
         this.messagesContainer = document.createElement('div');
@@ -232,23 +274,26 @@ class CompanyChat {
         this.messagesContainer.innerHTML = this.messages.map(msg => {
             const isOwnMessage = msg.user_id === this.currentUser.id;
             const userName = msg.user?.full_name || msg.user?.username || 'Unknown';
-            const isAdmin = msg.user?.is_admin || false;
+            const msgUserIsAdmin = msg.user?.is_admin || false;
             const time = new Date(msg.created_at).toLocaleTimeString('en-US', {
                 hour: '2-digit',
                 minute: '2-digit'
             });
 
+            // Show actions if user owns message OR if current user is admin
+            const showActions = isOwnMessage || this.isAdmin;
+
             return `
                 <div class="chat-message ${isOwnMessage ? 'own-message' : ''}" data-message-id="${msg.id}">
                     <div class="chat-message-header">
-                        <span class="chat-message-author">${isAdmin ? '👨‍💼 ' : '👤 '}${userName}</span>
+                        <span class="chat-message-author">${msgUserIsAdmin ? '👨‍💼 ' : '👤 '}${userName}</span>
                         <span class="chat-message-time">${time}</span>
                     </div>
                     <div class="chat-message-content">${this.escapeHtml(msg.message)}</div>
-                    ${isOwnMessage ? `
+                    ${showActions ? `
                         <div class="chat-message-actions">
-                            <button class="chat-edit-btn" onclick="companyChat.editMessage(${msg.id})">Edit</button>
-                            <button class="chat-delete-btn" onclick="companyChat.deleteMessage(${msg.id})">Delete</button>
+                            ${isOwnMessage ? `<button class="chat-edit-btn" onclick="companyChat.editMessage(${msg.id})">Edit</button>` : ''}
+                            <button class="chat-delete-btn" onclick="companyChat.deleteMessage(${msg.id})" title="${this.isAdmin && !isOwnMessage ? 'Delete message (Admin)' : 'Delete message'}">Delete</button>
                         </div>
                     ` : ''}
                 </div>
@@ -327,7 +372,14 @@ class CompanyChat {
     }
 
     async deleteMessage(messageId) {
-        if (!confirm('Are you sure you want to delete this message?')) return;
+        const message = this.messages.find(m => m.id === messageId);
+        const isOwnMessage = message && message.user_id === this.currentUser.id;
+        
+        const confirmText = this.isAdmin && !isOwnMessage 
+            ? 'Are you sure you want to delete this message? (Admin action)'
+            : 'Are you sure you want to delete this message?';
+        
+        if (!confirm(confirmText)) return;
 
         const result = await supabaseService.deleteCompanyChatMessage(messageId);
         if (result) {
@@ -335,7 +387,32 @@ class CompanyChat {
             this.messages = this.messages.filter(m => m.id !== messageId);
             this.renderMessages();
         } else {
-            alert('Failed to delete message. You can only delete your own messages.');
+            alert('Failed to delete message. ' + (this.isAdmin ? 'Please try again.' : 'You can only delete your own messages.'));
+        }
+    }
+
+    async clearChat() {
+        if (!this.isAdmin) {
+            alert('Only admins can clear the chat.');
+            return;
+        }
+
+        if (!confirm('Are you sure you want to clear ALL messages? This action cannot be undone.')) {
+            return;
+        }
+
+        if (!confirm('This will delete ALL messages in the company chat. Are you absolutely sure?')) {
+            return;
+        }
+
+        const result = await supabaseService.clearCompanyChat();
+        if (result) {
+            // Clear local messages
+            this.messages = [];
+            this.renderMessages();
+            alert('Chat cleared successfully.');
+        } else {
+            alert('Failed to clear chat. Please try again.');
         }
     }
 

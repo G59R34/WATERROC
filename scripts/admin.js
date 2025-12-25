@@ -21,6 +21,12 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Initialize Gantt Chart FIRST
     const gantt = new GanttChart('ganttChart', true);
     
+    // Initialize context menu for Gantt chart
+    let ganttContextMenu = null;
+    if (typeof GanttContextMenu !== 'undefined') {
+        ganttContextMenu = new GanttContextMenu(gantt);
+    }
+    
     // Set up date inputs
     const startDateInput = document.getElementById('startDate');
     const endDateInput = document.getElementById('endDate');
@@ -90,6 +96,9 @@ document.addEventListener('DOMContentLoaded', async function() {
             console.error('Error checking expired time off on admin load:', error);
         }
     }
+    
+    // Make syncFromSupabase globally accessible for context menu
+    window.syncFromSupabase = syncFromSupabase;
     
     // Sync data from Supabase
     async function syncFromSupabase() {
@@ -430,7 +439,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     // Open Add Task Modal
-    addTaskBtn.addEventListener('click', function() {
+    function openAddTaskModal(employeeId = null, date = null) {
         updateEmployeeDropdown();
         addTaskModal.style.display = 'block';
         
@@ -443,17 +452,62 @@ document.addEventListener('DOMContentLoaded', async function() {
         employeeGroup.style.display = 'block';
         employeeSelect.required = true;
         
-        // Set default dates
-        const today = new Date();
-        document.getElementById('taskStart').valueAsDate = today;
+        // Pre-fill employee if provided (wait for dropdown to populate)
+        if (employeeId && employeeSelect) {
+            // Wait a bit for the dropdown to be populated
+            setTimeout(() => {
+                employeeSelect.value = employeeId;
+                // Trigger change event to ensure value is set
+                employeeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            }, 100);
+        }
         
-        const nextWeek = new Date(today);
-        nextWeek.setDate(today.getDate() + 7);
-        document.getElementById('taskEnd').valueAsDate = nextWeek;
+        // Set dates
+        if (date) {
+            const dateObj = new Date(date);
+            const startDateInput = document.getElementById('taskStart');
+            const endDateInput = document.getElementById('taskEnd');
+            
+            if (startDateInput) {
+                // Format date as YYYY-MM-DD
+                const year = dateObj.getFullYear();
+                const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const day = String(dateObj.getDate()).padStart(2, '0');
+                startDateInput.value = `${year}-${month}-${day}`;
+            }
+            
+            if (endDateInput) {
+                const year = dateObj.getFullYear();
+                const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const day = String(dateObj.getDate()).padStart(2, '0');
+                endDateInput.value = `${year}-${month}-${day}`;
+            }
+        } else {
+            const today = new Date();
+            const startDateInput = document.getElementById('taskStart');
+            const endDateInput = document.getElementById('taskEnd');
+            
+            if (startDateInput) {
+                startDateInput.valueAsDate = today;
+            }
+            
+            if (endDateInput) {
+                const endDate = new Date(today);
+                endDate.setDate(today.getDate() + 7);
+                endDateInput.valueAsDate = endDate;
+            }
+        }
         
         // Set default times
         document.getElementById('taskStartTime').value = '09:00';
         document.getElementById('taskEndTime').value = '17:00';
+    }
+    
+    // Make it globally accessible for context menu
+    window.openAddTaskModal = openAddTaskModal;
+    
+    addTaskBtn.addEventListener('click', function() {
+        openAddTaskModal();
     });
     
     // Toggle employee dropdown when "send to all" is checked
@@ -800,6 +854,78 @@ document.addEventListener('DOMContentLoaded', async function() {
             select.appendChild(option);
         });
     }
+
+    // Handle employee deletion (make it globally accessible)
+    window.handleDeleteEmployee = async function(employeeId, employeeName) {
+        if (!employeeId || !employeeName) {
+            console.error('Invalid employee data for deletion');
+            return;
+        }
+
+        // Double confirmation for safety
+        const confirm1 = confirm(`⚠️ WARNING: Are you sure you want to delete "${employeeName}"?\n\nThis will permanently delete:\n- All tasks assigned to this employee\n- All shifts for this employee\n- All related records\n\nThis action CANNOT be undone!`);
+        
+        if (!confirm1) return;
+
+        const confirm2 = confirm(`⚠️ FINAL CONFIRMATION:\n\nDelete "${employeeName}" permanently?\n\nType "DELETE" in the next prompt to confirm.`);
+        
+        if (!confirm2) return;
+
+        const confirmText = prompt(`Type "DELETE" to confirm deletion of "${employeeName}":`);
+        
+        if (confirmText !== 'DELETE') {
+            alert('Deletion cancelled. You must type "DELETE" exactly to confirm.');
+            return;
+        }
+
+        // Show loading state
+        const deleteBtn = document.querySelector(`[data-employee-id="${employeeId}"]`);
+        if (deleteBtn) {
+            deleteBtn.disabled = true;
+            deleteBtn.textContent = '...';
+        }
+
+        try {
+            if (!supabaseService || !supabaseService.isReady()) {
+                alert('Supabase is not available. Cannot delete employee.');
+                return;
+            }
+
+            // Check if user is admin
+            const isAdmin = await supabaseService.isAdmin();
+            if (!isAdmin) {
+                alert('Only admins can delete employees.');
+                return;
+            }
+
+            // Delete the employee
+            const success = await supabaseService.deleteEmployee(employeeId);
+            
+            if (success) {
+                // Remove from Gantt chart
+                gantt.removeEmployee(employeeId);
+                
+                // Sync from Supabase to refresh data
+                await syncFromSupabase();
+                
+                // Update employee dropdown
+                updateEmployeeDropdown();
+                
+                alert(`✅ Employee "${employeeName}" has been deleted successfully.`);
+            } else {
+                alert(`❌ Failed to delete employee "${employeeName}". Please check the console for errors.`);
+            }
+        } catch (error) {
+            console.error('Error in handleDeleteEmployee:', error);
+            alert(`❌ Error deleting employee: ${error.message || 'Unknown error'}`);
+        } finally {
+            // Restore button state
+            if (deleteBtn) {
+                deleteBtn.disabled = false;
+                deleteBtn.textContent = '×';
+            }
+        }
+    };
     
     // Load task messages for admin
     async function loadAdminTaskMessages(taskId) {
@@ -984,6 +1110,20 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Create or update hourly gantt
         currentHourlyGantt = new HourlyGanttChart('hourlyGanttChart', dateStr, true);
         
+        // Initialize context menu for hourly Gantt chart
+        if (typeof HourlyGanttContextMenu !== 'undefined') {
+            // Remove existing context menu if it exists
+            const existingMenu = document.getElementById('hourlyGanttContextMenu');
+            if (existingMenu) {
+                existingMenu.remove();
+            }
+            
+            // Create new context menu
+            if (currentHourlyGantt) {
+                window.hourlyGanttContextMenu = new HourlyGanttContextMenu(currentHourlyGantt);
+            }
+        }
+        
         hourlyModal.style.display = 'block';
     }
     
@@ -1035,15 +1175,36 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     // Global functions for hourly gantt callbacks
-    window.openHourlyTaskModal = function(employeeId, hour, workArea) {
+    window.openHourlyTaskModal = function(employeeId, hourOrWorkArea = null, workAreaOrStartTime = null, endTime = null) {
         populateHourlyTaskEmployees();
-        document.getElementById('hourlyTaskEmployee').value = employeeId;
-        document.getElementById('hourlyTaskStartTime').value = `${String(hour).padStart(2, '0')}:00`;
-        document.getElementById('hourlyTaskEndTime').value = `${String(hour + 1).padStart(2, '0')}:00`;
         
-        // Set category dropdown to the work area if provided
-        if (workArea) {
-            document.getElementById('hourlyTaskCategory').value = workArea;
+        if (employeeId) {
+            document.getElementById('hourlyTaskEmployee').value = employeeId;
+        }
+        
+        // Handle both old format (employeeId, hour, workArea) and new format (employeeId, workArea, startTime, endTime)
+        if (typeof hourOrWorkArea === 'number') {
+            // Old format: openHourlyTaskModal(employeeId, hour, workArea)
+            const hour = hourOrWorkArea;
+            const workArea = workAreaOrStartTime;
+            document.getElementById('hourlyTaskStartTime').value = `${String(hour).padStart(2, '0')}:00`;
+            document.getElementById('hourlyTaskEndTime').value = `${String(hour + 1).padStart(2, '0')}:00`;
+            if (workArea) {
+                document.getElementById('hourlyTaskCategory').value = workArea;
+            }
+        } else {
+            // New format: openHourlyTaskModal(employeeId, workArea, startTime, endTime)
+            const workArea = hourOrWorkArea;
+            const startTime = workAreaOrStartTime;
+            if (startTime) {
+                document.getElementById('hourlyTaskStartTime').value = startTime;
+            }
+            if (endTime) {
+                document.getElementById('hourlyTaskEndTime').value = endTime;
+            }
+            if (workArea) {
+                document.getElementById('hourlyTaskCategory').value = workArea;
+            }
         }
         
         document.getElementById('addHourlyTaskModal').style.display = 'block';

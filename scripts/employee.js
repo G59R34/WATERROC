@@ -544,7 +544,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             const dayName = day.toLocaleDateString('en-US', { weekday: 'short' });
             
             html += `
-                <div style="border: 2px solid var(--border-color); border-radius: 8px; padding: 15px; background: ${dayShifts.length > 0 || dayExceptions.length > 0 ? '#f0f9ff' : 'white'};">
+                <div class="my-shifts-day-card">
                     <div style="font-weight: 600; margin-bottom: 10px; text-align: center; color: var(--text-primary);">
                         ${dayName}<br>${formatDateDisplay(day)}
                     </div>
@@ -553,7 +553,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                             'scheduled': 'var(--primary-color)',
                             'completed': 'var(--success-color)',
                             'cancelled': 'var(--danger-color)',
-                            'no-show': '#94a3b8'
+                            'no-show': '#64748b'
                         };
                         return `
                             <div style="background: ${statusColors[shift.status] || statusColors.scheduled}; color: white; padding: 10px; border-radius: 6px; margin-bottom: 8px; font-size: 13px;">

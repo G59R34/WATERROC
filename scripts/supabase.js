@@ -190,16 +190,22 @@ class SupabaseService {
                 .from('employees')
                 .select('*')
                 .eq('user_id', user.id)
-                .single();
+                .maybeSingle(); // Use maybeSingle() instead of single() to avoid errors when no record exists
 
             if (error) {
-                console.error('Error getting current employee:', error);
+                // Only log non-PGRST116 errors (PGRST116 = no rows found, which is acceptable)
+                if (error.code !== 'PGRST116') {
+                    console.error('Error getting current employee:', error);
+                }
                 return null;
             }
 
             return data;
         } catch (error) {
-            console.error('Error getting current employee:', error);
+            // Only log if it's not a "no rows" error
+            if (error.code !== 'PGRST116') {
+                console.error('Error getting current employee:', error);
+            }
             return null;
         }
     }
@@ -330,19 +336,77 @@ class SupabaseService {
     }
     
     /**
-     * Delete an employee
+     * Delete an employee (admin only)
+     * This will delete the employee profile first, then the employee record
+     * Cascading deletes will handle related records (tasks, shifts, etc.)
+     * @param {number} id - Employee ID to delete
+     * @returns {Promise<boolean>} True if successful, false otherwise
      */
     async deleteEmployee(id) {
         if (!this.isReady()) return false;
-        
+
+        // Check if user is admin
+        const isAdmin = await this.isAdmin();
+        if (!isAdmin) {
+            console.error('Only admins can delete employees');
+            return false;
+        }
+
         try {
+            // Get employee info for confirmation
+            const { data: employee, error: fetchError } = await this.client
+                .from('employees')
+                .select('id, name, role')
+                .eq('id', id)
+                .single();
+
+            if (fetchError || !employee) {
+                console.error('Error fetching employee:', fetchError);
+                return false;
+            }
+
+            // Step 1: Delete task_logs first (if they exist)
+            // This ensures logs are deleted before the employee, avoiding trigger issues
+            const { error: logsError } = await this.client
+                .from('task_logs')
+                .delete()
+                .eq('employee_id', id);
+            
+            if (logsError) {
+                // If logs don't exist or error, that's okay - continue
+                if (logsError.code !== 'PGRST116') { // PGRST116 = no rows found
+                    console.warn('Warning deleting task logs:', logsError);
+                }
+            } else {
+                console.log(`✅ Deleted task logs for employee ${id}`);
+            }
+
+            // Step 2: Delete employee profile first (if it exists)
+            // This handles the foreign key constraint from employee_profiles
+            const { error: profileError } = await this.client
+                .from('employee_profiles')
+                .delete()
+                .eq('employee_id', id);
+            
+            if (profileError) {
+                // If profile doesn't exist, that's okay - continue with employee deletion
+                if (profileError.code !== 'PGRST116') { // PGRST116 = no rows found
+                    console.warn('Warning deleting employee profile:', profileError);
+                    // Continue anyway - profile might not exist
+                }
+            } else {
+                console.log(`✅ Deleted employee profile for employee ${id}`);
+            }
+
+            // Step 3: Delete the employee (cascading deletes will handle other related records)
             const { error } = await this.client
                 .from('employees')
                 .delete()
                 .eq('id', id);
             
             if (error) throw error;
-            console.log('✅ Employee deleted');
+            
+            console.log(`✅ Employee deleted: ${employee.name} (ID: ${id})`);
             return true;
         } catch (error) {
             console.error('Error deleting employee:', error);
@@ -387,7 +451,15 @@ class SupabaseService {
         }
         
         try {
-            const userId = this.currentUser ? this.currentUser.id : null;
+            // Get current user ID, but don't fail if no user/employee record exists
+            let userId = null;
+            try {
+                const user = await this.getCurrentUser();
+                userId = user ? user.id : null;
+            } catch (error) {
+                // User might not have employee record (e.g., admin), that's okay
+                console.log('ℹ️ No user/employee record found, creating task without created_by');
+            }
             
             const { data, error } = await this.client
                 .from('tasks')
@@ -423,6 +495,7 @@ class SupabaseService {
         
         try {
             // If status is being set to 'overdue', get task details first to create NSFT exception
+            // But only if task has started and hasn't been acknowledged
             let taskData = null;
             if (updates.status === 'overdue') {
                 const { data: task } = await this.client
@@ -432,7 +505,42 @@ class SupabaseService {
                     .single();
                 
                 if (task) {
-                    taskData = task;
+                    // Check if task has been acknowledged
+                    const { data: acknowledgements } = await this.client
+                        .from('task_acknowledgements')
+                        .select('id')
+                        .eq('task_id', id)
+                        .limit(1);
+
+                    // Check if task has started
+                    const now = new Date();
+                    const today = now.toISOString().split('T')[0];
+                    const taskStartDate = new Date(task.start_date);
+                    taskStartDate.setHours(0, 0, 0, 0);
+                    const todayDate = new Date(today);
+                    todayDate.setHours(0, 0, 0, 0);
+
+                    const timeToMinutes = (timeStr) => {
+                        if (!timeStr) return 0;
+                        if (timeStr.includes(':')) {
+                            const [hours, minutes] = timeStr.split(':').map(Number);
+                            return hours * 60 + minutes;
+                        }
+                        const hours = parseInt(timeStr.substring(0, 2));
+                        const minutes = parseInt(timeStr.substring(2, 4));
+                        return hours * 60 + minutes;
+                    };
+
+                    const taskStartMinutes = timeToMinutes(task.start_time);
+                    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+                    const startDatePassed = taskStartDate < todayDate;
+                    const startTimePassed = taskStartDate.getTime() === todayDate.getTime() && currentMinutes >= taskStartMinutes;
+
+                    // Only create NSFT if task has started and is not acknowledged
+                    if ((startDatePassed || startTimePassed) && (!acknowledgements || acknowledgements.length === 0)) {
+                        taskData = task;
+                    }
                 }
             }
             
@@ -447,7 +555,7 @@ class SupabaseService {
             
             if (error) throw error;
             
-            // If status was set to 'overdue', create NSFT exception
+            // If status was set to 'overdue', create NSFT exception (only if task has started and not acknowledged)
             if (updates.status === 'overdue' && taskData) {
                 await this.createNSFTExceptionForTask(taskData);
             }
@@ -462,12 +570,57 @@ class SupabaseService {
     
     /**
      * Create an NSFT exception for a specific task
+     * Only creates if task has started and hasn't been acknowledged
      * @param {Object} task - The task object
      */
     async createNSFTExceptionForTask(task) {
         if (!this.isReady()) return false;
 
         try {
+            // Check if task has been acknowledged
+            const { data: acknowledgements } = await this.client
+                .from('task_acknowledgements')
+                .select('id')
+                .eq('task_id', task.id)
+                .limit(1);
+
+            if (acknowledgements && acknowledgements.length > 0) {
+                console.log(`Task ${task.id} has been acknowledged, skipping NSFT exception`);
+                return false;
+            }
+
+            // Check if task has started (current time >= task start time on task date)
+            const now = new Date();
+            const today = now.toISOString().split('T')[0];
+            const taskStartDate = new Date(task.start_date);
+            taskStartDate.setHours(0, 0, 0, 0);
+            const todayDate = new Date(today);
+            todayDate.setHours(0, 0, 0, 0);
+
+            // Helper to convert time to minutes
+            const timeToMinutes = (timeStr) => {
+                if (!timeStr) return 0;
+                if (timeStr.includes(':')) {
+                    const [hours, minutes] = timeStr.split(':').map(Number);
+                    return hours * 60 + minutes;
+                }
+                const hours = parseInt(timeStr.substring(0, 2));
+                const minutes = parseInt(timeStr.substring(2, 4));
+                return hours * 60 + minutes;
+            };
+
+            const taskStartMinutes = timeToMinutes(task.start_time);
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+            // Check if task has started
+            const datePassed = taskStartDate < todayDate;
+            const timePassed = taskStartDate.getTime() === todayDate.getTime() && currentMinutes >= taskStartMinutes;
+
+            if (!datePassed && !timePassed) {
+                console.log(`Task ${task.id} has not started yet, skipping NSFT exception`);
+                return false;
+            }
+
             // Get employee name
             const { data: employee } = await this.client
                 .from('employees')
@@ -487,8 +640,8 @@ class SupabaseService {
                 return `${hours}:${minutes}:00`;
             };
 
-            // Use end_date for the exception date (when task became overdue)
-            const exceptionDate = task.end_date;
+            // Use start_date for the exception date (when task should have started)
+            const exceptionDate = task.start_date;
 
             // Check if NSFT exception already exists for this task
             const { data: existingException } = await this.client
@@ -515,7 +668,7 @@ class SupabaseService {
                     exception_date: exceptionDate,
                     start_time: formatTime(task.start_time),
                     end_time: formatTime(task.end_time),
-                    reason: `Task overdue: ${task.name}`,
+                    reason: `Task not acknowledged: ${task.name}`,
                     approved_by: 'SYSTEM',
                     approved_at: new Date().toISOString(),
                     task_id: task.id,
@@ -533,7 +686,7 @@ class SupabaseService {
                 return false;
             }
 
-            console.log(`✅ Created NSFT exception for overdue task: ${task.name} (Employee: ${employeeName})`);
+            console.log(`✅ Created NSFT exception for unacknowledged task: ${task.name} (Employee: ${employeeName})`);
             return true;
         } catch (error) {
             console.error('Error creating NSFT exception for task:', error);
@@ -721,34 +874,76 @@ class SupabaseService {
 
             // Check each task
             for (const task of tasks) {
-                const taskEndDate = new Date(task.end_date);
-                taskEndDate.setHours(0, 0, 0, 0);
+                // First check if task has been acknowledged - if so, skip NSFT
+                const { data: acknowledgements } = await this.client
+                    .from('task_acknowledgements')
+                    .select('id')
+                    .eq('task_id', task.id)
+                    .limit(1);
+
+                if (acknowledgements && acknowledgements.length > 0) {
+                    // Task has been acknowledged, skip NSFT but still mark as overdue if needed
+                    const taskEndDate = new Date(task.end_date);
+                    taskEndDate.setHours(0, 0, 0, 0);
+                    const todayDate = new Date(today);
+                    todayDate.setHours(0, 0, 0, 0);
+
+                    const datePassed = taskEndDate < todayDate;
+                    const taskEndMinutes = timeToMinutes(task.end_time);
+                    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+                    const timePassed = taskEndDate.getTime() === todayDate.getTime() && currentMinutes > taskEndMinutes;
+
+                    if (datePassed || timePassed) {
+                        // Mark as overdue but don't create NSFT (already acknowledged)
+                        const { error: updateError } = await this.client
+                            .from('tasks')
+                            .update({ status: 'overdue' })
+                            .eq('id', task.id);
+
+                        if (!updateError) {
+                            markedCount++;
+                        }
+                    }
+                    continue;
+                }
+
+                // Check if task has started (current time >= task start time on task date)
+                const taskStartDate = new Date(task.start_date);
+                taskStartDate.setHours(0, 0, 0, 0);
                 const todayDate = new Date(today);
                 todayDate.setHours(0, 0, 0, 0);
 
-                // Check if task end date has passed
-                const datePassed = taskEndDate < todayDate;
-                
-                // Check if task end time has passed (for today's tasks)
-                const taskEndMinutes = timeToMinutes(task.end_time);
+                const taskStartMinutes = timeToMinutes(task.start_time);
                 const currentMinutes = now.getHours() * 60 + now.getMinutes();
-                const timePassed = taskEndDate.getTime() === todayDate.getTime() && currentMinutes > taskEndMinutes;
 
-                if (datePassed || timePassed) {
-                    // Mark task as overdue
-                    const { error: updateError } = await this.client
-                        .from('tasks')
-                        .update({ status: 'overdue' })
-                        .eq('id', task.id);
+                const startDatePassed = taskStartDate < todayDate;
+                const startTimePassed = taskStartDate.getTime() === todayDate.getTime() && currentMinutes >= taskStartMinutes;
 
-                    if (updateError) {
-                        console.error(`Error marking task ${task.id} as overdue:`, updateError);
-                        continue;
+                // Only create NSFT if task has started and is not acknowledged
+                if (startDatePassed || startTimePassed) {
+                    // Check if task end date/time has passed for overdue status
+                    const taskEndDate = new Date(task.end_date);
+                    taskEndDate.setHours(0, 0, 0, 0);
+                    const datePassed = taskEndDate < todayDate;
+                    const taskEndMinutes = timeToMinutes(task.end_time);
+                    const timePassed = taskEndDate.getTime() === todayDate.getTime() && currentMinutes > taskEndMinutes;
+
+                    if (datePassed || timePassed) {
+                        // Mark task as overdue
+                        const { error: updateError } = await this.client
+                            .from('tasks')
+                            .update({ status: 'overdue' })
+                            .eq('id', task.id);
+
+                        if (updateError) {
+                            console.error(`Error marking task ${task.id} as overdue:`, updateError);
+                            continue;
+                        }
+
+                        markedCount++;
                     }
 
-                    markedCount++;
-
-                    // Create NSFT exception (this will be handled by updateTask, but we'll call it directly to ensure it happens)
+                    // Create NSFT exception (task has started and is not acknowledged)
                     const exceptionCreated = await this.createNSFTExceptionForTask(task);
                     if (exceptionCreated) {
                         exceptionCount++;
@@ -1570,12 +1765,24 @@ class SupabaseService {
             return null;
         }
 
+        // Remove DO exception for this employee on this date (if it exists)
+        if (shiftData.employee_id && shiftData.shift_date) {
+            await this.removeDOExceptionForDate(shiftData.employee_id, shiftData.shift_date);
+        }
+
         console.log('✅ Shift assigned');
         return data;
     }
 
     async updateEmployeeShift(shiftId, updates) {
         if (!this.isReady()) return null;
+
+        // Get the current shift to check if date or employee changed
+        const { data: currentShift } = await this.client
+            .from('employee_shifts')
+            .select('employee_id, shift_date')
+            .eq('id', shiftId)
+            .single();
 
         const { data, error } = await this.client
             .from('employee_shifts')
@@ -1590,6 +1797,14 @@ class SupabaseService {
         if (error) {
             console.error('Error updating shift:', error);
             return null;
+        }
+
+        // Remove DO exception for the updated date (if date or employee changed)
+        const employeeId = updates.employee_id || currentShift?.employee_id;
+        const shiftDate = updates.shift_date || currentShift?.shift_date;
+        
+        if (employeeId && shiftDate) {
+            await this.removeDOExceptionForDate(employeeId, shiftDate);
         }
 
         console.log('✅ Shift updated');
@@ -2752,6 +2967,40 @@ class SupabaseService {
     }
 
     /**
+     * Remove DO exception for a specific employee and date
+     * Called automatically when a shift is assigned
+     * @param {number} employeeId - Employee ID
+     * @param {string} date - Date string (YYYY-MM-DD)
+     */
+    async removeDOExceptionForDate(employeeId, date) {
+        if (!this.isReady()) return;
+
+        try {
+            // Delete DO exceptions for this employee on this date
+            // Only delete automatic DOs (created_by = 'SYSTEM')
+            const { error } = await this.client
+                .from('exception_logs')
+                .delete()
+                .eq('employee_id', employeeId)
+                .eq('exception_date', date)
+                .eq('exception_code', 'DO')
+                .eq('created_by', 'SYSTEM');
+
+            if (error) {
+                // If error is "no rows found", that's fine - just means no DO to remove
+                if (error.code !== 'PGRST116') {
+                    console.warn('Warning removing DO exception:', error);
+                }
+            } else {
+                console.log(`✅ Removed DO exception for employee ${employeeId} on ${date}`);
+            }
+        } catch (error) {
+            console.warn('Error removing DO exception:', error);
+            // Don't throw - this is a cleanup operation, shouldn't block shift creation
+        }
+    }
+
+    /**
      * Ensure DO exceptions are applied for employees without shifts on a specific date
      * This is a JavaScript implementation that doesn't require SQL functions
      */
@@ -3114,6 +3363,34 @@ class SupabaseService {
     }
 
     /**
+     * Clear all company chat messages (admin only)
+     * @returns {Promise<boolean>} True if successful, false otherwise
+     */
+    async clearCompanyChat() {
+        if (!this.isReady()) return false;
+
+        const isAdmin = await this.isAdmin();
+        if (!isAdmin) {
+            console.error('Only admins can clear chat');
+            return false;
+        }
+
+        try {
+            const { error } = await this.client
+                .from('company_chat_messages')
+                .update({ deleted_at: new Date().toISOString() })
+                .is('deleted_at', null);
+
+            if (error) throw error;
+            console.log('✅ Company chat cleared');
+            return true;
+        } catch (error) {
+            console.error('Error clearing company chat:', error);
+            return false;
+        }
+    }
+
+    /**
      * Subscribe to company chat messages for real-time updates
      * @param {Function} callback - Callback function to handle new messages
      * @returns {Function} Unsubscribe function
@@ -3129,42 +3406,59 @@ class SupabaseService {
             .on(
                 'postgres_changes',
                 {
-                    event: 'INSERT',
+                    event: '*', // Listen to INSERT, UPDATE, DELETE
                     schema: 'public',
-                    table: 'company_chat_messages',
-                    filter: 'deleted_at=is.null'
+                    table: 'company_chat_messages'
                 },
                 async (payload) => {
                     try {
-                        // Fetch the full message with user info
-                        const { data: message, error } = await this.client
-                            .from('company_chat_messages')
-                            .select(`
-                                *,
-                                users:user_id (
-                                    id,
-                                    username,
-                                    full_name,
-                                    is_admin
-                                )
-                            `)
-                            .eq('id', payload.new.id)
-                            .single();
+                        // Pass the full payload with event type
+                        const payloadWithEvent = {
+                            eventType: payload.eventType,
+                            new: payload.new,
+                            old: payload.old
+                        };
 
-                        if (error) {
-                            console.error('Error fetching message with user info:', error);
-                            // Fallback: use payload data without user info
-                            callback({
-                                ...payload.new,
-                                user: null
-                            });
-                        } else if (message) {
-                            // Map users to user for consistency
-                            const mappedMessage = message.users ? {
-                                ...message,
-                                user: message.users
-                            } : message;
-                            callback(mappedMessage);
+                        // For INSERT events, fetch full message with user info
+                        if (payload.eventType === 'INSERT' && payload.new && !payload.new.deleted_at) {
+                            const { data: message, error } = await this.client
+                                .from('company_chat_messages')
+                                .select(`
+                                    *,
+                                    users:user_id (
+                                        id,
+                                        username,
+                                        full_name,
+                                        is_admin
+                                    )
+                                `)
+                                .eq('id', payload.new.id)
+                                .single();
+
+                            if (error) {
+                                console.error('Error fetching message with user info:', error);
+                                // Fallback: use payload data without user info
+                                callback({
+                                    ...payloadWithEvent,
+                                    new: {
+                                        ...payload.new,
+                                        user: null
+                                    }
+                                });
+                            } else if (message) {
+                                // Map users to user for consistency
+                                const mappedMessage = message.users ? {
+                                    ...message,
+                                    user: message.users
+                                } : message;
+                                callback({
+                                    ...payloadWithEvent,
+                                    new: mappedMessage
+                                });
+                            }
+                        } else {
+                            // For UPDATE/DELETE events, just pass the payload
+                            callback(payloadWithEvent);
                         }
                     } catch (error) {
                         console.error('Error in chat subscription callback:', error);

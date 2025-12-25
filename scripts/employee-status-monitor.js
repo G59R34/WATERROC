@@ -66,9 +66,9 @@ class EmployeeStatusMonitor {
             }, 2000);
             
         } else {
-            console.log('⚠️ No user/employee ID found, retrying in 3 seconds...');
-            // Retry in case user info isn't loaded yet
-            setTimeout(() => this.initialize(), 3000);
+            // Don't retry indefinitely - user might be admin without employee record
+            console.log('ℹ️ No employee record found (user may be admin). Status monitoring disabled.');
+            // Status monitoring requires an employee record, so we'll skip it
         }
     }
     
@@ -99,10 +99,20 @@ class EmployeeStatusMonitor {
                 .from('employees')
                 .select('id')
                 .eq('user_id', userData.id)
-                .single();
+                .maybeSingle(); // Use maybeSingle() to avoid errors when no record exists
             
-            if (empError || !employeeData) {
-                console.error('❌ Failed to load employee data:', empError);
+            if (empError) {
+                // Only log non-PGRST116 errors (PGRST116 = no rows found, which is acceptable for admins)
+                if (empError.code !== 'PGRST116') {
+                    console.error('❌ Failed to load employee data:', empError);
+                } else {
+                    console.log('ℹ️ No employee record found for user (may be admin without employee record)');
+                }
+                return;
+            }
+            
+            if (!employeeData) {
+                console.log('ℹ️ No employee record found for user (may be admin without employee record)');
                 return;
             }
             

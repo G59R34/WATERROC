@@ -167,9 +167,17 @@ document.addEventListener('DOMContentLoaded', async function() {
                         
                         <div class="profile-actions">
                             <div class="profile-call-buttons" id="callButtons-${emp.id}" style="margin-bottom: 10px;"></div>
-                            <button class="btn-profile btn-edit-profile" data-employee-id="${emp.id}">
-                                ✏️ Edit Profile
-                            </button>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn-profile btn-edit-profile" data-employee-id="${emp.id}">
+                                    ✏️ Edit Profile
+                                </button>
+                                <button class="btn-profile btn-delete-employee" 
+                                        data-employee-id="${emp.id}" 
+                                        data-employee-name="${escapeHtml(emp.name)}"
+                                        style="background: #ef4444; color: white;">
+                                    🗑️ Delete Employee
+                                </button>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -181,6 +189,16 @@ document.addEventListener('DOMContentLoaded', async function() {
                     e.stopPropagation();
                     const employeeId = parseInt(btn.dataset.employeeId);
                     openProfileModal(employeeId);
+                });
+            });
+
+            // Add click handlers to delete buttons
+            document.querySelectorAll('.btn-delete-employee').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const employeeId = parseInt(btn.dataset.employeeId);
+                    const employeeName = btn.dataset.employeeName;
+                    await handleDeleteEmployee(employeeId, employeeName);
                 });
             });
 
@@ -287,6 +305,71 @@ document.addEventListener('DOMContentLoaded', async function() {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    // Handle employee deletion
+    async function handleDeleteEmployee(employeeId, employeeName) {
+        if (!employeeId || !employeeName) {
+            console.error('Invalid employee data for deletion');
+            return;
+        }
+
+        // Triple confirmation for safety
+        const confirm1 = confirm(`⚠️ WARNING: Are you sure you want to delete "${employeeName}"?\n\nThis will permanently delete:\n- All tasks assigned to this employee\n- All shifts for this employee\n- All related records\n\nThis action CANNOT be undone!`);
+        
+        if (!confirm1) return;
+
+        const confirm2 = confirm(`⚠️ FINAL CONFIRMATION:\n\nDelete "${employeeName}" permanently?\n\nType "DELETE" in the next prompt to confirm.`);
+        
+        if (!confirm2) return;
+
+        const confirmText = prompt(`Type "DELETE" to confirm deletion of "${employeeName}":`);
+        
+        if (confirmText !== 'DELETE') {
+            alert('Deletion cancelled. You must type "DELETE" exactly to confirm.');
+            return;
+        }
+
+        // Show loading state
+        const deleteBtn = document.querySelector(`.btn-delete-employee[data-employee-id="${employeeId}"]`);
+        if (deleteBtn) {
+            deleteBtn.disabled = true;
+            deleteBtn.textContent = '⏳ Deleting...';
+        }
+
+        try {
+            if (!supabaseService || !supabaseService.isReady()) {
+                alert('Supabase is not available. Cannot delete employee.');
+                return;
+            }
+
+            // Check if user is admin
+            const isAdmin = await supabaseService.isAdmin();
+            if (!isAdmin) {
+                alert('Only admins can delete employees.');
+                return;
+            }
+
+            // Delete the employee
+            const success = await supabaseService.deleteEmployee(employeeId);
+            
+            if (success) {
+                alert(`✅ Employee "${employeeName}" has been deleted successfully.`);
+                // Reload profiles to reflect the deletion
+                await loadProfiles();
+            } else {
+                alert(`❌ Failed to delete employee "${employeeName}". Please check the console for errors.`);
+            }
+        } catch (error) {
+            console.error('Error in handleDeleteEmployee:', error);
+            alert(`❌ Error deleting employee: ${error.message || 'Unknown error'}`);
+        } finally {
+            // Restore button state
+            if (deleteBtn) {
+                deleteBtn.disabled = false;
+                deleteBtn.textContent = '🗑️ Delete Employee';
+            }
+        }
     }
 
     // Initial load

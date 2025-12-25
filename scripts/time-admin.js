@@ -72,28 +72,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const panel = document.createElement('div');
     panel.id = 'attendancePanel';
-    panel.style.cssText = `
-        position: fixed;
-        right: 20px;
-        bottom: 80px;
-        width: 450px;
-        max-height: 75vh;
-        overflow-y: auto;
-        background: white;
-        border: none;
-        padding: 20px;
-        border-radius: 16px;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-        z-index: 99998;
-        display: none;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    `;
+    panel.className = 'attendance-panel';
     document.body.appendChild(panel);
 
     btn.addEventListener('click', async () => {
         if (panel.style.display === 'none') {
             panel.style.display = 'block';
-            panel.innerHTML = '<h3 style="margin-top:0">Attendance</h3><div id="attendanceContent">Loading...</div>';
+            panel.innerHTML = '<h3 class="attendance-panel-title">Attendance</h3><div id="attendanceContent">Loading...</div>';
             await loadAttendance(panel.querySelector('#attendanceContent'));
         } else {
             panel.style.display = 'none';
@@ -132,29 +117,29 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .limit(50);
             if (aErr) throw aErr;
 
-            let html = '<h4>Recent Sessions</h4>';
+            let html = '<h4 class="attendance-section-title">Recent Sessions</h4>';
             if (!sessions || sessions.length === 0) {
-                html += '<div>No sessions found</div>';
+                html += '<div class="attendance-empty">No sessions found</div>';
             } else {
-                html += '<ul>' + sessions.map(s => `
-                    <li style="margin-bottom:8px;border-bottom:1px solid #f0f0f0;padding-bottom:6px;">
+                html += '<ul class="attendance-list">' + sessions.map(s => `
+                    <li class="attendance-item">
                         <strong>Employee:</strong> ${employeesById[s.employee_id] || s.employee_id} <br>
                         <strong>In:</strong> ${s.clock_in ? new Date(s.clock_in).toLocaleString() : '-'} <br>
                         <strong>Out:</strong> ${s.clock_out ? new Date(s.clock_out).toLocaleString() : 'IN'} <br>
-                        <small>${s.device_info || ''}</small>
+                        <small class="attendance-device-info">${s.device_info || ''}</small>
                     </li>
                 `).join('') + '</ul>';
             }
 
-            html += '<h4>Recent Activity</h4>';
+            html += '<h4 class="attendance-section-title">Recent Activity</h4>';
             if (!activities || activities.length === 0) {
-                html += '<div>No activity logs</div>';
+                html += '<div class="attendance-empty">No activity logs</div>';
             } else {
-                html += '<ul>' + activities.map(a => `
-                    <li style="margin-bottom:8px;border-bottom:1px solid #f8f8f8;padding-bottom:6px;">
+                html += '<ul class="attendance-list">' + activities.map(a => `
+                    <li class="attendance-item">
                         <strong>Employee:</strong> ${ (a.employee && a.employee.name) || employeesById[a.employee_id] || a.employee_id } <br>
                         <strong>${a.category}</strong> at ${new Date(a.recorded_at).toLocaleString()}<br>
-                        <small>${a.detail ? a.detail.substring(0,180) : ''}</small>
+                        <small class="attendance-device-info">${a.detail ? a.detail.substring(0,180) : ''}</small>
                     </li>
                 `).join('') + '</ul>';
             }
@@ -219,28 +204,28 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
             const employeeIds = Object.keys(grouped);
-            let html = '<h4>Attendance By Employee</h4>';
-            html += `<div style="margin-bottom:8px;color:#64748b;font-size:13px;">Loaded ${sessions ? sessions.length : 0} sessions for ${employeeIds.length} employees</div>`;
+            let html = '<h4 class="attendance-section-title">Attendance By Employee</h4>';
+            html += `<div class="attendance-summary">Loaded ${sessions ? sessions.length : 0} sessions for ${employeeIds.length} employees</div>`;
             if (!sessions || sessions.length === 0) {
-                html += '<div>No sessions found</div>';
+                html += '<div class="attendance-empty">No sessions found</div>';
             } else {
                 for (const empId of Object.keys(grouped)) {
                     const rows = grouped[empId].map(s => `
                         <tr>
-                            <td style="padding:6px 8px;border-bottom:1px solid #eee;">${s.session_id}</td>
-                            <td style="padding:6px 8px;border-bottom:1px solid #eee;">${s.clock_in ? new Date(s.clock_in).toLocaleString() : '-'}</td>
-                            <td style="padding:6px 8px;border-bottom:1px solid #eee;">${s.clock_out ? new Date(s.clock_out).toLocaleString() : 'IN'}</td>
-                            <td style="padding:6px 8px;border-bottom:1px solid #eee;">${s.device_info || ''}</td>
+                            <td>${s.session_id}</td>
+                            <td>${s.clock_in ? new Date(s.clock_in).toLocaleString() : '-'}</td>
+                            <td>${s.clock_out ? new Date(s.clock_out).toLocaleString() : 'IN'}</td>
+                            <td>${s.device_info || ''}</td>
                         </tr>
                     `).join('');
 
                     const displayName = employeesById[empId] || empId;
                     html += `
-                        <div style="margin-bottom:18px;">
-                            <h4 style="margin:6px 0;">${displayName} (ID: ${empId})</h4>
-                            <table style="width:100%;border-collapse:collapse;margin-bottom:6px;">
+                        <div class="attendance-employee-group">
+                            <h4 class="attendance-employee-name">${displayName} (ID: ${empId})</h4>
+                            <table class="attendance-table">
                                 <thead>
-                                    <tr style="text-align:left;border-bottom:1px solid #eee;"><th style="padding:6px 8px;">Session</th><th style="padding:6px 8px;">Clock In</th><th style="padding:6px 8px;">Clock Out</th><th style="padding:6px 8px;">Device</th></tr>
+                                    <tr><th>Session</th><th>Clock In</th><th>Clock Out</th><th>Device</th></tr>
                                 </thead>
                                 <tbody>
                                     ${rows}

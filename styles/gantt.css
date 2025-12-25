@@ -22,8 +22,8 @@ body:not(.employee-page) .gantt-chart {
 
 .gantt-header {
     display: flex;
-    border-bottom: 2px solid var(--border-color);
-    background: var(--bg-color);
+    border-bottom: 2px solid var(--border-light);
+    background: var(--bg-primary);
     z-index: 50;
     flex-shrink: 0;
     overflow: hidden;
@@ -35,8 +35,8 @@ body:not(.employee-page) .gantt-chart {
     width: 200px;
     padding: 15px;
     font-weight: 600;
-    border-right: 2px solid var(--border-color);
-    background: var(--bg-color);
+    border-right: 2px solid var(--border-light);
+    background: var(--bg-primary);
     flex-shrink: 0;
 }
 
@@ -58,7 +58,8 @@ body:not(.employee-page) .gantt-chart {
     width: 120px;
     padding: 12px;
     text-align: center;
-    border-right: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-light);
+    background: var(--bg-primary);
     font-weight: 500;
     font-size: 0.9rem;
     flex-shrink: 0;
@@ -74,11 +75,19 @@ body:not(.employee-page) .gantt-chart {
 }
 
 .gantt-day-header.weekend {
-    background: #f1f5f9;
+    background: var(--bg-tertiary);
+}
+
+[data-theme="dark"] .gantt-day-header.weekend {
+    background: var(--bg-secondary);
 }
 
 .gantt-day-header.weekend:hover {
     background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%);
+}
+
+[data-theme="dark"] .gantt-day-header.weekend:hover {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.25) 0%, rgba(118, 75, 162, 0.25) 100%);
 }
 
 .gantt-day-header .day-name {
@@ -99,12 +108,17 @@ body:not(.employee-page) .gantt-chart {
 .gantt-day-header .day-time {
     display: block;
     font-size: 0.75rem;
-    color: var(--primary-color);
+    color: var(--primary-600);
     font-weight: 600;
-    background: #eff6ff;
+    background: var(--primary-50);
     padding: 2px 4px;
     border-radius: 4px;
     margin-top: 2px;
+}
+
+[data-theme="dark"] .gantt-day-header .day-time {
+    background: var(--primary-900);
+    color: var(--primary-300);
 }
 
 .gantt-body {
@@ -117,25 +131,30 @@ body:not(.employee-page) .gantt-chart {
 
 .gantt-row {
     display: flex;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-light);
     min-height: 150px;
     position: relative;
     flex-shrink: 0;
+    background: var(--bg-primary);
 }
 
 .gantt-row:hover {
-    background: #f8fafc;
+    background: var(--bg-secondary);
+}
+
+[data-theme="dark"] .gantt-row:hover {
+    background: var(--bg-tertiary);
 }
 
 .gantt-employee-cell {
     min-width: 200px;
     width: 200px;
     padding: 25px 15px;
-    border-right: 2px solid var(--border-color);
+    border-right: 2px solid var(--border-light);
     display: flex;
     flex-direction: column;
     justify-content: center;
-    background: white;
+    background: var(--bg-primary);
     position: sticky;
     left: 0;
     z-index: 10;
@@ -164,19 +183,30 @@ body:not(.employee-page) .gantt-chart {
 .gantt-day-cell {
     min-width: 120px;
     width: 120px;
-    border-right: 1px solid #e5e7eb;
+    border-right: 1px solid var(--border-light);
+    background: var(--bg-primary);
     position: relative;
     flex-shrink: 0;
 }
 
 .gantt-day-cell.weekend {
-    background: #fafafa;
+    background: var(--bg-tertiary);
+}
+
+[data-theme="dark"] .gantt-day-cell.weekend {
+    background: var(--bg-secondary);
 }
 
 .gantt-day-cell.today {
-    background: #eff6ff;
-    border-left: 2px solid var(--primary-color);
-    border-right: 2px solid var(--primary-color);
+    background: var(--primary-50);
+    border-left: 2px solid var(--primary-600);
+    border-right: 2px solid var(--primary-600);
+}
+
+[data-theme="dark"] .gantt-day-cell.today {
+    background: var(--primary-900);
+    border-left-color: var(--primary-500);
+    border-right-color: var(--primary-500);
 }
 
 /* Time Off Periods */
@@ -353,18 +383,18 @@ body:not(.employee-page) .gantt-chart {
 
 .gantt-timeline-header::-webkit-scrollbar-track,
 .gantt-chart::-webkit-scrollbar-track {
-    background: var(--bg-color);
+    background: var(--bg-primary);
 }
 
 .gantt-timeline-header::-webkit-scrollbar-thumb,
 .gantt-chart::-webkit-scrollbar-thumb {
-    background: var(--border-color);
+    background: var(--border-medium);
     border-radius: 4px;
 }
 
 .gantt-timeline-header::-webkit-scrollbar-thumb:hover,
 .gantt-chart::-webkit-scrollbar-thumb:hover {
-    background: var(--secondary-color);
+    background: var(--border-dark);
 }
 
 /* Mobile Responsive */

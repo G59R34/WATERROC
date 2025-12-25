@@ -29,13 +29,13 @@
 }
 
 .checkin-dialog {
-    background: white;
+    background: var(--bg-primary);
     border-radius: 20px;
     width: 90%;
     max-width: 600px;
     max-height: 85vh;
     overflow: hidden;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-2xl);
     animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -120,30 +120,30 @@
 }
 
 .checkin-button.secondary {
-    background: white;
+    background: var(--bg-primary);
     color: var(--text-primary);
-    border: 2px solid var(--border-color);
+    border: 2px solid var(--border-light);
 }
 
 .checkin-button.secondary:hover {
-    background: var(--bg-color);
+    background: var(--bg-secondary);
 }
 
 .notification-list-checkin {
     max-height: 300px;
     overflow-y: auto;
-    background: var(--bg-color);
+    background: var(--bg-secondary);
     border-radius: 12px;
     padding: 15px;
 }
 
 .notification-item-checkin {
-    background: white;
+    background: var(--bg-primary);
     padding: 15px;
     border-radius: 10px;
     margin-bottom: 12px;
     border-left: 4px solid var(--primary-color);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-sm);
 }
 
 .notification-item-checkin.new-task {
@@ -164,20 +164,32 @@
 
 .notification-item-checkin.announcement {
     border-left-color: #f59e0b;
-    background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
+    background: linear-gradient(135deg, #fffbeb 0%, var(--bg-primary) 100%);
+}
+
+[data-theme="dark"] .notification-item-checkin.announcement {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, var(--bg-primary) 100%);
 }
 
 .notification-item-checkin.announcement-urgent {
     border-left-color: #ef4444;
     border-left-width: 6px;
-    background: linear-gradient(135deg, #fef2f2 0%, #ffffff 100%);
+    background: linear-gradient(135deg, #fef2f2 0%, var(--bg-primary) 100%);
     animation: pulse 2s infinite;
+}
+
+[data-theme="dark"] .notification-item-checkin.announcement-urgent {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, var(--bg-primary) 100%);
 }
 
 .notification-item-checkin.announcement-important {
     border-left-color: #f59e0b;
     border-left-width: 5px;
-    background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
+    background: linear-gradient(135deg, #fffbeb 0%, var(--bg-primary) 100%);
+}
+
+[data-theme="dark"] .notification-item-checkin.announcement-important {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, var(--bg-primary) 100%);
 }
 
 @keyframes pulse {
@@ -229,7 +241,7 @@
 }
 
 .stat-card {
-    background: var(--bg-color);
+    background: var(--bg-secondary);
     padding: 20px;
     border-radius: 12px;
     text-align: center;
@@ -249,8 +261,8 @@
 
 .checkin-footer {
     padding: 20px 30px;
-    background: var(--bg-color);
-    border-top: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-light);
 }
 
 .checkin-footer .footer-text {
@@ -266,17 +278,17 @@
 }
 
 .notification-list-checkin::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: var(--bg-tertiary);
     border-radius: 10px;
 }
 
 .notification-list-checkin::-webkit-scrollbar-thumb {
-    background: #888;
+    background: var(--border-medium);
     border-radius: 10px;
 }
 
 .notification-list-checkin::-webkit-scrollbar-thumb:hover {
-    background: #555;
+    background: var(--border-dark);
 }
 
 /* Mobile responsive */

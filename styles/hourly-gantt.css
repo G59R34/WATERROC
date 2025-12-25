@@ -20,17 +20,17 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--border-light);
     border-radius: 8px;
-    background: white;
+    background: var(--bg-primary);
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
 }
 
 .hourly-gantt-header {
     display: grid;
     grid-template-columns: 180px 1fr;
-    border-bottom: 1px solid #e2e8f0;
-    background: #f8fafc;
+    border-bottom: 1px solid var(--border-light);
+    background: var(--bg-secondary);
     z-index: 50;
     flex-shrink: 0;
     overflow: hidden;
@@ -42,13 +42,13 @@
     width: 180px;
     padding: 12px 15px;
     font-weight: 700;
-    border-right: 1px solid #e2e8f0;
-    background: #f8fafc;
+    border-right: 1px solid var(--border-light);
+    background: var(--bg-secondary);
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 0.9rem;
-    color: #334155;
+    color: var(--text-primary);
 }
 
 .hourly-gantt-timeline-header {
@@ -68,11 +68,11 @@
     width: 80px;
     padding: 12px 8px;
     text-align: center;
-    border-right: 1px solid #f1f5f9;
+    border-right: 1px solid var(--border-light);
     font-weight: 600;
     font-size: 0.75rem;
-    color: #64748b;
-    background: #f8fafc;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
     position: relative;
 }
 
@@ -104,12 +104,17 @@
 .hourly-gantt-row {
     display: flex;
     min-height: 80px;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-light);
+    background: var(--bg-primary);
     position: relative;
 }
 
 .hourly-gantt-row:hover {
-    background: rgba(102, 126, 234, 0.03);
+    background: var(--bg-secondary);
+}
+
+[data-theme="dark"] .hourly-gantt-row:hover {
+    background: var(--bg-tertiary);
 }
 
 .hourly-gantt-employee-name {
@@ -117,8 +122,9 @@
     width: 200px;
     padding: 20px 15px;
     font-weight: 600;
-    border-right: 2px solid var(--border-color);
-    background: white;
+    border-right: 2px solid var(--border-light);
+    background: var(--bg-primary);
+    color: var(--text-primary);
     display: flex;
     align-items: center;
     flex-shrink: 0;
@@ -138,23 +144,31 @@
     position: relative;
     min-height: 32px;
     height: 32px;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--border-light);
     overflow: visible;
     display: flex;
     cursor: pointer;
-    background: #fafafa;
+    background: var(--bg-tertiary);
+}
+
+[data-theme="dark"] .hourly-gantt-timeline-area {
+    background: var(--bg-secondary);
 }
 
 .hourly-gantt-timeline-area:hover {
-    background: #f5f5f5;
+    background: var(--bg-secondary);
+}
+
+[data-theme="dark"] .hourly-gantt-timeline-area:hover {
+    background: var(--bg-tertiary);
 }
 
 .hourly-gantt-work-areas {
     display: flex;
     gap: 8px;
     padding: 10px 15px;
-    background: white;
-    border-left: 2px solid var(--border-color);
+    background: var(--bg-primary);
+    border-left: 2px solid var(--border-light);
     align-items: center;
     min-width: 400px;
     flex-shrink: 0;
@@ -244,11 +258,16 @@
     top: 0;
     height: 100%;
     width: 1px;
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--border-light);
+    opacity: 0.5;
 }
 
 .hourly-gantt-hour-cell:hover {
-    background: rgba(102, 126, 234, 0.03);
+    background: var(--bg-secondary);
+}
+
+[data-theme="dark"] .hourly-gantt-hour-cell:hover {
+    background: var(--bg-tertiary);
 }
 
 /* Current time indicator with exact minute precision - spans entire chart */
@@ -426,7 +445,7 @@
     display: grid;
     grid-template-columns: 180px 1fr;
     grid-template-rows: repeat(5, 32px);
-    border-bottom: 1px solid #cbd5e1;
+    border-bottom: 1px solid var(--border-light);
 }
 
 .hourly-gantt-area-row {

@@ -145,20 +145,24 @@
     color: white;
     padding: 20px;
     box-sizing: border-box;
+    overflow: auto;
+    min-height: 0;
 }
 
 .active-call-video-container {
     width: 100%;
-    max-width: 1400px;
+    max-width: min(1400px, 95vw);
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 24px;
     padding: 0;
     margin-bottom: 40px;
+    box-sizing: border-box;
 }
 
 .call-video {
     width: 100%;
+    max-width: 100%;
     aspect-ratio: 16/9;
     background: #1f2937;
     border-radius: 16px;
@@ -166,6 +170,7 @@
     position: relative;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     border: 2px solid rgba(255, 255, 255, 0.1);
+    min-width: 0;
 }
 
 .call-video video {
@@ -190,6 +195,7 @@
 .active-call-info {
     text-align: center;
     margin-bottom: 40px;
+    flex-shrink: 0;
 }
 
 .active-call-name {
@@ -272,31 +278,40 @@
 
 /* Audio-only call layout - compact and centered */
 .active-call-modal.audio-only {
-    padding: 40px 20px;
+    padding: 20px;
+    justify-content: flex-start;
+    padding-top: 40px;
+    align-items: center;
 }
 
 .active-call-modal.audio-only .active-call-video-container {
     grid-template-columns: 1fr;
-    max-width: 400px;
-    margin-bottom: 30px;
+    max-width: min(400px, 85vw);
+    width: 100%;
+    margin: 0 auto 30px auto;
+    gap: 20px;
+    box-sizing: border-box;
 }
 
 .active-call-modal.audio-only .call-video {
     aspect-ratio: 1/1;
-    max-width: 400px;
+    max-width: 100%;
+    max-height: min(400px, 40vh);
+    width: 100%;
     margin: 0 auto;
     display: flex;
     align-items: center;
     justify-content: center;
     background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
     position: relative;
+    box-sizing: border-box;
 }
 
 .active-call-modal.audio-only .call-video::before {
     content: '';
     position: absolute;
-    width: 120px;
-    height: 120px;
+    width: min(120px, 30vw);
+    height: min(120px, 30vw);
     background: rgba(255, 255, 255, 0.2);
     border-radius: 50%;
     display: flex;
@@ -308,7 +323,7 @@
 .active-call-modal.audio-only .call-video::after {
     content: '☎';
     position: absolute;
-    font-size: 100px;
+    font-size: min(100px, 25vw);
     line-height: 1;
     color: rgba(255, 255, 255, 0.9);
     filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
@@ -328,23 +343,44 @@
 }
 
 /* Responsive design for smaller screens */
+@media (max-width: 1024px) {
+    .active-call-video-container {
+        max-width: 95vw;
+        gap: 20px;
+    }
+}
+
 @media (max-width: 768px) {
+    .active-call-modal {
+        padding: 10px;
+    }
+    
     .active-call-video-container {
         grid-template-columns: 1fr;
         max-width: 100%;
         gap: 16px;
+        margin-bottom: 20px;
     }
 
     .call-video {
         aspect-ratio: 4/3;
     }
 
+    .active-call-modal.audio-only {
+        padding: 10px;
+        padding-top: 20px;
+    }
+
     .active-call-modal.audio-only .active-call-video-container {
-        max-width: 100%;
+        max-width: min(350px, 85vw);
+        gap: 16px;
+        margin-bottom: 20px;
     }
 
     .active-call-modal.audio-only .call-video {
         max-width: 100%;
+        max-height: min(350px, 35vh);
+        width: 100%;
     }
 
     .active-call-controls {

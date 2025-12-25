@@ -48,9 +48,9 @@ class VOIPCallManager {
             // Also start polling as a fallback
             this.startIncomingCallPolling(employee.id);
         } else {
-            console.error('❌ Could not get current employee for VOIP initialization, retrying...');
-            // Retry after a delay
-            setTimeout(() => this.initialize(), 2000);
+            // Don't retry indefinitely - user might be admin without employee record
+            console.log('ℹ️ No employee record found (user may be admin). VOIP features disabled.');
+            // VOIP requires an employee record, so we'll skip initialization
         }
 
         return true;

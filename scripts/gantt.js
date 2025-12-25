@@ -190,6 +190,7 @@ class GanttChart {
         // Employee cell
         const employeeCell = document.createElement('div');
         employeeCell.className = 'gantt-employee-cell';
+        employeeCell.dataset.employeeId = employee.id;
         employeeCell.innerHTML = `
             <div class="employee-name">${employee.name}</div>
             <div class="employee-role">${employee.role}</div>
@@ -207,6 +208,7 @@ class GanttChart {
             
             const dayCell = document.createElement('div');
             dayCell.className = 'gantt-day-cell';
+            dayCell.dataset.date = this.formatDate(currentDate);
             
             if (this.isWeekend(currentDate)) {
                 dayCell.classList.add('weekend');
@@ -449,6 +451,24 @@ class GanttChart {
     
     getEmployees() {
         return this.data.employees;
+    }
+
+    removeEmployee(employeeId) {
+        // Remove employee from data
+        this.data.employees = this.data.employees.filter(emp => emp.id !== employeeId);
+        
+        // Remove all tasks for this employee
+        this.data.tasks = this.data.tasks.filter(task => task.employeeId !== employeeId);
+        
+        // Save and re-render
+        this.saveData();
+        this.render();
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
     
     getTask(taskId) {
