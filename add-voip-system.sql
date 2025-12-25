@@ -111,6 +111,10 @@ CREATE POLICY "Employees can delete own signaling"
     );
 
 -- Enable real-time for call_signaling (for WebRTC signaling)
+-- Step 1: Set REPLICA IDENTITY to FULL (REQUIRED for realtime to work)
+ALTER TABLE public.call_signaling REPLICA IDENTITY FULL;
+
+-- Step 2: Add table to realtime publication
 ALTER PUBLICATION supabase_realtime ADD TABLE call_signaling;
 
 COMMENT ON TABLE public.call_logs IS 'Stores call history and logs for VOIP system';

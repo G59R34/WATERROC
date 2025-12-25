@@ -159,6 +159,14 @@ document.addEventListener('DOMContentLoaded', async function() {
         document.getElementById('currentTime').textContent = timeString;
     }
 
+    // Format date as YYYY-MM-DD using local timezone (not UTC)
+    function formatDate(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
     async function loadEmployeeId() {
         try {
             if (typeof supabaseService === 'undefined' || !supabaseService.isReady()) {
@@ -215,7 +223,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 return;
             }
 
-            const today = new Date().toISOString().split('T')[0];
+            const today = formatDate(new Date());
             const shifts = await supabaseService.getEmployeeShifts(today, today);
             console.log('All shifts for today:', shifts);
             currentShift = shifts.find(s => s.employee_id === currentEmployee.employeeId);
@@ -286,7 +294,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     async function loadExceptionStatus() {
         try {
-            const today = new Date().toISOString().split('T')[0];
+            const today = formatDate(new Date());
             const exceptions = await supabaseService.getExceptionLogs({
                 employeeId: currentEmployee.employeeId,
                 date: today
@@ -322,8 +330,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     async function loadTasks() {
         try {
-            // Get today's date
-            const today = new Date().toISOString().split('T')[0];
+            const today = formatDate(new Date());
             
             console.log('Loading tasks from Supabase for employeeId:', currentEmployee.employeeId);
             
