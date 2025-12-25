@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         localStorage.setItem('healthInsurance', taxConfig.healthInsurance);
     }
     
-    // Calculate taxes for an employee
+    // Calculate taxes for an employee (simple tax calculation, no 401k/SMP)
     function calculateTaxes(grossPay) {
         const federalTax = grossPay * (taxConfig.federalTaxRate / 100);
         const stateTax = grossPay * (taxConfig.stateTaxRate / 100);
@@ -66,65 +66,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         const totalTaxes = federalTax + stateTax + socialSecurity + medicare + unemployment;
         const totalDeductions = totalTaxes + healthInsurance;
-        // Calculate 401k and SMP contributions (before taxes for 401k, after for SMP)
-        let contribution401k = 0;
-        let employerMatch401k = 0;
-        let contributionSMP = 0;
-        let smpStockSymbol = null;
-        
-        if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
-            // Get 401k enrollment
-            const employee401k = await supabaseService.getEmployee401k(employee.id);
-            if (employee401k && employee401k.status === 'active') {
-                contribution401k = grossPay * (employee401k.contribution_percent / 100);
-                // Apply max contribution limit if set
-                if (employee401k.max_contribution) {
-                    contribution401k = Math.min(contribution401k, employee401k.max_contribution);
-                }
-                // Calculate employer match (typically 50% of employee contribution up to a limit)
-                employerMatch401k = contribution401k * (employee401k.employer_match_percent / 100);
-            }
-            
-            // Get SMP enrollment
-            const employeeSMP = await supabaseService.getEmployeeSMP(employee.id);
-            if (employeeSMP && employeeSMP.status === 'active') {
-                // SMP is calculated on net pay (after taxes and 401k)
-                // We'll calculate it after we have the net pay
-            }
-        }
-        
-        // Deduct 401k from gross pay (pre-tax)
-        const grossAfter401k = grossPay - contribution401k;
-        
-        // Recalculate taxes on reduced gross (401k is pre-tax)
-        const federalTax = grossAfter401k * (taxConfig.federalTaxRate / 100);
-        const stateTax = grossAfter401k * (taxConfig.stateTaxRate / 100);
-        const socialSecurity = grossAfter401k * (taxConfig.socialSecurityRate / 100);
-        const medicare = grossAfter401k * (taxConfig.medicareRate / 100);
-        const unemployment = grossAfter401k * (taxConfig.unemploymentRate / 100);
-        const totalTaxes = federalTax + stateTax + socialSecurity + medicare + unemployment;
-        const totalDeductions = totalTaxes + healthInsurance + contribution401k;
-        
-        // Calculate net pay after taxes and 401k
-        let netPay = grossAfter401k - totalTaxes - healthInsurance;
-        
-        // Calculate SMP contribution (post-tax, from net pay)
-        if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
-            const employeeSMP = await supabaseService.getEmployeeSMP(employee.id);
-            if (employeeSMP && employeeSMP.status === 'active') {
-                contributionSMP = netPay * (employeeSMP.contribution_percent / 100);
-                // Apply max contribution limit if set
-                if (employeeSMP.max_contribution) {
-                    contributionSMP = Math.min(contributionSMP, employeeSMP.max_contribution);
-                }
-                // Get stock symbol from first contribution or use WTRC as default
-                const smpContributions = await supabaseService.getSMPContributions(employeeSMP.id);
-                smpStockSymbol = smpContributions.length > 0 ? smpContributions[0].stock_symbol : 'WTRC';
-            }
-        }
-        
-        // Final net pay after SMP
-        netPay = netPay - contributionSMP;
         
         return {
             grossPay,
@@ -134,15 +75,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             medicare,
             unemployment,
             healthInsurance,
-            contribution401k,
-            employerMatch401k,
-            contributionSMP,
-            smpStockSymbol,
             totalTaxes,
-            totalDeductions: totalDeductions + contributionSMP,
-            netPay,
-            employee401k: contribution401k > 0,
-            employeeSMP: contributionSMP > 0
+            totalDeductions
         };
     }
     
@@ -282,8 +216,40 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
         }
         
-        // Final net pay after all deductions
-        const netPay = netAfterTaxes - contributionSMP;
+        // Calculate wage garnishments
+        let totalGarnishments = 0;
+        const garnishments = [];
+        
+        if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+            const activeGarnishments = await supabaseService.getEmployeeGarnishments(
+                employee.id,
+                startDate.toISOString().split('T')[0],
+                endDate.toISOString().split('T')[0]
+            );
+            
+            for (const garnishment of activeGarnishments) {
+                let garnishmentAmount = 0;
+                
+                if (garnishment.amount_type === 'fixed') {
+                    garnishmentAmount = parseFloat(garnishment.amount);
+                } else {
+                    // Percentage of net pay (after taxes and contributions)
+                    garnishmentAmount = netAfterTaxes * (parseFloat(garnishment.percent_of_pay) / 100);
+                }
+                
+                // Don't garnish more than available net pay
+                garnishmentAmount = Math.min(garnishmentAmount, netAfterTaxes);
+                totalGarnishments += garnishmentAmount;
+                
+                garnishments.push({
+                    ...garnishment,
+                    amount_garnished: garnishmentAmount
+                });
+            }
+        }
+        
+        // Final net pay after all deductions including garnishments
+        const netPay = netAfterTaxes - contributionSMP - totalGarnishments;
         
         return {
             employee,
@@ -297,7 +263,9 @@ document.addEventListener('DOMContentLoaded', async function() {
             smpStockSymbol,
             employee401kId,
             smpEnrollmentId,
-            totalDeductions: payroll.totalDeductions + contribution401k + contributionSMP,
+            garnishments,
+            totalGarnishments,
+            totalDeductions: payroll.totalDeductions + contribution401k + contributionSMP + totalGarnishments,
             netPay
         };
     }
@@ -515,6 +483,20 @@ document.addEventListener('DOMContentLoaded', async function() {
                     `;
                 }
                 
+                if (payroll.totalGarnishments > 0 && payroll.garnishments) {
+                    payroll.garnishments.forEach(g => {
+                        const amountType = g.amount_type === 'percent' 
+                            ? `${g.percent_of_pay}%` 
+                            : `$${parseFloat(g.amount).toFixed(2)}`;
+                        deductionsHTML += `
+                            <div class="tax-item" style="color: #dc2626;">
+                                <span>Wage Garnishment (${amountType}):</span>
+                                <span>-$${g.amount_garnished.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                        `;
+                    });
+                }
+                
                 deductionsDiv.innerHTML = deductionsHTML;
             }
             
@@ -582,6 +564,29 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
         } else {
             console.warn('⚠️ Supabase not available - cannot add funds to wallets');
+        }
+        
+        // Process wage garnishments
+        if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+            for (const result of payrollResults) {
+                if (result.garnishments && result.garnishments.length > 0) {
+                    for (const garnishment of result.garnishments) {
+                        try {
+                            await supabaseService.processGarnishment(
+                                garnishment.id,
+                                result.employee.id,
+                                startDate.toISOString().split('T')[0],
+                                endDate.toISOString().split('T')[0],
+                                result.grossPay,
+                                result.netPay + result.totalGarnishments, // Net pay before garnishment
+                                garnishment.amount_garnished
+                            );
+                        } catch (error) {
+                            console.error(`Error processing garnishment for ${result.employee.name}:`, error);
+                        }
+                    }
+                }
+            }
         }
         
         // Save to Supabase

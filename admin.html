@@ -88,6 +88,7 @@
                         <button id="managePayrollHoursBtn" class="btn-primary btn-muted" title="Set payroll hours for employees">Set Payroll Hours</button>
                         <button id="manageAccountantAccessBtn" class="btn-primary btn-muted" title="Designate employees for accountant access">Accountant Access</button>
                         <button id="managePayRatesBtn" class="btn-primary btn-muted" title="Manage employee pay rates">Pay Rates</button>
+                        <button id="manageGarnishmentsBtn" class="btn-primary btn-muted" title="Garnish employee wages">Wage Garnishments</button>
                     </div>
                 </div>
                 
@@ -588,6 +589,99 @@
             }
         });
     </script>
+    
+    <!-- Wage Garnishment Management Modal -->
+    <div id="garnishmentModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <span class="close" id="closeGarnishment">&times;</span>
+            <h2>⚖️ Wage Garnishment Management</h2>
+            <div style="margin-bottom: 20px;">
+                <button id="addGarnishmentBtn" class="btn-primary" style="margin-bottom: 15px;">+ Add New Garnishment</button>
+                <button id="deductWalletBtn" class="btn-primary btn-danger" style="margin-bottom: 15px; margin-left: 10px;">💰 Deduct from Wallet</button>
+            </div>
+            <div id="garnishmentsList" style="max-height: 500px; overflow-y: auto; margin: 20px 0;">
+                <div style="text-align: center; padding: 20px; color: #64748b;">Loading garnishments...</div>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn-secondary" id="cancelGarnishment">Close</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Direct Wallet Deduction Modal -->
+    <div id="deductWalletModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <span class="close" id="closeDeductWallet">&times;</span>
+            <h2>💰 Direct Wallet Deduction</h2>
+            <p style="color: #64748b; margin-bottom: 20px; font-size: 14px;">
+                Directly deduct money from an employee's wallet. This is separate from wage garnishments.
+            </p>
+            <form id="deductWalletForm">
+                <div class="form-group">
+                    <label for="deductWalletEmployee">Employee</label>
+                    <select id="deductWalletEmployee" required>
+                        <option value="">Select an employee...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="deductWalletAmount">Amount ($)</label>
+                    <input type="number" id="deductWalletAmount" step="0.01" min="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="deductWalletReason">Reason</label>
+                    <textarea id="deductWalletReason" rows="3" placeholder="Enter reason for deduction..." required></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary btn-danger">Deduct from Wallet</button>
+                    <button type="button" class="btn-secondary" id="cancelDeductWallet">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Add/Edit Garnishment Modal -->
+    <div id="addGarnishmentModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <span class="close" id="closeAddGarnishment">&times;</span>
+            <h2 id="garnishmentModalTitle">Add Wage Garnishment</h2>
+            <form id="garnishmentForm">
+                <input type="hidden" id="garnishmentId">
+                <div class="form-group">
+                    <label for="garnishmentEmployee">Employee</label>
+                    <select id="garnishmentEmployee" required>
+                        <option value="">Select an employee...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="garnishmentAmountType">Amount Type</label>
+                    <select id="garnishmentAmountType" required>
+                        <option value="fixed">Fixed Amount ($)</option>
+                        <option value="percent">Percentage of Pay (%)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label id="garnishmentAmountLabel" for="garnishmentAmount">Amount ($)</label>
+                    <input type="number" id="garnishmentAmount" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="garnishmentReason">Reason</label>
+                    <textarea id="garnishmentReason" rows="3" placeholder="Enter reason for wage garnishment..." required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="garnishmentStartDate">Start Date</label>
+                    <input type="date" id="garnishmentStartDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="garnishmentEndDate">End Date (Optional - leave blank for indefinite)</label>
+                    <input type="date" id="garnishmentEndDate">
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Save Garnishment</button>
+                    <button type="button" class="btn-secondary" id="cancelAddGarnishment">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
     
     <!-- Stock Management Modal -->
     <div id="stockManagementModal" class="modal">

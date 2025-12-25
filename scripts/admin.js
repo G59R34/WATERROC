@@ -2266,6 +2266,346 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     // ==========================================
+    // WAGE GARNISHMENT MANAGEMENT
+    // ==========================================
+    
+    const garnishmentModal = document.getElementById('garnishmentModal');
+    const manageGarnishmentsBtn = document.getElementById('manageGarnishmentsBtn');
+    const closeGarnishment = document.getElementById('closeGarnishment');
+    const cancelGarnishment = document.getElementById('cancelGarnishment');
+    const addGarnishmentBtn = document.getElementById('addGarnishmentBtn');
+    const addGarnishmentModal = document.getElementById('addGarnishmentModal');
+    const closeAddGarnishment = document.getElementById('closeAddGarnishment');
+    const cancelAddGarnishment = document.getElementById('cancelAddGarnishment');
+    const garnishmentForm = document.getElementById('garnishmentForm');
+    const garnishmentAmountType = document.getElementById('garnishmentAmountType');
+    const garnishmentAmountLabel = document.getElementById('garnishmentAmountLabel');
+    
+    if (manageGarnishmentsBtn) {
+        manageGarnishmentsBtn.addEventListener('click', async function() {
+            garnishmentModal.style.display = 'block';
+            await loadGarnishmentsList();
+        });
+    }
+    
+    if (closeGarnishment) {
+        closeGarnishment.addEventListener('click', function() {
+            garnishmentModal.style.display = 'none';
+        });
+    }
+    
+    if (cancelGarnishment) {
+        cancelGarnishment.addEventListener('click', function() {
+            garnishmentModal.style.display = 'none';
+        });
+    }
+    
+    if (addGarnishmentBtn) {
+        addGarnishmentBtn.addEventListener('click', async function() {
+            document.getElementById('garnishmentModalTitle').textContent = 'Add Wage Garnishment';
+            document.getElementById('garnishmentId').value = '';
+            garnishmentForm.reset();
+            await loadEmployeeDropdown();
+            addGarnishmentModal.style.display = 'block';
+        });
+    }
+    
+    if (deductWalletBtn) {
+        deductWalletBtn.addEventListener('click', async function() {
+            deductWalletForm.reset();
+            await loadDeductWalletEmployeeDropdown();
+            deductWalletModal.style.display = 'block';
+        });
+    }
+    
+    if (closeDeductWallet) {
+        closeDeductWallet.addEventListener('click', function() {
+            deductWalletModal.style.display = 'none';
+        });
+    }
+    
+    if (cancelDeductWallet) {
+        cancelDeductWallet.addEventListener('click', function() {
+            deductWalletModal.style.display = 'none';
+        });
+    }
+    
+    async function loadDeductWalletEmployeeDropdown() {
+        const select = document.getElementById('deductWalletEmployee');
+        if (!select) return;
+        
+        try {
+            const employees = await supabaseService.getEmployees() || [];
+            select.innerHTML = '<option value="">Select an employee...</option>' +
+                employees.map(emp => `<option value="${emp.id}">${emp.name} (${emp.role})</option>`).join('');
+        } catch (error) {
+            console.error('Error loading employees:', error);
+        }
+    }
+    
+    if (deductWalletForm) {
+        deductWalletForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const employeeId = parseInt(document.getElementById('deductWalletEmployee').value);
+            const amount = parseFloat(document.getElementById('deductWalletAmount').value);
+            const reason = document.getElementById('deductWalletReason').value.trim();
+            
+            if (!employeeId || !amount || amount <= 0 || !reason) {
+                alert('Please fill in all required fields with valid values');
+                return;
+            }
+            
+            if (!confirm(`Are you sure you want to deduct $${amount.toFixed(2)} from this employee's wallet?`)) {
+                return;
+            }
+            
+            if (typeof showFormLoadingScreen !== 'undefined') {
+                showFormLoadingScreen('deducting from wallet');
+            }
+            
+            try {
+                const result = await supabaseService.deductFromWallet(employeeId, amount, reason);
+                
+                if (result.error) {
+                    alert(`❌ Failed to deduct: ${result.error}`);
+                    return;
+                }
+                
+                alert(`✅ Successfully deducted $${amount.toFixed(2)} from employee wallet!`);
+                deductWalletModal.style.display = 'none';
+                deductWalletForm.reset();
+            } catch (error) {
+                console.error('Error deducting from wallet:', error);
+                alert(`❌ Failed to deduct: ${error.message}`);
+            }
+        });
+    }
+    
+    if (closeAddGarnishment) {
+        closeAddGarnishment.addEventListener('click', function() {
+            addGarnishmentModal.style.display = 'none';
+        });
+    }
+    
+    if (cancelAddGarnishment) {
+        cancelAddGarnishment.addEventListener('click', function() {
+            addGarnishmentModal.style.display = 'none';
+        });
+    }
+    
+    // Update amount label based on type
+    if (garnishmentAmountType) {
+        garnishmentAmountType.addEventListener('change', function() {
+            const amountInput = document.getElementById('garnishmentAmount');
+            if (this.value === 'percent') {
+                garnishmentAmountLabel.textContent = 'Percentage (%)';
+                amountInput.max = 100;
+                amountInput.step = '0.01';
+            } else {
+                garnishmentAmountLabel.textContent = 'Amount ($)';
+                amountInput.removeAttribute('max');
+                amountInput.step = '0.01';
+            }
+        });
+    }
+    
+    async function loadEmployeeDropdown() {
+        const select = document.getElementById('garnishmentEmployee');
+        if (!select) return;
+        
+        try {
+            const employees = await supabaseService.getEmployees() || [];
+            select.innerHTML = '<option value="">Select an employee...</option>' +
+                employees.map(emp => `<option value="${emp.id}">${emp.name} (${emp.role})</option>`).join('');
+        } catch (error) {
+            console.error('Error loading employees:', error);
+        }
+    }
+    
+    async function loadDeductWalletEmployeeDropdown() {
+        const select = document.getElementById('deductWalletEmployee');
+        if (!select) return;
+        
+        try {
+            const employees = await supabaseService.getEmployees() || [];
+            select.innerHTML = '<option value="">Select an employee...</option>' +
+                employees.map(emp => `<option value="${emp.id}">${emp.name} (${emp.role})</option>`).join('');
+        } catch (error) {
+            console.error('Error loading employees:', error);
+        }
+    }
+    
+    async function loadGarnishmentsList() {
+        const list = document.getElementById('garnishmentsList');
+        if (!list) return;
+        
+        try {
+            const garnishments = await supabaseService.getGarnishments();
+            const employees = await supabaseService.getEmployees() || [];
+            const employeeMap = new Map(employees.map(e => [e.id, e]));
+            
+            if (garnishments.length === 0) {
+                list.innerHTML = '<div style="text-align: center; padding: 20px; color: #64748b;">No active garnishments</div>';
+                return;
+            }
+            
+            list.innerHTML = garnishments.map(g => {
+                const employee = employeeMap.get(g.employee_id);
+                const amountDisplay = g.amount_type === 'percent' 
+                    ? `${g.percent_of_pay}% of pay` 
+                    : `$${parseFloat(g.amount).toFixed(2)}`;
+                const statusClass = g.status === 'active' ? 'positive' : 'negative';
+                const endDateDisplay = g.end_date ? new Date(g.end_date).toLocaleDateString() : 'Indefinite';
+                
+                return `
+                    <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin-bottom: 10px;">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div style="flex: 1;">
+                                <div style="font-weight: 600; font-size: 18px; color: #1f2937; margin-bottom: 8px;">
+                                    ${employee?.name || 'Unknown Employee'}
+                                </div>
+                                <div style="font-size: 14px; color: #6b7280; margin-bottom: 4px;">
+                                    <strong>Amount:</strong> ${amountDisplay}
+                                </div>
+                                <div style="font-size: 14px; color: #6b7280; margin-bottom: 4px;">
+                                    <strong>Reason:</strong> ${g.reason}
+                                </div>
+                                <div style="font-size: 14px; color: #6b7280; margin-bottom: 4px;">
+                                    <strong>Period:</strong> ${new Date(g.start_date).toLocaleDateString()} - ${endDateDisplay}
+                                </div>
+                                <div style="font-size: 14px; color: #6b7280; margin-bottom: 4px;">
+                                    <strong>Total Garnished:</strong> $${parseFloat(g.total_garnished || 0).toFixed(2)}
+                                </div>
+                                <div style="font-size: 12px; color: #9ca3af; margin-top: 8px;">
+                                    Status: <span class="stock-change ${statusClass}" style="padding: 2px 6px; border-radius: 4px;">${g.status.toUpperCase()}</span>
+                                </div>
+                            </div>
+                            <div style="margin-left: 20px;">
+                                <button class="btn-secondary" style="padding: 6px 12px; font-size: 12px; margin-bottom: 5px;" 
+                                        onclick="editGarnishment(${g.id})">Edit</button>
+                                <button class="btn-danger" style="padding: 6px 12px; font-size: 12px;" 
+                                        onclick="cancelGarnishment(${g.id})">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } catch (error) {
+            console.error('Error loading garnishments:', error);
+            list.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444;">Error loading garnishments</div>';
+        }
+    }
+    
+    window.editGarnishment = async function(garnishmentId) {
+        try {
+            const garnishment = await supabaseService.getGarnishment(garnishmentId);
+            if (!garnishment) {
+                alert('Garnishment not found');
+                return;
+            }
+            
+            document.getElementById('garnishmentModalTitle').textContent = 'Edit Wage Garnishment';
+            document.getElementById('garnishmentId').value = garnishment.id;
+            document.getElementById('garnishmentEmployee').value = garnishment.employee_id;
+            document.getElementById('garnishmentAmountType').value = garnishment.amount_type;
+            document.getElementById('garnishmentAmount').value = garnishment.amount_type === 'percent' 
+                ? garnishment.percent_of_pay 
+                : garnishment.amount;
+            document.getElementById('garnishmentReason').value = garnishment.reason;
+            document.getElementById('garnishmentStartDate').value = garnishment.start_date;
+            document.getElementById('garnishmentEndDate').value = garnishment.end_date || '';
+            
+            // Trigger change event to update label
+            garnishmentAmountType.dispatchEvent(new Event('change'));
+            
+            await loadEmployeeDropdown();
+            addGarnishmentModal.style.display = 'block';
+        } catch (error) {
+            console.error('Error loading garnishment:', error);
+            alert('Failed to load garnishment: ' + error.message);
+        }
+    };
+    
+    window.cancelGarnishment = async function(garnishmentId) {
+        if (!confirm('Are you sure you want to cancel this garnishment?')) return;
+        
+        try {
+            const result = await supabaseService.cancelGarnishment(garnishmentId);
+            if (result.error) {
+                alert(`❌ Failed to cancel: ${result.error}`);
+                return;
+            }
+            alert('✅ Garnishment cancelled');
+            await loadGarnishmentsList();
+        } catch (error) {
+            console.error('Error cancelling garnishment:', error);
+            alert('Failed to cancel garnishment: ' + error.message);
+        }
+    };
+    
+    if (garnishmentForm) {
+        garnishmentForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const employeeId = parseInt(document.getElementById('garnishmentEmployee').value);
+            const amountType = document.getElementById('garnishmentAmountType').value;
+            const amount = parseFloat(document.getElementById('garnishmentAmount').value);
+            const reason = document.getElementById('garnishmentReason').value.trim();
+            const startDate = document.getElementById('garnishmentStartDate').value;
+            const endDate = document.getElementById('garnishmentEndDate').value || null;
+            const garnishmentId = document.getElementById('garnishmentId').value;
+            
+            if (!employeeId || !amount || !reason || !startDate) {
+                alert('Please fill in all required fields');
+                return;
+            }
+            
+            if (typeof showFormLoadingScreen !== 'undefined') {
+                showFormLoadingScreen('saving garnishment');
+            }
+            
+            try {
+                let result;
+                if (garnishmentId) {
+                    // Update existing
+                    result = await supabaseService.updateGarnishment(
+                        parseInt(garnishmentId),
+                        amountType,
+                        amount,
+                        reason,
+                        startDate,
+                        endDate
+                    );
+                } else {
+                    // Create new
+                    result = await supabaseService.createGarnishment(
+                        employeeId,
+                        amountType,
+                        amount,
+                        reason,
+                        startDate,
+                        endDate
+                    );
+                }
+                
+                if (result.error) {
+                    alert(`❌ Failed to save: ${result.error}`);
+                    return;
+                }
+                
+                alert(`✅ Garnishment ${garnishmentId ? 'updated' : 'created'} successfully!`);
+                addGarnishmentModal.style.display = 'none';
+                garnishmentForm.reset();
+                await loadGarnishmentsList();
+            } catch (error) {
+                console.error('Error saving garnishment:', error);
+                alert(`❌ Failed to save: ${error.message}`);
+            }
+        });
+    }
+    
+    // ==========================================
     // PAY RATE MANAGEMENT
     // ==========================================
     

@@ -4773,6 +4773,293 @@ class SupabaseService {
     }
 
     /**
+     * Create a wage garnishment
+     * @param {number} employeeId - Employee ID
+     * @param {string} amountType - 'fixed' or 'percent'
+     * @param {number} amount - Amount or percentage
+     * @param {string} reason - Reason for garnishment
+     * @param {string} startDate - Start date (YYYY-MM-DD)
+     * @param {string} endDate - End date (YYYY-MM-DD) or null
+     * @returns {Promise<{data: any, error: string|null}>}
+     */
+    async createGarnishment(employeeId, amountType, amount, reason, startDate, endDate = null) {
+        if (!this.isReady()) return { data: null, error: 'Supabase not initialized' };
+
+        try {
+            const { data: { user } } = await this.client.auth.getUser();
+            if (!user) {
+                return { data: null, error: 'Not authenticated' };
+            }
+
+            const insertData = {
+                employee_id: employeeId,
+                amount_type: amountType,
+                reason: reason,
+                start_date: startDate,
+                created_by: user.id
+            };
+
+            if (amountType === 'fixed') {
+                insertData.amount = amount;
+            } else {
+                insertData.percent_of_pay = amount;
+            }
+
+            if (endDate) {
+                insertData.end_date = endDate;
+            }
+
+            const { data, error } = await this.client
+                .from('wage_garnishments')
+                .insert(insertData)
+                .select()
+                .single();
+
+            if (error) throw error;
+            return { data, error: null };
+        } catch (error) {
+            console.error('Error creating garnishment:', error);
+            return { data: null, error: error.message };
+        }
+    }
+
+    /**
+     * Update a wage garnishment
+     * @param {number} garnishmentId - Garnishment ID
+     * @param {string} amountType - 'fixed' or 'percent'
+     * @param {number} amount - Amount or percentage
+     * @param {string} reason - Reason for garnishment
+     * @param {string} startDate - Start date (YYYY-MM-DD)
+     * @param {string} endDate - End date (YYYY-MM-DD) or null
+     * @returns {Promise<{data: any, error: string|null}>}
+     */
+    async updateGarnishment(garnishmentId, amountType, amount, reason, startDate, endDate = null) {
+        if (!this.isReady()) return { data: null, error: 'Supabase not initialized' };
+
+        try {
+            const updateData = {
+                amount_type: amountType,
+                reason: reason,
+                start_date: startDate
+            };
+
+            if (amountType === 'fixed') {
+                updateData.amount = amount;
+                updateData.percent_of_pay = null;
+            } else {
+                updateData.percent_of_pay = amount;
+                updateData.amount = null;
+            }
+
+            if (endDate) {
+                updateData.end_date = endDate;
+            } else {
+                updateData.end_date = null;
+            }
+
+            const { data, error } = await this.client
+                .from('wage_garnishments')
+                .update(updateData)
+                .eq('id', garnishmentId)
+                .select()
+                .single();
+
+            if (error) throw error;
+            return { data, error: null };
+        } catch (error) {
+            console.error('Error updating garnishment:', error);
+            return { data: null, error: error.message };
+        }
+    }
+
+    /**
+     * Cancel a wage garnishment
+     * @param {number} garnishmentId - Garnishment ID
+     * @returns {Promise<{data: any, error: string|null}>}
+     */
+    async cancelGarnishment(garnishmentId) {
+        if (!this.isReady()) return { data: null, error: 'Supabase not initialized' };
+
+        try {
+            const { data, error } = await this.client
+                .from('wage_garnishments')
+                .update({ status: 'cancelled' })
+                .eq('id', garnishmentId)
+                .select()
+                .single();
+
+            if (error) throw error;
+            return { data, error: null };
+        } catch (error) {
+            console.error('Error cancelling garnishment:', error);
+            return { data: null, error: error.message };
+        }
+    }
+
+    /**
+     * Get all wage garnishments
+     * @returns {Promise<Array>}
+     */
+    async getGarnishments() {
+        if (!this.isReady()) return [];
+
+        try {
+            const { data, error } = await this.client
+                .from('wage_garnishments')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error getting garnishments:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get a specific garnishment
+     * @param {number} garnishmentId - Garnishment ID
+     * @returns {Promise<Object|null>}
+     */
+    async getGarnishment(garnishmentId) {
+        if (!this.isReady()) return null;
+
+        try {
+            const { data, error } = await this.client
+                .from('wage_garnishments')
+                .select('*')
+                .eq('id', garnishmentId)
+                .single();
+
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('Error getting garnishment:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Get active garnishments for an employee
+     * @param {number} employeeId - Employee ID
+     * @param {string} payPeriodStart - Pay period start date
+     * @param {string} payPeriodEnd - Pay period end date
+     * @returns {Promise<Array>}
+     */
+    async getEmployeeGarnishments(employeeId, payPeriodStart, payPeriodEnd) {
+        if (!this.isReady()) return [];
+
+        try {
+            // Get all active garnishments for this employee
+            const { data, error } = await this.client
+                .from('wage_garnishments')
+                .select('*')
+                .eq('employee_id', employeeId)
+                .eq('status', 'active')
+                .lte('start_date', payPeriodEnd)
+                .order('created_at', { ascending: true });
+
+            if (error) throw error;
+            
+            // Filter in JavaScript to handle null end_date and date ranges
+            const filtered = (data || []).filter(g => {
+                // Must have started by or before the pay period end
+                if (g.start_date > payPeriodEnd) return false;
+                
+                // If end_date is null, it's indefinite (active)
+                if (!g.end_date) return true;
+                
+                // If end_date exists, must be on or after pay period start
+                return g.end_date >= payPeriodStart;
+            });
+            
+            return filtered;
+        } catch (error) {
+            console.error('Error getting employee garnishments:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Process garnishment deduction and log it
+     * @param {number} garnishmentId - Garnishment ID
+     * @param {number} employeeId - Employee ID
+     * @param {string} payPeriodStart - Pay period start date
+     * @param {string} payPeriodEnd - Pay period end date
+     * @param {number} grossPay - Employee gross pay
+     * @param {number} netPay - Employee net pay (before garnishment)
+     * @param {number} amountGarnished - Amount to garnish
+     * @returns {Promise<{data: any, error: string|null}>}
+     */
+    async processGarnishment(garnishmentId, employeeId, payPeriodStart, payPeriodEnd, grossPay, netPay, amountGarnished) {
+        if (!this.isReady()) return { data: null, error: 'Supabase not initialized' };
+
+        try {
+            // Log garnishment history
+            const { data: historyData, error: historyError } = await this.client
+                .from('garnishment_history')
+                .insert({
+                    garnishment_id: garnishmentId,
+                    pay_period_start: payPeriodStart,
+                    pay_period_end: payPeriodEnd,
+                    amount_garnished: amountGarnished,
+                    employee_gross_pay: grossPay,
+                    employee_net_pay: netPay
+                })
+                .select()
+                .single();
+
+            if (historyError) throw historyError;
+
+            // Update total garnished amount
+            const { data: garnishment } = await this.client
+                .from('wage_garnishments')
+                .select('total_garnished')
+                .eq('id', garnishmentId)
+                .single();
+
+            const newTotal = parseFloat(garnishment.total_garnished || 0) + amountGarnished;
+
+            await this.client
+                .from('wage_garnishments')
+                .update({ total_garnished: newTotal })
+                .eq('id', garnishmentId);
+
+            return { data: historyData, error: null };
+        } catch (error) {
+            console.error('Error processing garnishment:', error);
+            return { data: null, error: error.message };
+        }
+    }
+
+    /**
+     * Deduct amount from employee wallet (for direct wallet garnishment)
+     * @param {number} employeeId - Employee ID
+     * @param {number} amount - Amount to deduct
+     * @param {string} reason - Reason for deduction
+     * @returns {Promise<{data: any, error: string|null}>}
+     */
+    async deductFromWallet(employeeId, amount, reason) {
+        if (!this.isReady()) return { data: null, error: 'Supabase not initialized' };
+
+        try {
+            // Use negative amount to deduct
+            const result = await this.updateEmployeeWallet(
+                employeeId,
+                -Math.abs(amount), // Ensure negative
+                'garnishment',
+                reason || 'Wage garnishment deduction'
+            );
+
+            return result;
+        } catch (error) {
+            console.error('Error deducting from wallet:', error);
+            return { data: null, error: error.message };
+        }
+    }
+
+    /**
      * Get stock price history for a specific stock
      * @param {number} stockId - Stock ID
      * @param {number} limit - Number of records to retrieve (default: 50)
@@ -4885,70 +5172,79 @@ class SupabaseService {
                 throw new Error(`Failed to fetch stock data: ${apiError.message}. Please verify the symbol is correct.`);
             }
             
-            // Check if stock already exists
-            const { data: existing } = await this.client
+            // Use upsert to handle both new and existing stocks
+            const { data, error } = await this.client
                 .from('stock_market')
+                .upsert({
+                    symbol: stockData.symbol,
+                    company_name: stockData.companyName,
+                    current_price: stockData.currentPrice,
+                    previous_price: stockData.previousPrice,
+                    change_percent: stockData.changePercent,
+                    volatility: 5.00, // Default volatility for real stocks
+                    is_real_stock: true,
+                    source: stockData.source,
+                    last_updated: new Date().toISOString()
+                }, {
+                    onConflict: 'symbol',
+                    ignoreDuplicates: false
+                })
+                .select()
+                .single();
+            
+            if (error) {
+                // If upsert fails, try update instead
+                if (error.code === '23505' || error.message.includes('duplicate')) {
+                    const { data: updated, error: updateError } = await this.client
+                        .from('stock_market')
+                        .update({
+                            company_name: stockData.companyName,
+                            current_price: stockData.currentPrice,
+                            previous_price: stockData.previousPrice,
+                            change_percent: stockData.changePercent,
+                            is_real_stock: true,
+                            source: stockData.source,
+                            last_updated: new Date().toISOString()
+                        })
+                        .eq('symbol', stockData.symbol)
+                        .select()
+                        .single();
+                    
+                    if (updateError) throw updateError;
+                    
+                    // Price history will be created by trigger when price updates
+                    return { data: updated, error: null };
+                }
+                throw error;
+            }
+            
+            // Create initial price history entry only if it's a new stock
+            // Check if history already exists
+            const { data: existingHistory } = await this.client
+                .from('stock_price_history')
                 .select('id')
-                .eq('symbol', symbol.toUpperCase())
+                .eq('stock_id', data.id)
+                .limit(1)
                 .maybeSingle();
             
-            if (existing) {
-                // Update existing stock to be real
-                const { data, error } = await this.client
-                    .from('stock_market')
-                    .update({
-                        company_name: stockData.companyName,
-                        current_price: stockData.currentPrice,
-                        previous_price: stockData.previousPrice,
-                        change_percent: stockData.changePercent,
-                        is_real_stock: true,
-                        source: stockData.source,
-                        last_updated: new Date().toISOString()
-                    })
-                    .eq('id', existing.id)
-                    .select()
-                    .single();
-                
-                if (error) throw error;
-                
-                // Mark as real stock
-                await this.client.rpc('mark_stock_as_real', {
-                    p_stock_id: existing.id,
-                    p_source: stockData.source
-                });
-                
-                return { data, error: null };
-            } else {
-                // Create new stock
-                const { data, error } = await this.client
-                    .from('stock_market')
-                    .insert({
-                        symbol: stockData.symbol,
-                        company_name: stockData.companyName,
-                        current_price: stockData.currentPrice,
-                        previous_price: stockData.previousPrice,
-                        change_percent: stockData.changePercent,
-                        volatility: 5.00, // Default volatility for real stocks
-                        is_real_stock: true,
-                        source: stockData.source,
-                        last_updated: new Date().toISOString()
-                    })
-                    .select()
-                    .single();
-                
-                if (error) throw error;
-                
-                // Create initial price history entry
-                await this.client
-                    .from('stock_price_history')
-                    .insert({
-                        stock_id: data.id,
-                        price: stockData.currentPrice,
-                        recorded_at: new Date().toISOString()
-                    });
-                
-                return { data, error: null };
+            if (!existingHistory) {
+                // Only insert if no history exists (new stock)
+                // Note: This might fail due to RLS, but the trigger will handle it
+                try {
+                    await this.client
+                        .from('stock_price_history')
+                        .insert({
+                            stock_id: data.id,
+                            price: stockData.currentPrice,
+                            recorded_at: new Date().toISOString()
+                        });
+                } catch (historyError) {
+                    // Ignore RLS errors - the trigger will create history on next price update
+                    console.warn('Could not create initial price history (RLS may block), trigger will handle it:', historyError);
+                }
             }
+            
+            return { data, error: null };
         } catch (error) {
             console.error('Error adding real stock:', error);
             return { data: null, error: error.message };
