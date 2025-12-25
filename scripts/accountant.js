@@ -375,7 +375,10 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
             console.log('💰 Adding paycheck funds to employee wallets...');
             
-            for (const result of payrollResults) {
+            // Process wallet updates one at a time with delays to avoid timeouts
+            for (let i = 0; i < payrollResults.length; i++) {
+                const result = payrollResults[i];
+                
                 if (!result.employee || !result.employee.id) {
                     console.warn('⚠️ Skipping wallet update - invalid employee data');
                     continue;
@@ -387,6 +390,11 @@ document.addEventListener('DOMContentLoaded', async function() {
                 }
                 
                 try {
+                    // Add small delay between updates to prevent database timeouts
+                    if (i > 0) {
+                        await new Promise(resolve => setTimeout(resolve, 200)); // 200ms delay
+                    }
+                    
                     const walletResult = await supabaseService.updateEmployeeWallet(
                         result.employee.id,
                         result.netPay,
@@ -398,7 +406,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                         console.error(`❌ Failed to update wallet for ${result.employee.name}:`, walletResult.error);
                         walletUpdateFailed++;
                     } else {
-                        console.log(`✅ Added $${result.netPay.toFixed(2)} to ${result.employee.name}'s wallet (Balance updated)`);
+                        console.log(`✅ Added $${result.netPay.toFixed(2)} to ${result.employee.name}'s wallet`);
                         walletUpdateSuccess++;
                     }
                 } catch (error) {
@@ -460,10 +468,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         renderPayrollHistory();
         
-        // Send emails to employees
-        if (typeof supabaseService !== 'undefined' && supabaseService.isReady() && payrollHistoryId) {
-            await sendPayrollEmails(payrollHistoryId, payrollResults, startDate, endDate, payDate);
-        }
+        // Email sending removed - focus on paychecks and wallets only
         
         // Show success message with wallet update info
         const walletMessage = walletUpdateSuccess > 0 
@@ -476,92 +481,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         alert(`✅ Payroll processed successfully!\n\nTotal Net Payroll: $${totalNet.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${walletMessage}${walletWarning}`);
     }
     
-    // Send payroll emails to employees
-    async function sendPayrollEmails(payrollHistoryId, payrollResults, startDate, endDate, payDate) {
-        if (typeof supabaseService === 'undefined' || !supabaseService.isReady()) {
-            return;
-        }
-        
-        let emailsSent = 0;
-        let emailsFailed = 0;
-        
-        for (const result of payrollResults) {
-            try {
-                // Get employee email from profile
-                let employeeEmail = null;
-                if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
-                    const profile = await supabaseService.getEmployeeProfile(result.employee.id);
-                    if (profile && profile.email) {
-                        employeeEmail = profile.email;
-                    }
-                }
-                
-                // If no email in profile, try to get from user account
-                if (!employeeEmail && result.employee.user_id) {
-                    const user = await supabaseService.getUserById(result.employee.user_id);
-                    if (user && user.email) {
-                        employeeEmail = user.email;
-                    }
-                }
-                
-                if (!employeeEmail) {
-                    console.warn(`No email found for employee ${result.employee.name}`);
-                    await supabaseService.logPayrollEmail(
-                        payrollHistoryId,
-                        result.employee.id,
-                        null,
-                        'Payroll Statement',
-                        false,
-                        'No email address found'
-                    );
-                    emailsFailed++;
-                    continue;
-                }
-                
-                // Generate email HTML
-                const emailHTML = generatePayrollEmailHTML(result, startDate, endDate, payDate);
-                const subject = `Payroll Statement - ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`;
-                
-                // Send email
-                const emailResult = await supabaseService.sendPayrollEmail(employeeEmail, subject, emailHTML);
-                
-                // Log email
-                await supabaseService.logPayrollEmail(
-                    payrollHistoryId,
-                    result.employee.id,
-                    employeeEmail,
-                    subject,
-                    emailResult.success,
-                    emailResult.error
-                );
-                
-                if (emailResult.success) {
-                    emailsSent++;
-                } else {
-                    emailsFailed++;
-                }
-            } catch (error) {
-                console.error(`Error sending email to ${result.employee.name}:`, error);
-                emailsFailed++;
-                
-                await supabaseService.logPayrollEmail(
-                    payrollHistoryId,
-                    result.employee.id,
-                    null,
-                    'Payroll Statement',
-                    false,
-                    error.message
-                );
-            }
-        }
-        
-        // Update payroll history email status
-        if (emailsSent > 0 && payrollHistoryId) {
-            await supabaseService.updatePayrollHistoryEmailStatus(payrollHistoryId);
-        }
-        
-        console.log(`📧 Payroll emails sent: ${emailsSent} successful, ${emailsFailed} failed`);
-    }
+    // Email sending functionality removed - focus on paychecks and wallets only
     
     // Publish paychecks to employee pages (makes them available for viewing)
     async function publishPaychecksToEmployees() {
@@ -636,10 +556,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         let walletUpdateFailed = 0;
         
         if (latestPayroll.results && latestPayroll.results.length > 0) {
-            
             console.log('💰 Ensuring paycheck funds are in employee wallets...');
             
-            for (const result of latestPayroll.results) {
+            // Process wallet updates one at a time with delays to avoid timeouts
+            for (let i = 0; i < latestPayroll.results.length; i++) {
+                const result = latestPayroll.results[i];
+                
                 if (!result.employee || !result.employee.id) {
                     console.warn('⚠️ Skipping wallet update - invalid employee data');
                     continue;
@@ -651,6 +573,11 @@ document.addEventListener('DOMContentLoaded', async function() {
                 }
                 
                 try {
+                    // Add small delay between updates to prevent database timeouts
+                    if (i > 0) {
+                        await new Promise(resolve => setTimeout(resolve, 200)); // 200ms delay
+                    }
+                    
                     const walletResult = await supabaseService.updateEmployeeWallet(
                         result.employee.id,
                         result.netPay,
@@ -662,7 +589,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                         console.error(`❌ Failed to update wallet for ${result.employee.name}:`, walletResult.error);
                         walletUpdateFailed++;
                     } else {
-                        console.log(`✅ Added $${result.netPay.toFixed(2)} to ${result.employee.name}'s wallet (Balance updated)`);
+                        console.log(`✅ Added $${result.netPay.toFixed(2)} to ${result.employee.name}'s wallet`);
                         walletUpdateSuccess++;
                     }
                 } catch (error) {
@@ -709,116 +636,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         console.log(`✅ Paychecks published for ${latestPayroll.results.length} employees`);
     }
     
-    // Generate payroll email HTML
-    function generatePayrollEmailHTML(payrollResult, startDate, endDate, payDate) {
-        const periodStart = new Date(startDate).toLocaleDateString();
-        const periodEnd = new Date(endDate).toLocaleDateString();
-        const payDateFormatted = new Date(payDate).toLocaleDateString();
-        
-        return `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <style>
-                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                    .header { background-color: #3b82f6; color: white; padding: 20px; text-align: center; }
-                    .content { background-color: #f9fafb; padding: 20px; margin-top: 20px; }
-                    .section { margin-bottom: 20px; }
-                    .section-title { font-weight: bold; font-size: 18px; margin-bottom: 10px; color: #1f2937; }
-                    .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
-                    .row.total { font-weight: bold; font-size: 18px; border-top: 2px solid #3b82f6; margin-top: 10px; padding-top: 10px; }
-                    .label { color: #6b7280; }
-                    .value { font-weight: 600; color: #1f2937; }
-                    .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 12px; }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <h1>Payroll Statement</h1>
-                        <p>WaterROC Payroll Department</p>
-                    </div>
-                    <div class="content">
-                        <div class="section">
-                            <div class="row">
-                                <span class="label">Employee:</span>
-                                <span class="value">${payrollResult.employee.name}</span>
-                            </div>
-                            <div class="row">
-                                <span class="label">Pay Period:</span>
-                                <span class="value">${periodStart} - ${periodEnd}</span>
-                            </div>
-                            <div class="row">
-                                <span class="label">Pay Date:</span>
-                                <span class="value">${payDateFormatted}</span>
-                            </div>
-                        </div>
-                        
-                        <div class="section">
-                            <div class="section-title">Earnings</div>
-                            <div class="row">
-                                <span class="label">Hours Worked:</span>
-                                <span class="value">${payrollResult.hours.toFixed(2)}</span>
-                            </div>
-                            <div class="row">
-                                <span class="label">Hourly Rate:</span>
-                                <span class="value">$${payrollResult.hourlyRate.toFixed(2)}</span>
-                            </div>
-                            <div class="row">
-                                <span class="label">Gross Pay:</span>
-                                <span class="value">$${payrollResult.grossPay.toFixed(2)}</span>
-                            </div>
-                        </div>
-                        
-                        <div class="section">
-                            <div class="section-title">Deductions</div>
-                            <div class="row">
-                                <span class="label">Federal Tax:</span>
-                                <span class="value">$${payrollResult.federalTax.toFixed(2)}</span>
-                            </div>
-                            <div class="row">
-                                <span class="label">State Tax:</span>
-                                <span class="value">$${payrollResult.stateTax.toFixed(2)}</span>
-                            </div>
-                            <div class="row">
-                                <span class="label">Social Security:</span>
-                                <span class="value">$${payrollResult.socialSecurity.toFixed(2)}</span>
-                            </div>
-                            <div class="row">
-                                <span class="label">Medicare:</span>
-                                <span class="value">$${payrollResult.medicare.toFixed(2)}</span>
-                            </div>
-                            <div class="row">
-                                <span class="label">Unemployment:</span>
-                                <span class="value">$${payrollResult.unemployment.toFixed(2)}</span>
-                            </div>
-                            <div class="row">
-                                <span class="label">Health Insurance:</span>
-                                <span class="value">$${payrollResult.healthInsurance.toFixed(2)}</span>
-                            </div>
-                            <div class="row">
-                                <span class="label">Total Deductions:</span>
-                                <span class="value">$${payrollResult.totalDeductions.toFixed(2)}</span>
-                            </div>
-                        </div>
-                        
-                        <div class="section">
-                            <div class="row total">
-                                <span>Net Pay:</span>
-                                <span>$${payrollResult.netPay.toFixed(2)}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="footer">
-                        <p>This is an automated payroll statement from WaterROC.</p>
-                        <p>If you have any questions, please contact your administrator.</p>
-                    </div>
-                </div>
-            </body>
-            </html>
-        `;
-    }
+    // Email HTML generation removed - focus on paychecks and wallets only
     
     // Load payroll history from Supabase
     async function loadPayrollHistory() {

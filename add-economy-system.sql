@@ -428,22 +428,21 @@ CREATE POLICY "Admins can view all transactions"
 -- FUNCTIONS
 -- ==========================================
 
--- Function to update wallet balance
-CREATE OR REPLACE FUNCTION update_wallet_balance()
+-- Function to update wallet updated_at timestamp (BEFORE trigger to prevent recursion)
+CREATE OR REPLACE FUNCTION update_wallet_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
-    UPDATE employee_wallets
-    SET updated_at = NOW()
-    WHERE employee_id = NEW.employee_id;
+    -- Use BEFORE trigger to set updated_at without causing recursion
+    NEW.updated_at = NOW();
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger for wallet updates
+-- Trigger for wallet updates (BEFORE UPDATE to prevent infinite recursion)
 CREATE TRIGGER update_wallet_updated_at
-    AFTER UPDATE ON employee_wallets
+    BEFORE UPDATE ON employee_wallets
     FOR EACH ROW
-    EXECUTE FUNCTION update_wallet_balance();
+    EXECUTE FUNCTION update_wallet_updated_at();
 
 -- Function to initialize wallet for new employees
 CREATE OR REPLACE FUNCTION initialize_employee_wallet()

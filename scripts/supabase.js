@@ -4403,16 +4403,21 @@ class SupabaseService {
                 throw error;
             }
 
-            // Log transaction
-            await this.client
-                .from('transactions')
-                .insert({
-                    employee_id: employeeId,
-                    transaction_type: transactionType,
-                    amount: amount,
-                    description: description,
-                    balance_after: newBalance
-                });
+            // Log transaction (non-blocking - don't fail wallet update if transaction log fails)
+            try {
+                await this.client
+                    .from('transactions')
+                    .insert({
+                        employee_id: employeeId,
+                        transaction_type: transactionType,
+                        amount: amount,
+                        description: description,
+                        balance_after: finalBalance
+                    });
+            } catch (txError) {
+                // Don't fail wallet update if transaction logging fails
+                console.warn('Could not log transaction (non-critical):', txError);
+            }
 
             return { data, error: null };
         } catch (error) {
