@@ -913,6 +913,29 @@ a:hover {
     min-width: 32px;
 }
 
+.gantt-scale-selector {
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid var(--border-light);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    border-radius: 0px;
+    min-width: 120px;
+    cursor: pointer;
+}
+
+.gantt-scale-selector:focus {
+    outline: 2px solid var(--primary-600);
+    outline-offset: -2px;
+    border-color: var(--primary-600);
+}
+
+[data-theme="dark"] .gantt-scale-selector {
+    background: #2a2a2a;
+    color: #eeeeee;
+    border-color: #555555;
+}
+
 [data-theme="dark"] .gantt-controls-bar {
     background: #222222;
     border-bottom-color: #444444;

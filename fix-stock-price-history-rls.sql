@@ -10,3 +10,4 @@ CREATE POLICY "Allow inserts for stock price history"
 -- Also allow the trigger to insert (if needed, though triggers run with definer rights)
 -- The above policy should be sufficient for authenticated users
 
+

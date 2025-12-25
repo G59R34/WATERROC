@@ -13,3 +13,4 @@ CREATE POLICY IF NOT EXISTS "Admins can insert transactions"
         )
     );
 
+

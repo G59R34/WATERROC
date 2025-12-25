@@ -80,8 +80,8 @@ body:not(.employee-page) .gantt-chart {
 /* FINAL OVERHAUL: Square rectangular day headers - NO "0000-2359" */
 /* CRITICAL FIX: Bright white day headers */
 .gantt-day-header {
-    min-width: 120px;
-    width: 120px;
+    min-width: 200px;
+    width: 200px;
     padding: var(--space-2) var(--space-3);
     text-align: center;
     border-right: 1px solid var(--border-light);
@@ -157,18 +157,33 @@ body:not(.employee-page) .gantt-chart {
     background: var(--bg-primary);
 }
 
-/* Separate rows for shifts and tasks */
+/* Separate rows for shifts, tasks, and hourly tasks */
 .gantt-shift-row {
     border-bottom: 2px solid #e0e0e0;
+    margin-bottom: 20px; /* Spacing between rows */
 }
 
 .gantt-task-row {
     border-bottom: 1px solid var(--border-light);
     background: #fafafa;
+    min-height: 120px;
+    margin-bottom: 20px; /* Spacing between rows */
 }
 
 [data-theme="dark"] .gantt-task-row {
     background: rgba(255, 255, 255, 0.02);
+}
+
+.gantt-hourly-task-row {
+    border-bottom: 2px solid #e0e0e0;
+    background: #f5f5f5;
+    min-height: 120px; /* Adequate height for multiple stacked hourly tasks */
+    margin-bottom: 30px; /* Extra spacing after hourly tasks */
+    padding-top: 10px; /* Top padding for better spacing */
+}
+
+[data-theme="dark"] .gantt-hourly-task-row {
+    background: rgba(255, 255, 255, 0.01);
 }
 
 /* FINAL OVERHAUL: Employee cell - square rectangular */
@@ -241,8 +256,8 @@ body:not(.employee-page) .gantt-chart {
 /* FINAL OVERHAUL: Clean empty cells - square, no clutter */
 /* CRITICAL FIX: Bright white day cells */
 .gantt-day-cell {
-    min-width: 120px;
-    width: 120px;
+    min-width: 200px;
+    width: 200px;
     border-right: 1px solid var(--border-light);
     background: #ffffff;
     position: relative;
@@ -441,6 +456,57 @@ body:not(.employee-page) .gantt-chart {
     background: #868e96;
 }
 
+/* Hourly Task Preview Bars */
+.gantt-hourly-task {
+    position: absolute;
+    height: 25px;
+    border-radius: 4px;
+    padding: 2px 4px;
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.gantt-hourly-task:hover {
+    transform: scale(1.05);
+    opacity: 0.9;
+    z-index: 6;
+}
+
+.gantt-hourly-task.status-pending {
+    opacity: 0.85;
+}
+
+.gantt-hourly-task.status-in-progress {
+    border-left: 3px solid #fbbf24;
+}
+
+.gantt-hourly-task.status-completed {
+    opacity: 0.7;
+}
+
+.hourly-task-name {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.hourly-task-time {
+    font-size: 0.7rem;
+    opacity: 0.9;
+    margin-left: 4px;
+    flex-shrink: 0;
+}
+
 .task-name {
     display: block;
     font-weight: 700;
@@ -619,5 +685,43 @@ body:not(.employee-page) .gantt-chart {
     
     .task-name {
         font-size: 0.7rem;
+    }
+}
+
+/* Current time indicator - spans entire chart */
+.gantt-current-time {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #ef4444;
+    z-index: 100;
+    pointer-events: none;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+    transition: left 0.3s ease;
+}
+
+.gantt-current-time::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -4px;
+    width: 10px;
+    height: 10px;
+    background: #ef4444;
+    border-radius: 0px;
+    border: 2px solid white;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.8);
+    animation: pulse-cursor 2s ease-in-out infinite;
+}
+
+@keyframes pulse-cursor {
+    0%, 100% { 
+        transform: scale(1);
+        box-shadow: 0 0 15px rgba(239, 68, 68, 0.8);
+    }
+    50% { 
+        transform: scale(1.2);
+        box-shadow: 0 0 25px rgba(239, 68, 68, 1);
     }
 }

@@ -25,12 +25,29 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Don't return - continue with button setup even if Gantt fails
     }
     
+    // Wait for GanttChart class to be available (in case scripts load asynchronously)
+    const waitForGanttChart = async () => {
+        let attempts = 0;
+        const maxAttempts = 50; // 5 seconds max wait
+        while (typeof GanttChart === 'undefined' && attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+        }
+        return typeof GanttChart !== 'undefined';
+    };
+    
     // Initialize Gantt Chart
     let gantt;
     try {
-        if (ganttContainer) {
+        // Wait for GanttChart to be available
+        const isAvailable = await waitForGanttChart();
+        
+        if (!isAvailable) {
+            console.error('GanttChart class is not defined after waiting. Make sure gantt.js is loaded before admin.js');
+            gantt = null;
+        } else if (ganttContainer) {
             gantt = new GanttChart('ganttChart', true);
-            console.log('Gantt chart initialized successfully');
+            console.log('Gantt chart instance created');
         } else {
             console.warn('Gantt container not found, creating placeholder');
             gantt = null;
@@ -42,12 +59,14 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // Initialize context menu for Gantt chart
     let ganttContextMenu = null;
-    if (typeof GanttContextMenu !== 'undefined') {
+    if (typeof GanttContextMenu !== 'undefined' && gantt) {
         try {
             ganttContextMenu = new GanttContextMenu(gantt);
         } catch (error) {
             console.error('Error initializing Gantt context menu:', error);
         }
+    } else if (!gantt) {
+        console.warn('Gantt chart not available, skipping context menu initialization');
     }
     
     // Set up date inputs
@@ -110,14 +129,39 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         
         // Sync from Supabase AFTER gantt is initialized
-        // Wait a bit to ensure gantt is fully initialized before syncing
-        setTimeout(async () => {
-            try {
-                await syncFromSupabase();
-            } catch (error) {
-                console.error('Error in initial syncFromSupabase:', error);
+        // Wait for gantt to be fully initialized before syncing
+        const waitForGantt = async () => {
+            if (!gantt) {
+                console.warn('Gantt chart not available');
+                return;
             }
-        }, 1000);
+            
+            // Wait for initialization to complete (max 5 seconds)
+            let attempts = 0;
+            const maxAttempts = 50; // 50 * 100ms = 5 seconds
+            while (!gantt._initialized && attempts < maxAttempts) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+            
+            if (gantt._initialized) {
+                try {
+                    await syncFromSupabase();
+                } catch (error) {
+                    console.error('Error in initial syncFromSupabase:', error);
+                }
+            } else {
+                console.warn('Gantt chart initialization timeout, attempting sync anyway');
+                try {
+                    await syncFromSupabase();
+                } catch (error) {
+                    console.error('Error in syncFromSupabase after timeout:', error);
+                }
+            }
+        };
+        
+        // Start waiting for gantt initialization
+        waitForGantt();
         
         // Ensure DO exceptions are created for today
         try {
@@ -229,6 +273,58 @@ document.addEventListener('DOMContentLoaded', async function() {
         }, 30000); // Refresh every 30 seconds instead of 2 (less disruptive)
         
         console.log('🔄 Auto-refresh enabled (every 30 seconds)');
+    }
+    
+    // Zoom controls for Gantt chart
+    const zoomInBtn = document.getElementById('zoomInBtn');
+    const zoomOutBtn = document.getElementById('zoomOutBtn');
+    const zoomResetBtn = document.getElementById('zoomResetBtn');
+    const scaleSelector = document.getElementById('ganttScaleSelector');
+    
+    if (zoomInBtn && gantt) {
+        zoomInBtn.addEventListener('click', function() {
+            if (gantt) {
+                gantt.zoomIn();
+                // Update selector to match
+                if (scaleSelector) {
+                    scaleSelector.value = gantt.currentZoomLevel;
+                }
+            }
+        });
+    }
+    
+    if (zoomOutBtn && gantt) {
+        zoomOutBtn.addEventListener('click', function() {
+            if (gantt) {
+                gantt.zoomOut();
+                // Update selector to match
+                if (scaleSelector) {
+                    scaleSelector.value = gantt.currentZoomLevel;
+                }
+            }
+        });
+    }
+    
+    if (zoomResetBtn && gantt) {
+        zoomResetBtn.addEventListener('click', function() {
+            if (gantt) {
+                gantt.resetZoom();
+                // Update selector to match
+                if (scaleSelector) {
+                    scaleSelector.value = gantt.currentZoomLevel;
+                }
+            }
+        });
+    }
+    
+    // Scale selector dropdown
+    if (scaleSelector && gantt) {
+        scaleSelector.value = gantt.currentZoomLevel; // Set initial value
+        scaleSelector.addEventListener('change', function() {
+            if (gantt) {
+                gantt.setZoomLevel(this.value);
+            }
+        });
     }
     
     // Analytics navigation

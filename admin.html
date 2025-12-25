@@ -135,7 +135,13 @@
                     <div class="gantt-controls-left">
                         <!-- ADDED UI: Search bar for employees -->
                         <input type="text" id="employeeSearch" class="gantt-search" placeholder="Search employees..." title="Search for employees by name">
-                        <!-- ADDED UI: Zoom buttons for Gantt -->
+                        <!-- ADDED UI: Scale selector and zoom buttons for Gantt -->
+                        <select id="ganttScaleSelector" class="gantt-scale-selector" title="Select zoom level">
+                            <option value="week">Week View</option>
+                            <option value="month" selected>Month View</option>
+                            <option value="day">Day View</option>
+                            <option value="hour">Hour View</option>
+                        </select>
                         <button id="zoomOutBtn" class="btn-secondary btn-small" title="Zoom out">−</button>
                         <button id="zoomInBtn" class="btn-secondary btn-small" title="Zoom in">+</button>
                         <button id="zoomResetBtn" class="btn-secondary btn-small" title="Reset zoom">Reset</button>
@@ -573,6 +579,14 @@
     <script src="scripts/notifications.js"></script>
     <script src="scripts/announcement-banner.js"></script>
     <script src="scripts/gantt.js"></script>
+    <script>
+        // Ensure GanttChart is loaded before admin.js
+        if (typeof GanttChart === 'undefined') {
+            console.error('CRITICAL: GanttChart is not defined after loading gantt.js');
+        } else {
+            console.log('✅ GanttChart class is available');
+        }
+    </script>
     <script src="scripts/hourly-gantt.js"></script>
     <script src="scripts/admin.js"></script>
     <script src="scripts/company-chat.js"></script>
