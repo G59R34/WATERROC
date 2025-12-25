@@ -46,6 +46,17 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         
+        .stock-chart-container {
+            height: 150px;
+            margin: 15px 0;
+            position: relative;
+        }
+        
+        .stock-chart {
+            width: 100% !important;
+            height: 100% !important;
+        }
+        
         .stock-header {
             display: flex;
             justify-content: space-between;
@@ -111,10 +122,21 @@
             border: 1px solid #e5e7eb;
             border-radius: 8px;
             padding: 15px;
-            margin-bottom: 10px;
+            margin-bottom: 20px;
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
+        }
+        
+        .investment-chart-container {
+            height: 120px;
+            margin-top: 10px;
+            position: relative;
+        }
+        
+        .investment-chart {
+            width: 100% !important;
+            height: 100% !important;
         }
         
         .investment-profit {
@@ -169,6 +191,7 @@
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script>
         // Authentication check
         (function() {

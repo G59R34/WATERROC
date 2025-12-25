@@ -92,6 +92,13 @@
                 </div>
                 
                 <div class="controls-section">
+                    <h3>Stock Market</h3>
+                    <div class="control-group">
+                        <button id="manageStocksBtn" class="btn-primary btn-muted" title="Add and manage stocks">Manage Stocks</button>
+                    </div>
+                </div>
+                
+                <div class="controls-section">
                     <h3>Color Legend</h3>
                     <!-- FULL OVERHAUL: Muted color legend - blue/gray shades only -->
                     <!-- ADDED UI: Muted color legend with tooltips -->
@@ -581,6 +588,47 @@
             }
         });
     </script>
+    
+    <!-- Stock Management Modal -->
+    <div id="stockManagementModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <span class="close" id="closeStockManagement">&times;</span>
+            <h2>📈 Stock Market Management</h2>
+            <div style="margin-bottom: 20px;">
+                <h3>Add New Stock</h3>
+                <form id="addStockForm" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                    <div class="form-group">
+                        <label for="newStockSymbol">Stock Symbol</label>
+                        <input type="text" id="newStockSymbol" placeholder="AAPL" maxlength="10" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newStockCompany">Company Name</label>
+                        <input type="text" id="newStockCompany" placeholder="Apple Inc." required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newStockPrice">Initial Price ($)</label>
+                        <input type="number" id="newStockPrice" step="0.01" min="0.01" placeholder="100.00" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newStockVolatility">Volatility (%)</label>
+                        <input type="number" id="newStockVolatility" step="0.01" min="0" max="100" placeholder="10.00" value="10.00" required>
+                    </div>
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <button type="submit" class="btn-primary">Add Stock</button>
+                    </div>
+                </form>
+            </div>
+            <div>
+                <h3>Existing Stocks</h3>
+                <div id="stocksList" style="max-height: 400px; overflow-y: auto; margin-top: 15px;">
+                    <div style="text-align: center; padding: 20px; color: #64748b;">Loading stocks...</div>
+                </div>
+            </div>
+            <div class="form-actions" style="margin-top: 20px;">
+                <button type="button" class="btn-secondary" id="cancelStockManagement">Close</button>
+            </div>
+        </div>
+    </div>
     
     <!-- ADDED UI: Footer with version/copyright -->
     <footer class="dashboard-footer">

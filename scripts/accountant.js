@@ -66,7 +66,65 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         const totalTaxes = federalTax + stateTax + socialSecurity + medicare + unemployment;
         const totalDeductions = totalTaxes + healthInsurance;
-        const netPay = grossPay - totalDeductions;
+        // Calculate 401k and SMP contributions (before taxes for 401k, after for SMP)
+        let contribution401k = 0;
+        let employerMatch401k = 0;
+        let contributionSMP = 0;
+        let smpStockSymbol = null;
+        
+        if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+            // Get 401k enrollment
+            const employee401k = await supabaseService.getEmployee401k(employee.id);
+            if (employee401k && employee401k.status === 'active') {
+                contribution401k = grossPay * (employee401k.contribution_percent / 100);
+                // Apply max contribution limit if set
+                if (employee401k.max_contribution) {
+                    contribution401k = Math.min(contribution401k, employee401k.max_contribution);
+                }
+                // Calculate employer match (typically 50% of employee contribution up to a limit)
+                employerMatch401k = contribution401k * (employee401k.employer_match_percent / 100);
+            }
+            
+            // Get SMP enrollment
+            const employeeSMP = await supabaseService.getEmployeeSMP(employee.id);
+            if (employeeSMP && employeeSMP.status === 'active') {
+                // SMP is calculated on net pay (after taxes and 401k)
+                // We'll calculate it after we have the net pay
+            }
+        }
+        
+        // Deduct 401k from gross pay (pre-tax)
+        const grossAfter401k = grossPay - contribution401k;
+        
+        // Recalculate taxes on reduced gross (401k is pre-tax)
+        const federalTax = grossAfter401k * (taxConfig.federalTaxRate / 100);
+        const stateTax = grossAfter401k * (taxConfig.stateTaxRate / 100);
+        const socialSecurity = grossAfter401k * (taxConfig.socialSecurityRate / 100);
+        const medicare = grossAfter401k * (taxConfig.medicareRate / 100);
+        const unemployment = grossAfter401k * (taxConfig.unemploymentRate / 100);
+        const totalTaxes = federalTax + stateTax + socialSecurity + medicare + unemployment;
+        const totalDeductions = totalTaxes + healthInsurance + contribution401k;
+        
+        // Calculate net pay after taxes and 401k
+        let netPay = grossAfter401k - totalTaxes - healthInsurance;
+        
+        // Calculate SMP contribution (post-tax, from net pay)
+        if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+            const employeeSMP = await supabaseService.getEmployeeSMP(employee.id);
+            if (employeeSMP && employeeSMP.status === 'active') {
+                contributionSMP = netPay * (employeeSMP.contribution_percent / 100);
+                // Apply max contribution limit if set
+                if (employeeSMP.max_contribution) {
+                    contributionSMP = Math.min(contributionSMP, employeeSMP.max_contribution);
+                }
+                // Get stock symbol from first contribution or use WTRC as default
+                const smpContributions = await supabaseService.getSMPContributions(employeeSMP.id);
+                smpStockSymbol = smpContributions.length > 0 ? smpContributions[0].stock_symbol : 'WTRC';
+            }
+        }
+        
+        // Final net pay after SMP
+        netPay = netPay - contributionSMP;
         
         return {
             grossPay,
@@ -76,9 +134,15 @@ document.addEventListener('DOMContentLoaded', async function() {
             medicare,
             unemployment,
             healthInsurance,
+            contribution401k,
+            employerMatch401k,
+            contributionSMP,
+            smpStockSymbol,
             totalTaxes,
-            totalDeductions,
-            netPay
+            totalDeductions: totalDeductions + contributionSMP,
+            netPay,
+            employee401k: contribution401k > 0,
+            employeeSMP: contributionSMP > 0
         };
     }
     
@@ -169,13 +233,72 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         
         const grossPay = totalHours * hourlyRate;
-        const payroll = calculateTaxes(grossPay);
+        
+        // Get 401k and SMP enrollments
+        let contribution401k = 0;
+        let employerMatch401k = 0;
+        let contributionSMP = 0;
+        let smpStockSymbol = null;
+        let employee401kId = null;
+        let smpEnrollmentId = null;
+        
+        if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+            // Get 401k enrollment
+            const employee401k = await supabaseService.getEmployee401k(employee.id);
+            if (employee401k && employee401k.status === 'active') {
+                employee401kId = employee401k.id;
+                contribution401k = grossPay * (employee401k.contribution_percent / 100);
+                // Apply max contribution limit if set
+                if (employee401k.max_contribution) {
+                    contribution401k = Math.min(contribution401k, employee401k.max_contribution);
+                }
+                // Calculate employer match (typically 50% of employee contribution up to a limit)
+                employerMatch401k = contribution401k * (employee401k.employer_match_percent / 100);
+            }
+            
+            // Get SMP enrollment (we'll calculate contribution after taxes)
+            const employeeSMP = await supabaseService.getEmployeeSMP(employee.id);
+            if (employeeSMP && employeeSMP.status === 'active') {
+                smpEnrollmentId = employeeSMP.id;
+                // Get stock symbol from enrollment (stored in the enrollment record)
+                smpStockSymbol = employeeSMP.stock_symbol || 'WTRC';
+            }
+        }
+        
+        // Calculate taxes on gross pay minus 401k (401k is pre-tax)
+        const grossAfter401k = grossPay - contribution401k;
+        const payroll = calculateTaxes(grossAfter401k);
+        
+        // Calculate SMP contribution (post-tax, from net pay after taxes and health insurance)
+        const netAfterTaxes = grossAfter401k - payroll.totalTaxes - payroll.healthInsurance;
+        if (smpEnrollmentId && typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+            const employeeSMP = await supabaseService.getEmployeeSMP(employee.id);
+            if (employeeSMP && employeeSMP.status === 'active') {
+                contributionSMP = netAfterTaxes * (employeeSMP.contribution_percent / 100);
+                // Apply max contribution limit if set
+                if (employeeSMP.max_contribution) {
+                    contributionSMP = Math.min(contributionSMP, employeeSMP.max_contribution);
+                }
+            }
+        }
+        
+        // Final net pay after all deductions
+        const netPay = netAfterTaxes - contributionSMP;
         
         return {
             employee,
             hours: totalHours,
             hourlyRate,
-            ...payroll
+            grossPay,
+            ...payroll,
+            contribution401k,
+            employerMatch401k,
+            contributionSMP,
+            smpStockSymbol,
+            employee401kId,
+            smpEnrollmentId,
+            totalDeductions: payroll.totalDeductions + contribution401k + contributionSMP,
+            netPay
         };
     }
     
@@ -265,6 +388,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                         <span>Net Pay:</span>
                         <span id="net-${emp.id}">$0.00</span>
                     </div>
+                    <div id="deductions-${emp.id}"></div>
                 </div>
             `;
         }).join('');
@@ -358,6 +482,42 @@ document.addEventListener('DOMContentLoaded', async function() {
             document.getElementById(`medicare-${employee.id}`).textContent = `$${payroll.medicare.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             document.getElementById(`unemployment-${employee.id}`).textContent = `$${payroll.unemployment.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             document.getElementById(`health-${employee.id}`).textContent = `$${payroll.healthInsurance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            
+            // Update 401k and SMP deductions in breakdown
+            const deductionsDiv = document.getElementById(`deductions-${employee.id}`);
+            if (deductionsDiv) {
+                let deductionsHTML = '';
+                
+                if (payroll.contribution401k > 0) {
+                    deductionsHTML += `
+                        <div class="tax-item" style="color: #3b82f6;">
+                            <span>401k Contribution (${(payroll.contribution401k / payroll.grossPay * 100).toFixed(2)}%):</span>
+                            <span>-$${payroll.contribution401k.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                    `;
+                    if (payroll.employerMatch401k > 0) {
+                        deductionsHTML += `
+                            <div class="tax-item" style="color: #10b981;">
+                                <span>401k Employer Match:</span>
+                                <span>+$${payroll.employerMatch401k.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                        `;
+                    }
+                }
+                
+                if (payroll.contributionSMP > 0) {
+                    const netBeforeSMP = payroll.grossPay - payroll.totalTaxes - payroll.healthInsurance - (payroll.contribution401k || 0);
+                    deductionsHTML += `
+                        <div class="tax-item" style="color: #8b5cf6;">
+                            <span>SMP Contribution (${(payroll.contributionSMP / netBeforeSMP * 100).toFixed(2)}%):</span>
+                            <span>-$${payroll.contributionSMP.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                    `;
+                }
+                
+                deductionsDiv.innerHTML = deductionsHTML;
+            }
+            
             document.getElementById(`net-${employee.id}`).textContent = `$${payroll.netPay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         }
         

@@ -2100,6 +2100,111 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     // ==========================================
+    // STOCK MANAGEMENT
+    // ==========================================
+    
+    const stockManagementModal = document.getElementById('stockManagementModal');
+    const manageStocksBtn = document.getElementById('manageStocksBtn');
+    const closeStockManagement = document.getElementById('closeStockManagement');
+    const cancelStockManagement = document.getElementById('cancelStockManagement');
+    const addStockForm = document.getElementById('addStockForm');
+    
+    if (manageStocksBtn) {
+        manageStocksBtn.addEventListener('click', async function() {
+            stockManagementModal.style.display = 'block';
+            await loadStocksList();
+        });
+    }
+    
+    if (closeStockManagement) {
+        closeStockManagement.addEventListener('click', function() {
+            stockManagementModal.style.display = 'none';
+        });
+    }
+    
+    if (cancelStockManagement) {
+        cancelStockManagement.addEventListener('click', function() {
+            stockManagementModal.style.display = 'none';
+        });
+    }
+    
+    async function loadStocksList() {
+        const list = document.getElementById('stocksList');
+        if (!list) return;
+        
+        try {
+            const stocks = await supabaseService.getStockMarket();
+            
+            if (stocks.length === 0) {
+                list.innerHTML = '<div style="text-align: center; padding: 20px; color: #64748b;">No stocks available</div>';
+                return;
+            }
+            
+            list.innerHTML = stocks.map(stock => {
+                const changePercent = parseFloat(stock.change_percent || 0);
+                const isPositive = changePercent >= 0;
+                const changeClass = isPositive ? 'positive' : 'negative';
+                const changeSymbol = isPositive ? '+' : '';
+                
+                return `
+                    <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 600; font-size: 18px; color: #1f2937;">${stock.symbol}</div>
+                            <div style="font-size: 14px; color: #6b7280; margin-top: 4px;">${stock.company_name}</div>
+                            <div style="font-size: 16px; font-weight: 600; color: #3b82f6; margin-top: 8px;">
+                                $${parseFloat(stock.current_price).toFixed(2)}
+                                <span class="stock-change ${changeClass}" style="margin-left: 10px; font-size: 12px; padding: 2px 6px; border-radius: 4px;">
+                                    ${changeSymbol}${changePercent.toFixed(2)}%
+                                </span>
+                            </div>
+                            <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">Volatility: ${stock.volatility}%</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } catch (error) {
+            console.error('Error loading stocks:', error);
+            list.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444;">Error loading stocks</div>';
+        }
+    }
+    
+    if (addStockForm) {
+        addStockForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const symbol = document.getElementById('newStockSymbol').value.toUpperCase().trim();
+            const companyName = document.getElementById('newStockCompany').value.trim();
+            const price = parseFloat(document.getElementById('newStockPrice').value);
+            const volatility = parseFloat(document.getElementById('newStockVolatility').value);
+            
+            if (!symbol || !companyName || !price || price <= 0) {
+                alert('Please fill in all required fields with valid values');
+                return;
+            }
+            
+            if (typeof showFormLoadingScreen !== 'undefined') {
+                showFormLoadingScreen('creating stock');
+            }
+            
+            try {
+                const result = await supabaseService.createStock(symbol, companyName, price, volatility);
+                
+                if (result.error) {
+                    alert(`❌ Failed to create stock: ${result.error}`);
+                    return;
+                }
+                
+                alert(`✅ Stock ${symbol} created successfully!`);
+                addStockForm.reset();
+                await loadStocksList();
+            } catch (error) {
+                console.error('Error creating stock:', error);
+                alert(`❌ Failed to create stock: ${error.message}`);
+            }
+        });
+    }
+    
+    // ==========================================
     // PAY RATE MANAGEMENT
     // ==========================================
     

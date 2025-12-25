@@ -1139,6 +1139,289 @@ document.addEventListener('DOMContentLoaded', async function() {
     // ============================================
     
     const timeOffModal = document.getElementById('timeOffModal');
+    // ==========================================
+    // 401K PLAN MANAGEMENT
+    // ==========================================
+    
+    const manage401kBtn = document.getElementById('manage401kBtn');
+    const manage401kModal = document.getElementById('manage401kModal');
+    const close401kModal = document.getElementById('close401kModal');
+    const enrollment401kForm = document.getElementById('401kEnrollmentForm');
+    const update401kForm = document.getElementById('401kUpdateForm');
+    const pause401kBtn = document.getElementById('pause401kBtn');
+    
+    if (manage401kBtn) {
+        manage401kBtn.addEventListener('click', async () => {
+            manage401kModal.style.display = 'block';
+            await load401kUI();
+        });
+    }
+    
+    if (close401kModal) {
+        close401kModal.addEventListener('click', () => {
+            manage401kModal.style.display = 'none';
+        });
+    }
+    
+    async function load401kUI() {
+        const employee = await getCurrentEmployee();
+        if (!employee) return;
+        
+        const enrollment = await supabaseService.getEmployee401k(employee.id);
+        const enrollmentDiv = document.getElementById('401kEnrollment');
+        const detailsDiv = document.getElementById('401kDetails');
+        
+        if (!enrollment) {
+            enrollmentDiv.style.display = 'block';
+            detailsDiv.style.display = 'none';
+        } else {
+            enrollmentDiv.style.display = 'none';
+            detailsDiv.style.display = 'block';
+            
+            document.getElementById('401kBalance').textContent = 
+                `$${parseFloat(enrollment.current_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            document.getElementById('401kContributionRate').textContent = `${enrollment.contribution_percent}%`;
+            document.getElementById('401kTotalContributed').textContent = 
+                `$${parseFloat(enrollment.total_contributed || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            document.getElementById('401kEmployerMatch').textContent = 
+                `$${parseFloat(enrollment.total_employer_match || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            document.getElementById('401kUpdatePercent').value = enrollment.contribution_percent;
+            
+            // Load history
+            const history = await supabaseService.get401kContributions(enrollment.id);
+            const historyDiv = document.getElementById('401kHistory');
+            if (history.length === 0) {
+                historyDiv.innerHTML = '<div style="text-align: center; padding: 20px; color: #64748b;">No contributions yet</div>';
+            } else {
+                historyDiv.innerHTML = history.map(contrib => `
+                    <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
+                        <div style="font-weight: 600;">${new Date(contrib.pay_period_start).toLocaleDateString()} - ${new Date(contrib.pay_period_end).toLocaleDateString()}</div>
+                        <div style="font-size: 14px; color: #6b7280; margin-top: 4px;">
+                            Employee: $${contrib.employee_contribution.toFixed(2)} • 
+                            Match: $${contrib.employer_match.toFixed(2)} • 
+                            Total: $${contrib.total_contribution.toFixed(2)}
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+    }
+    
+    if (enrollment401kForm) {
+        enrollment401kForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const employee = await getCurrentEmployee();
+            if (!employee) return;
+            
+            const percent = parseFloat(document.getElementById('401kContributionPercent').value);
+            const max = document.getElementById('401kMaxContribution').value ? parseFloat(document.getElementById('401kMaxContribution').value) : null;
+            
+            const result = await supabaseService.enroll401k(employee.id, percent, max);
+            if (result.error) {
+                alert(`❌ Enrollment failed: ${result.error}`);
+                return;
+            }
+            
+            alert('✅ Successfully enrolled in 401k plan!');
+            await load401kUI();
+        });
+    }
+    
+    if (update401kForm) {
+        update401kForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const employee = await getCurrentEmployee();
+            if (!employee) return;
+            
+            const percent = parseFloat(document.getElementById('401kUpdatePercent').value);
+            const result = await supabaseService.update401kContribution(employee.id, percent);
+            if (result.error) {
+                alert(`❌ Update failed: ${result.error}`);
+                return;
+            }
+            
+            alert('✅ Contribution percentage updated!');
+            await load401kUI();
+        });
+    }
+    
+    if (pause401kBtn) {
+        pause401kBtn.addEventListener('click', async () => {
+            if (!confirm('Pause 401k contributions?')) return;
+            const employee = await getCurrentEmployee();
+            if (!employee) return;
+            
+            // Update status to paused
+            const { error } = await supabaseService.client
+                .from('employee_401k')
+                .update({ status: 'paused' })
+                .eq('employee_id', employee.id);
+            
+            if (error) {
+                alert(`❌ Failed to pause: ${error.message}`);
+                return;
+            }
+            
+            alert('✅ Contributions paused');
+            await load401kUI();
+        });
+    }
+    
+    // ==========================================
+    // STOCK MARKET PLAN (SMP) MANAGEMENT
+    // ==========================================
+    
+    const manageSMPBtn = document.getElementById('manageSMPBtn');
+    const manageSMPModal = document.getElementById('manageSMPModal');
+    const closeSMPModal = document.getElementById('closeSMPModal');
+    const enrollmentSMPForm = document.getElementById('SMPEnrollmentForm');
+    const updateSMPForm = document.getElementById('SMPUpdateForm');
+    const pauseSMPBtn = document.getElementById('pauseSMPBtn');
+    
+    if (manageSMPBtn) {
+        manageSMPBtn.addEventListener('click', async () => {
+            manageSMPModal.style.display = 'block';
+            await loadSMPUI();
+        });
+    }
+    
+    if (closeSMPModal) {
+        closeSMPModal.addEventListener('click', () => {
+            manageSMPModal.style.display = 'none';
+        });
+    }
+    
+    async function loadSMPUI() {
+        const employee = await getCurrentEmployee();
+        if (!employee) return;
+        
+        // Load stocks for dropdown
+        const stocks = await supabaseService.getStockMarket();
+        const stockSelect = document.getElementById('SMPStockSymbol');
+        if (stockSelect) {
+            stockSelect.innerHTML = '<option value="">Select a stock...</option>' +
+                stocks.map(s => `<option value="${s.symbol}">${s.symbol} - ${s.company_name}</option>`).join('');
+        }
+        
+        const enrollment = await supabaseService.getEmployeeSMP(employee.id);
+        const enrollmentDiv = document.getElementById('SMPEnrollment');
+        const detailsDiv = document.getElementById('SMPDetails');
+        
+        if (!enrollment) {
+            enrollmentDiv.style.display = 'block';
+            detailsDiv.style.display = 'none';
+        } else {
+            enrollmentDiv.style.display = 'none';
+            detailsDiv.style.display = 'block';
+            
+            document.getElementById('SMPContributionRate').textContent = `${enrollment.contribution_percent}%`;
+            document.getElementById('SMPUpdatePercent').value = enrollment.contribution_percent;
+            
+            // Get total shares and contributions
+            const contributions = await supabaseService.getSMPContributions(enrollment.id);
+            const totalShares = contributions.reduce((sum, c) => sum + parseFloat(c.shares_purchased), 0);
+            const totalContributed = contributions.reduce((sum, c) => sum + parseFloat(c.contribution_amount), 0);
+            
+            document.getElementById('SMPTotalShares').textContent = totalShares.toFixed(4);
+            document.getElementById('SMPTotalContributed').textContent = 
+                `$${totalContributed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            
+            // Get stock symbol from first contribution or use default
+            const stockSymbol = contributions.length > 0 ? contributions[0].stock_symbol : 'N/A';
+            document.getElementById('SMPStockSymbolDisplay').textContent = stockSymbol;
+            
+            // Load history
+            const historyDiv = document.getElementById('SMPHistory');
+            if (contributions.length === 0) {
+                historyDiv.innerHTML = '<div style="text-align: center; padding: 20px; color: #64748b;">No purchases yet</div>';
+            } else {
+                historyDiv.innerHTML = contributions.map(contrib => `
+                    <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
+                        <div style="font-weight: 600;">${new Date(contrib.pay_period_start).toLocaleDateString()} - ${new Date(contrib.pay_period_end).toLocaleDateString()}</div>
+                        <div style="font-size: 14px; color: #6b7280; margin-top: 4px;">
+                            ${contrib.shares_purchased} shares of ${contrib.stock_symbol} @ $${contrib.purchase_price.toFixed(2)} • 
+                            Total: $${contrib.contribution_amount.toFixed(2)}
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+    }
+    
+    if (enrollmentSMPForm) {
+        enrollmentSMPForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const employee = await getCurrentEmployee();
+            if (!employee) return;
+            
+            const percent = parseFloat(document.getElementById('SMPContributionPercent').value);
+            const stockSymbol = document.getElementById('SMPStockSymbol').value;
+            const max = document.getElementById('SMPMaxContribution').value ? parseFloat(document.getElementById('SMPMaxContribution').value) : null;
+            
+            if (!stockSymbol) {
+                alert('Please select a stock');
+                return;
+            }
+            
+            const result = await supabaseService.enrollSMP(employee.id, percent, stockSymbol, max);
+            if (result.error) {
+                alert(`❌ Enrollment failed: ${result.error}`);
+                return;
+            }
+            
+            alert('✅ Successfully enrolled in Stock Market Purchase Plan!');
+            await loadSMPUI();
+        });
+    }
+    
+    if (updateSMPForm) {
+        updateSMPForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const employee = await getCurrentEmployee();
+            if (!employee) return;
+            
+            const percent = parseFloat(document.getElementById('SMPUpdatePercent').value);
+            const result = await supabaseService.updateSMPContribution(employee.id, percent);
+            if (result.error) {
+                alert(`❌ Update failed: ${result.error}`);
+                return;
+            }
+            
+            alert('✅ Contribution percentage updated!');
+            await loadSMPUI();
+        });
+    }
+    
+    if (pauseSMPBtn) {
+        pauseSMPBtn.addEventListener('click', async () => {
+            if (!confirm('Pause SMP contributions?')) return;
+            const employee = await getCurrentEmployee();
+            if (!employee) return;
+            
+            const { error } = await supabaseService.client
+                .from('smp_enrollments')
+                .update({ status: 'paused' })
+                .eq('employee_id', employee.id);
+            
+            if (error) {
+                alert(`❌ Failed to pause: ${error.message}`);
+                return;
+            }
+            
+            alert('✅ Contributions paused');
+            await loadSMPUI();
+        });
+    }
+    
+    // Helper function to get current employee
+    async function getCurrentEmployee() {
+        const currentUser = await supabaseService.getCurrentUser();
+        if (!currentUser) return null;
+        
+        const employees = await supabaseService.getEmployees();
+        return employees?.find(e => e.user_id === currentUser.id);
+    }
+    
     const requestTimeOffBtn = document.getElementById('requestTimeOffBtn');
     const closeTimeOffModal = document.getElementById('closeTimeOffModal');
     const cancelTimeOffBtn = document.getElementById('cancelTimeOffBtn');

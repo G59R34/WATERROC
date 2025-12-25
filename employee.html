@@ -50,6 +50,8 @@
                         <button id="viewMyPaycheckBtn" class="btn-primary">💰 My Paycheck</button>
                         <a href="store.html" class="btn-primary" style="text-decoration: none;">🛒 Store</a>
                         <a href="stock-market.html" class="btn-primary" style="text-decoration: none;">📈 Stock Market</a>
+                        <button id="manage401kBtn" class="btn-primary">💼 401k Plan</button>
+                        <button id="manageSMPBtn" class="btn-primary">📊 Stock Purchase Plan</button>
                         <a href="email.html" class="btn-primary" style="text-decoration: none;">📧 Email</a>
                         <button id="requestTimeOffBtn" class="btn-primary">Request Time Off</button>
                     </div>
@@ -248,6 +250,152 @@
                 <div id="paycheckContent">
                     <div style="text-align: center; padding: 40px; color: #64748b;">
                         <div class="loading-message">Loading paycheck information...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 401k Plan Modal -->
+    <div id="manage401kModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2>💼 401k Retirement Plan</h2>
+                <span class="close" id="close401kModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="401kContent">
+                    <div id="401kEnrollment" style="display: none;">
+                        <p style="color: #64748b; margin-bottom: 20px;">
+                            Enroll in the company 401k plan. Your contributions will be deducted from your paycheck, and the company will match a portion of your contributions.
+                        </p>
+                        <form id="401kEnrollmentForm">
+                            <div class="form-group">
+                                <label for="401kContributionPercent">Contribution Percentage (% of paycheck)</label>
+                                <input type="number" id="401kContributionPercent" min="0" max="100" step="0.01" value="3.00" required>
+                                <small style="color: #6b7280;">Recommended: 3-10%</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="401kMaxContribution">Annual Contribution Limit (Optional)</label>
+                                <input type="number" id="401kMaxContribution" min="0" step="0.01" placeholder="Leave blank for no limit">
+                            </div>
+                            <button type="submit" class="btn-primary">Enroll in 401k</button>
+                        </form>
+                    </div>
+                    <div id="401kDetails" style="display: none;">
+                        <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                            <h3>Your 401k Account</h3>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+                                <div>
+                                    <div style="font-size: 12px; color: #6b7280;">Current Balance</div>
+                                    <div id="401kBalance" style="font-size: 24px; font-weight: bold; color: #3b82f6;">$0.00</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 12px; color: #6b7280;">Contribution Rate</div>
+                                    <div id="401kContributionRate" style="font-size: 24px; font-weight: bold;">0%</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 12px; color: #6b7280;">Total Contributed</div>
+                                    <div id="401kTotalContributed" style="font-size: 18px; font-weight: 600;">$0.00</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 12px; color: #6b7280;">Employer Match</div>
+                                    <div id="401kEmployerMatch" style="font-size: 18px; font-weight: 600; color: #10b981;">$0.00</div>
+                                </div>
+                            </div>
+                        </div>
+                        <form id="401kUpdateForm">
+                            <div class="form-group">
+                                <label for="401kUpdatePercent">Update Contribution Percentage (%)</label>
+                                <input type="number" id="401kUpdatePercent" min="0" max="100" step="0.01" required>
+                            </div>
+                            <div class="form-group">
+                                <button type="submit" class="btn-primary">Update Contribution</button>
+                                <button type="button" id="pause401kBtn" class="btn-secondary" style="margin-left: 10px;">Pause Contributions</button>
+                            </div>
+                        </form>
+                        <div style="margin-top: 30px;">
+                            <h4>Contribution History</h4>
+                            <div id="401kHistory" style="max-height: 300px; overflow-y: auto; margin-top: 10px;">
+                                <div style="text-align: center; padding: 20px; color: #64748b;">No contributions yet</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Stock Market Plan (SMP) Modal -->
+    <div id="manageSMPModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2>📊 Stock Market Purchase Plan (SMP)</h2>
+                <span class="close" id="closeSMPModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="SMPContent">
+                    <div id="SMPEnrollment" style="display: none;">
+                        <p style="color: #64748b; margin-bottom: 20px;">
+                            Enroll in the Stock Market Purchase Plan. A percentage of your paycheck will automatically purchase company stock at a discount.
+                        </p>
+                        <form id="SMPEnrollmentForm">
+                            <div class="form-group">
+                                <label for="SMPContributionPercent">Contribution Percentage (% of paycheck)</label>
+                                <input type="number" id="SMPContributionPercent" min="0" max="100" step="0.01" value="5.00" required>
+                                <small style="color: #6b7280;">Recommended: 5-15%</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="SMPMaxContribution">Max Contribution Per Pay Period (Optional)</label>
+                                <input type="number" id="SMPMaxContribution" min="0" step="0.01" placeholder="Leave blank for no limit">
+                            </div>
+                            <div class="form-group">
+                                <label for="SMPStockSymbol">Stock to Purchase</label>
+                                <select id="SMPStockSymbol" required>
+                                    <option value="">Select a stock...</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn-primary">Enroll in SMP</button>
+                        </form>
+                    </div>
+                    <div id="SMPDetails" style="display: none;">
+                        <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                            <h3>Your SMP Enrollment</h3>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+                                <div>
+                                    <div style="font-size: 12px; color: #6b7280;">Contribution Rate</div>
+                                    <div id="SMPContributionRate" style="font-size: 24px; font-weight: bold;">0%</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 12px; color: #6b7280;">Stock Symbol</div>
+                                    <div id="SMPStockSymbolDisplay" style="font-size: 24px; font-weight: bold; color: #3b82f6;">-</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 12px; color: #6b7280;">Total Shares Purchased</div>
+                                    <div id="SMPTotalShares" style="font-size: 18px; font-weight: 600;">0</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 12px; color: #6b7280;">Total Contributed</div>
+                                    <div id="SMPTotalContributed" style="font-size: 18px; font-weight: 600;">$0.00</div>
+                                </div>
+                            </div>
+                        </div>
+                        <form id="SMPUpdateForm">
+                            <div class="form-group">
+                                <label for="SMPUpdatePercent">Update Contribution Percentage (%)</label>
+                                <input type="number" id="SMPUpdatePercent" min="0" max="100" step="0.01" required>
+                            </div>
+                            <div class="form-group">
+                                <button type="submit" class="btn-primary">Update Contribution</button>
+                                <button type="button" id="pauseSMPBtn" class="btn-secondary" style="margin-left: 10px;">Pause Contributions</button>
+                            </div>
+                        </form>
+                        <div style="margin-top: 30px;">
+                            <h4>Purchase History</h4>
+                            <div id="SMPHistory" style="max-height: 300px; overflow-y: auto; margin-top: 10px;">
+                                <div style="text-align: center; padding: 20px; color: #64748b;">No purchases yet</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -4765,6 +4765,264 @@ class SupabaseService {
     }
 
     /**
+     * Get stock price history for a specific stock
+     * @param {number} stockId - Stock ID
+     * @param {number} limit - Number of records to retrieve (default: 50)
+     * @returns {Promise<Array>}
+     */
+    async getStockPriceHistory(stockId, limit = 50) {
+        if (!this.isReady()) return [];
+
+        try {
+            const { data, error } = await this.client
+                .from('stock_price_history')
+                .select('price, recorded_at')
+                .eq('stock_id', stockId)
+                .order('recorded_at', { ascending: true })
+                .limit(limit);
+
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error getting stock price history:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Create a new stock
+     * @param {string} symbol - Stock symbol
+     * @param {string} companyName - Company name
+     * @param {number} initialPrice - Initial stock price
+     * @param {number} volatility - Volatility percentage
+     * @returns {Promise<{data: any, error: string|null}>}
+     */
+    async createStock(symbol, companyName, initialPrice, volatility = 10.00) {
+        if (!this.isReady()) return { data: null, error: 'Supabase not initialized' };
+
+        try {
+            const { data, error } = await this.client.rpc('create_stock', {
+                p_symbol: symbol.toUpperCase(),
+                p_company_name: companyName,
+                p_initial_price: initialPrice,
+                p_volatility: volatility
+            });
+
+            if (error) throw error;
+            return { data, error: null };
+        } catch (error) {
+            console.error('Error creating stock:', error);
+            return { data: null, error: error.message };
+        }
+    }
+
+    /**
+     * Get employee 401k enrollment
+     * @param {number} employeeId - Employee ID
+     * @returns {Promise<Object|null>}
+     */
+    async getEmployee401k(employeeId) {
+        if (!this.isReady()) return null;
+
+        try {
+            const { data, error } = await this.client
+                .from('employee_401k')
+                .select('*')
+                .eq('employee_id', employeeId)
+                .maybeSingle();
+
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('Error getting employee 401k:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Enroll employee in 401k
+     * @param {number} employeeId - Employee ID
+     * @param {number} contributionPercent - Contribution percentage
+     * @param {number} maxContribution - Optional max contribution
+     * @returns {Promise<{data: any, error: string|null}>}
+     */
+    async enroll401k(employeeId, contributionPercent, maxContribution = null) {
+        if (!this.isReady()) return { data: null, error: 'Supabase not initialized' };
+
+        try {
+            const { data, error } = await this.client
+                .from('employee_401k')
+                .insert({
+                    employee_id: employeeId,
+                    contribution_percent: contributionPercent,
+                    max_contribution: maxContribution,
+                    status: 'active'
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+            return { data, error: null };
+        } catch (error) {
+            console.error('Error enrolling in 401k:', error);
+            return { data: null, error: error.message };
+        }
+    }
+
+    /**
+     * Update 401k contribution
+     * @param {number} employeeId - Employee ID
+     * @param {number} contributionPercent - New contribution percentage
+     * @returns {Promise<{data: any, error: string|null}>}
+     */
+    async update401kContribution(employeeId, contributionPercent) {
+        if (!this.isReady()) return { data: null, error: 'Supabase not initialized' };
+
+        try {
+            const { data, error } = await this.client
+                .from('employee_401k')
+                .update({ contribution_percent: contributionPercent })
+                .eq('employee_id', employeeId)
+                .select()
+                .single();
+
+            if (error) throw error;
+            return { data, error: null };
+        } catch (error) {
+            console.error('Error updating 401k contribution:', error);
+            return { data: null, error: error.message };
+        }
+    }
+
+    /**
+     * Get 401k contribution history
+     * @param {number} employee401kId - 401k account ID
+     * @returns {Promise<Array>}
+     */
+    async get401kContributions(employee401kId) {
+        if (!this.isReady()) return [];
+
+        try {
+            const { data, error } = await this.client
+                .from('employee_401k_contributions')
+                .select('*')
+                .eq('employee_401k_id', employee401kId)
+                .order('contributed_at', { ascending: false })
+                .limit(50);
+
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error getting 401k contributions:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get employee SMP enrollment
+     * @param {number} employeeId - Employee ID
+     * @returns {Promise<Object|null>}
+     */
+    async getEmployeeSMP(employeeId) {
+        if (!this.isReady()) return null;
+
+        try {
+            const { data, error } = await this.client
+                .from('smp_enrollments')
+                .select('*')
+                .eq('employee_id', employeeId)
+                .maybeSingle();
+
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('Error getting employee SMP:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Enroll employee in SMP
+     * @param {number} employeeId - Employee ID
+     * @param {number} contributionPercent - Contribution percentage
+     * @param {string} stockSymbol - Stock symbol to purchase
+     * @param {number} maxContribution - Optional max contribution
+     * @returns {Promise<{data: any, error: string|null}>}
+     */
+    async enrollSMP(employeeId, contributionPercent, stockSymbol, maxContribution = null) {
+        if (!this.isReady()) return { data: null, error: 'Supabase not initialized' };
+
+        try {
+            const { data, error } = await this.client
+                .from('smp_enrollments')
+                .insert({
+                    employee_id: employeeId,
+                    contribution_percent: contributionPercent,
+                    stock_symbol: stockSymbol.toUpperCase(),
+                    max_contribution: maxContribution,
+                    status: 'active'
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+            return { data, error: null };
+        } catch (error) {
+            console.error('Error enrolling in SMP:', error);
+            return { data: null, error: error.message };
+        }
+    }
+
+    /**
+     * Update SMP contribution
+     * @param {number} employeeId - Employee ID
+     * @param {number} contributionPercent - New contribution percentage
+     * @returns {Promise<{data: any, error: string|null}>}
+     */
+    async updateSMPContribution(employeeId, contributionPercent) {
+        if (!this.isReady()) return { data: null, error: 'Supabase not initialized' };
+
+        try {
+            const { data, error } = await this.client
+                .from('smp_enrollments')
+                .update({ contribution_percent: contributionPercent })
+                .eq('employee_id', employeeId)
+                .select()
+                .single();
+
+            if (error) throw error;
+            return { data, error: null };
+        } catch (error) {
+            console.error('Error updating SMP contribution:', error);
+            return { data: null, error: error.message };
+        }
+    }
+
+    /**
+     * Get SMP contribution history
+     * @param {number} smpEnrollmentId - SMP enrollment ID
+     * @returns {Promise<Array>}
+     */
+    async getSMPContributions(smpEnrollmentId) {
+        if (!this.isReady()) return [];
+
+        try {
+            const { data, error } = await this.client
+                .from('smp_contributions')
+                .select('*')
+                .eq('smp_enrollment_id', smpEnrollmentId)
+                .order('contributed_at', { ascending: false })
+                .limit(50);
+
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error getting SMP contributions:', error);
+            return [];
+        }
+    }
+
+    /**
      * Get company debt
      * @returns {Promise<Array>}
      */
