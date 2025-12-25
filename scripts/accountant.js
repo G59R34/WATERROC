@@ -566,7 +566,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             console.warn('⚠️ Supabase not available - cannot add funds to wallets');
         }
         
-        // Process wage garnishments
+        // Process wage garnishments and apply to company debt
+        let totalGarnishmentAmount = 0;
         if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
             for (const result of payrollResults) {
                 if (result.garnishments && result.garnishments.length > 0) {
@@ -581,10 +582,84 @@ document.addEventListener('DOMContentLoaded', async function() {
                                 result.netPay + result.totalGarnishments, // Net pay before garnishment
                                 garnishment.amount_garnished
                             );
+                            // Accumulate total garnishment amount
+                            totalGarnishmentAmount += parseFloat(garnishment.amount_garnished || 0);
                         } catch (error) {
                             console.error(`Error processing garnishment for ${result.employee.name}:`, error);
                         }
                     }
+                }
+            }
+            
+            // Apply garnishment money to company debt
+            if (totalGarnishmentAmount > 0) {
+                console.log(`💰 Applying $${totalGarnishmentAmount.toFixed(2)} from garnishments to company debt...`);
+                
+                try {
+                    // Get all active company debts, sorted by interest rate (highest first) and then by oldest
+                    const debts = await supabaseService.getCompanyDebt();
+                    const activeDebts = debts.filter(d => d.status !== 'paid' && parseFloat(d.remaining_balance || 0) > 0);
+                    
+                    // Sort by interest rate (highest first), then by oldest
+                    activeDebts.sort((a, b) => {
+                        const rateDiff = parseFloat(b.interest_rate || 0) - parseFloat(a.interest_rate || 0);
+                        if (rateDiff !== 0) return rateDiff;
+                        return new Date(a.created_at) - new Date(b.created_at);
+                    });
+                    
+                    let remainingGarnishment = totalGarnishmentAmount;
+                    let debtPayments = [];
+                    
+                    // Apply garnishment money to debts
+                    for (const debt of activeDebts) {
+                        if (remainingGarnishment <= 0) break;
+                        
+                        const debtBalance = parseFloat(debt.remaining_balance || 0);
+                        if (debtBalance <= 0) continue;
+                        
+                        // Pay as much as possible (up to remaining balance or remaining garnishment)
+                        const paymentAmount = Math.min(remainingGarnishment, debtBalance);
+                        
+                        try {
+                            const paymentResult = await supabaseService.makeDebtPayment(debt.id, paymentAmount);
+                            
+                            if (!paymentResult.error) {
+                                remainingGarnishment -= paymentAmount;
+                                debtPayments.push({
+                                    debtName: debt.debt_name || debt.name || `Debt #${debt.id}`,
+                                    amount: paymentAmount,
+                                    remainingBalance: paymentResult.data?.remaining_balance || 0
+                                });
+                                console.log(`✅ Applied $${paymentAmount.toFixed(2)} to ${debt.debt_name || debt.name || `Debt #${debt.id}`}`);
+                            } else {
+                                console.error(`❌ Failed to apply payment to ${debt.debt_name || debt.name || `Debt #${debt.id}`}:`, paymentResult.error);
+                            }
+                        } catch (error) {
+                            console.error(`❌ Error applying payment to ${debt.debt_name || debt.name || `Debt #${debt.id}`}:`, error);
+                        }
+                    }
+                    
+                    // Show summary
+                    if (debtPayments.length > 0) {
+                        const totalApplied = totalGarnishmentAmount - remainingGarnishment;
+                        let summaryMessage = `💰 Applied $${totalApplied.toFixed(2)} from garnishments to company debt:\n\n`;
+                        debtPayments.forEach(payment => {
+                            summaryMessage += `• ${payment.debtName}: $${payment.amount.toFixed(2)} (Remaining: $${parseFloat(payment.remainingBalance).toFixed(2)})\n`;
+                        });
+                        if (remainingGarnishment > 0) {
+                            summaryMessage += `\n⚠️ $${remainingGarnishment.toFixed(2)} remaining (no active debts to pay)`;
+                        }
+                        console.log(summaryMessage);
+                        
+                        // Show alert to user
+                        setTimeout(() => {
+                            alert(summaryMessage);
+                        }, 1000);
+                    } else if (activeDebts.length === 0) {
+                        console.log(`💰 $${totalGarnishmentAmount.toFixed(2)} from garnishments available, but no active debts to pay`);
+                    }
+                } catch (error) {
+                    console.error('❌ Error applying garnishments to company debt:', error);
                 }
             }
         }

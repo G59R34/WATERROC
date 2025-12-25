@@ -48,6 +48,7 @@
                         <button id="viewMyShiftsBtn" class="btn-primary">My Shifts</button>
                         <button id="editMyProfileBtn" class="btn-primary">My Profile</button>
                         <button id="viewMyPaycheckBtn" class="btn-primary">💰 My Paycheck</button>
+                        <button id="viewMyTransactionsBtn" class="btn-primary">💳 Transaction History</button>
                         <a href="store.html" class="btn-primary" style="text-decoration: none;">🛒 Store</a>
                         <a href="stock-market.html" class="btn-primary" style="text-decoration: none;">📈 Stock Market</a>
                         <button id="manage401kBtn" class="btn-primary">💼 401k Plan</button>
@@ -250,6 +251,45 @@
                 <div id="paycheckContent">
                     <div style="text-align: center; padding: 40px; color: #64748b;">
                         <div class="loading-message">Loading paycheck information...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Transaction History Modal -->
+    <div id="myTransactionsModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2>💳 Transaction History</h2>
+                <span class="close" id="closeMyTransactionsModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 20px;">
+                    <input type="text" id="transactionSearchInput" placeholder="Search transactions..." 
+                           style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 4px;">
+                </div>
+                <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+                    <select id="transactionTypeFilter" style="padding: 8px; border: 1px solid #e5e7eb; border-radius: 4px;">
+                        <option value="all">All Types</option>
+                        <option value="payroll">Payroll</option>
+                        <option value="purchase">Purchases</option>
+                        <option value="garnishment">Garnishments & Deductions</option>
+                        <option value="stock_buy">Stock Purchases</option>
+                        <option value="stock_sell">Stock Sales</option>
+                        <option value="stock_loss">Stock Losses</option>
+                    </select>
+                    <select id="transactionDateFilter" style="padding: 8px; border: 1px solid #e5e7eb; border-radius: 4px;">
+                        <option value="all">All Time</option>
+                        <option value="week">Last Week</option>
+                        <option value="month">Last Month</option>
+                        <option value="quarter">Last 3 Months</option>
+                        <option value="year">Last Year</option>
+                    </select>
+                </div>
+                <div id="transactionsContent" style="max-height: 600px; overflow-y: auto;">
+                    <div style="text-align: center; padding: 40px; color: #64748b;">
+                        <div class="loading-message">Loading transaction history...</div>
                     </div>
                 </div>
             </div>

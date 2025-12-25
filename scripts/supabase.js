@@ -5036,6 +5036,31 @@ class SupabaseService {
     }
 
     /**
+     * Get employee transaction history
+     * @param {number} employeeId - Employee ID
+     * @param {number} limit - Number of records to retrieve (default: 100)
+     * @returns {Promise<Array>}
+     */
+    async getEmployeeTransactions(employeeId, limit = 100) {
+        if (!this.isReady()) return [];
+
+        try {
+            const { data, error } = await this.client
+                .from('transactions')
+                .select('*')
+                .eq('employee_id', employeeId)
+                .order('created_at', { ascending: false })
+                .limit(limit);
+
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error getting employee transactions:', error);
+            return [];
+        }
+    }
+
+    /**
      * Deduct amount from employee wallet (for direct wallet garnishment)
      * @param {number} employeeId - Employee ID
      * @param {number} amount - Amount to deduct

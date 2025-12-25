@@ -690,6 +690,12 @@ document.addEventListener('DOMContentLoaded', async function() {
     const myPaycheckModal = document.getElementById('myPaycheckModal');
     const myPaycheckBtn = document.getElementById('viewMyPaycheckBtn');
     const closeMyPaycheckModal = document.getElementById('closeMyPaycheckModal');
+    const myTransactionsBtn = document.getElementById('viewMyTransactionsBtn');
+    const myTransactionsModal = document.getElementById('myTransactionsModal');
+    const closeMyTransactionsModal = document.getElementById('closeMyTransactionsModal');
+    const transactionSearchInput = document.getElementById('transactionSearchInput');
+    const transactionTypeFilter = document.getElementById('transactionTypeFilter');
+    const transactionDateFilter = document.getElementById('transactionDateFilter');
 
     if (myPaycheckBtn) {
         myPaycheckBtn.addEventListener('click', async () => {
@@ -705,6 +711,194 @@ document.addEventListener('DOMContentLoaded', async function() {
         closeMyPaycheckModal.addEventListener('click', () => {
             myPaycheckModal.style.display = 'none';
         });
+    }
+    
+    if (myTransactionsBtn) {
+        myTransactionsBtn.addEventListener('click', async () => {
+            myTransactionsModal.style.display = 'block';
+            if (typeof showDataLoadingScreen !== 'undefined') {
+                showDataLoadingScreen('transaction history');
+            }
+            await loadMyTransactions();
+        });
+    }
+    
+    if (closeMyTransactionsModal) {
+        closeMyTransactionsModal.addEventListener('click', () => {
+            myTransactionsModal.style.display = 'none';
+        });
+    }
+    
+    if (transactionSearchInput) {
+        transactionSearchInput.addEventListener('input', () => {
+            filterTransactions();
+        });
+    }
+    
+    if (transactionTypeFilter) {
+        transactionTypeFilter.addEventListener('change', () => {
+            filterTransactions();
+        });
+    }
+    
+    if (transactionDateFilter) {
+        transactionDateFilter.addEventListener('change', () => {
+            filterTransactions();
+        });
+    }
+    
+    let allTransactions = [];
+    
+    async function loadMyTransactions() {
+        const content = document.getElementById('transactionsContent');
+        if (!content) return;
+        
+        try {
+            const employee = await getCurrentEmployee();
+            if (!employee) {
+                content.innerHTML = '<div style="text-align: center; padding: 40px; color: #dc2626;">Error loading employee data</div>';
+                return;
+            }
+            
+            if (typeof supabaseService === 'undefined' || !supabaseService.isReady()) {
+                content.innerHTML = '<div style="text-align: center; padding: 40px; color: #dc2626;">Supabase not available</div>';
+                return;
+            }
+            
+            allTransactions = await supabaseService.getEmployeeTransactions(employee.id, 500);
+            
+            if (allTransactions.length === 0) {
+                content.innerHTML = '<div style="text-align: center; padding: 40px; color: #64748b;">No transactions found</div>';
+                return;
+            }
+            
+            renderTransactions(allTransactions);
+        } catch (error) {
+            console.error('Error loading transactions:', error);
+            content.innerHTML = '<div style="text-align: center; padding: 40px; color: #dc2626;">Error loading transactions</div>';
+        }
+    }
+    
+    function renderTransactions(transactions) {
+        const content = document.getElementById('transactionsContent');
+        if (!content) return;
+        
+        if (transactions.length === 0) {
+            content.innerHTML = '<div style="text-align: center; padding: 40px; color: #64748b;">No transactions match your filters</div>';
+            return;
+        }
+        
+        const transactionIcons = {
+            'payroll': '💰',
+            'purchase': '🛒',
+            'garnishment': '⚖️',
+            'stock_buy': '📈',
+            'stock_sell': '📊',
+            'stock_loss': '📉'
+        };
+        
+        const transactionLabels = {
+            'payroll': 'Payroll Payment',
+            'purchase': 'Store Purchase',
+            'garnishment': 'Wage Garnishment / Admin Deduction',
+            'stock_buy': 'Stock Purchase',
+            'stock_sell': 'Stock Sale',
+            'stock_loss': 'Stock Loss'
+        };
+        
+        content.innerHTML = transactions.map(tx => {
+            const amount = parseFloat(tx.amount || 0);
+            const isPositive = amount > 0;
+            const balanceAfter = parseFloat(tx.balance_after || 0);
+            const date = new Date(tx.created_at);
+            const icon = transactionIcons[tx.transaction_type] || '💳';
+            const label = transactionLabels[tx.transaction_type] || tx.transaction_type;
+            
+            return `
+                <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin-bottom: 10px; border-left: 4px solid ${isPositive ? '#10b981' : '#ef4444'};">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <span style="font-size: 24px;">${icon}</span>
+                                <div>
+                                    <div style="font-weight: 600; font-size: 16px; color: #1f2937;">
+                                        ${label}
+                                    </div>
+                                    <div style="font-size: 12px; color: #6b7280;">
+                                        ${date.toLocaleString('en-US', { 
+                                            month: 'short', 
+                                            day: 'numeric', 
+                                            year: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                            ${tx.description ? `<div style="font-size: 14px; color: #4b5563; margin-top: 8px;">${tx.description}</div>` : ''}
+                        </div>
+                        <div style="text-align: right; margin-left: 20px;">
+                            <div style="font-size: 20px; font-weight: bold; color: ${isPositive ? '#10b981' : '#ef4444'};">
+                                ${isPositive ? '+' : ''}$${Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </div>
+                            ${balanceAfter !== null ? `<div style="font-size: 12px; color: #6b7280; margin-top: 4px;">Balance: $${balanceAfter.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    function filterTransactions() {
+        if (!allTransactions || allTransactions.length === 0) return;
+        
+        const searchTerm = (transactionSearchInput?.value || '').toLowerCase();
+        const typeFilter = transactionTypeFilter?.value || 'all';
+        const dateFilter = transactionDateFilter?.value || 'all';
+        
+        let filtered = allTransactions;
+        
+        // Filter by search term
+        if (searchTerm) {
+            filtered = filtered.filter(tx => {
+                const description = (tx.description || '').toLowerCase();
+                const type = (tx.transaction_type || '').toLowerCase();
+                return description.includes(searchTerm) || type.includes(searchTerm);
+            });
+        }
+        
+        // Filter by type
+        if (typeFilter !== 'all') {
+            filtered = filtered.filter(tx => tx.transaction_type === typeFilter);
+        }
+        
+        // Filter by date
+        if (dateFilter !== 'all') {
+            const now = new Date();
+            const cutoffDate = new Date();
+            
+            switch (dateFilter) {
+                case 'week':
+                    cutoffDate.setDate(now.getDate() - 7);
+                    break;
+                case 'month':
+                    cutoffDate.setMonth(now.getMonth() - 1);
+                    break;
+                case 'quarter':
+                    cutoffDate.setMonth(now.getMonth() - 3);
+                    break;
+                case 'year':
+                    cutoffDate.setFullYear(now.getFullYear() - 1);
+                    break;
+            }
+            
+            filtered = filtered.filter(tx => {
+                const txDate = new Date(tx.created_at);
+                return txDate >= cutoffDate;
+            });
+        }
+        
+        renderTransactions(filtered);
     }
 
     window.addEventListener('click', (e) => {
