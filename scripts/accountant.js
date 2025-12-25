@@ -183,8 +183,6 @@ document.addEventListener('DOMContentLoaded', async function() {
                 employees = allEmployees; // Fallback: show all if no access settings
             }
         } else {
-            employees = await supabaseService.getEmployees() || [];
-        } else {
             // Fallback: use localStorage
             const ganttData = localStorage.getItem('ganttData');
             if (ganttData) {
