@@ -595,28 +595,57 @@
             <span class="close" id="closeStockManagement">&times;</span>
             <h2>📈 Stock Market Management</h2>
             <div style="margin-bottom: 20px;">
-                <h3>Add New Stock</h3>
-                <form id="addStockForm" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
-                    <div class="form-group">
-                        <label for="newStockSymbol">Stock Symbol</label>
-                        <input type="text" id="newStockSymbol" placeholder="AAPL" maxlength="10" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="newStockCompany">Company Name</label>
-                        <input type="text" id="newStockCompany" placeholder="Apple Inc." required>
-                    </div>
-                    <div class="form-group">
-                        <label for="newStockPrice">Initial Price ($)</label>
-                        <input type="number" id="newStockPrice" step="0.01" min="0.01" placeholder="100.00" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="newStockVolatility">Volatility (%)</label>
-                        <input type="number" id="newStockVolatility" step="0.01" min="0" max="100" placeholder="10.00" value="10.00" required>
-                    </div>
-                    <div class="form-group" style="grid-column: 1 / -1;">
-                        <button type="submit" class="btn-primary">Add Stock</button>
-                    </div>
-                </form>
+                <div style="display: flex; gap: 20px; margin-bottom: 20px; border-bottom: 2px solid #e5e7eb; padding-bottom: 15px;">
+                    <button id="addRealStockTab" class="btn-primary" style="flex: 1;">Add NYSE Stock</button>
+                    <button id="addSimulatedStockTab" class="btn-secondary" style="flex: 1;">Add Simulated Stock</button>
+                </div>
+                
+                <!-- Add Real NYSE Stock Form -->
+                <div id="addRealStockForm" style="display: block;">
+                    <h3>Add Real NYSE Stock</h3>
+                    <p style="color: #64748b; margin-bottom: 15px; font-size: 14px;">
+                        Enter a stock symbol to automatically fetch real-time data from NYSE. The stock will update with real market prices.
+                    </p>
+                    <form id="addRealStockFormElement" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label for="realStockSymbol">Stock Symbol (e.g., AAPL, MSFT, GOOGL)</label>
+                            <input type="text" id="realStockSymbol" placeholder="AAPL" maxlength="10" required style="text-transform: uppercase;">
+                            <small style="color: #6b7280; font-size: 12px;">Enter a valid NYSE or NASDAQ stock symbol</small>
+                        </div>
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <button type="submit" class="btn-primary">Fetch & Add Real Stock</button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Add Simulated Stock Form -->
+                <div id="addSimulatedStockForm" style="display: none;">
+                    <h3>Add Simulated Stock</h3>
+                    <p style="color: #64748b; margin-bottom: 15px; font-size: 14px;">
+                        Create a custom simulated stock with manual pricing and volatility settings.
+                    </p>
+                    <form id="addStockForm" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                        <div class="form-group">
+                            <label for="newStockSymbol">Stock Symbol</label>
+                            <input type="text" id="newStockSymbol" placeholder="AAPL" maxlength="10" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="newStockCompany">Company Name</label>
+                            <input type="text" id="newStockCompany" placeholder="Apple Inc." required>
+                        </div>
+                        <div class="form-group">
+                            <label for="newStockPrice">Initial Price ($)</label>
+                            <input type="number" id="newStockPrice" step="0.01" min="0.01" placeholder="100.00" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="newStockVolatility">Volatility (%)</label>
+                            <input type="number" id="newStockVolatility" step="0.01" min="0" max="100" placeholder="10.00" value="10.00" required>
+                        </div>
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <button type="submit" class="btn-primary">Add Simulated Stock</button>
+                        </div>
+                    </form>
+                </div>
             </div>
             <div>
                 <h3>Existing Stocks</h3>

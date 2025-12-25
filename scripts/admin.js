@@ -2108,6 +2108,28 @@ document.addEventListener('DOMContentLoaded', async function() {
     const closeStockManagement = document.getElementById('closeStockManagement');
     const cancelStockManagement = document.getElementById('cancelStockManagement');
     const addStockForm = document.getElementById('addStockForm');
+    const addRealStockForm = document.getElementById('addRealStockForm');
+    const addSimulatedStockForm = document.getElementById('addSimulatedStockForm');
+    const addRealStockTab = document.getElementById('addRealStockTab');
+    const addSimulatedStockTab = document.getElementById('addSimulatedStockTab');
+    const addRealStockFormElement = document.getElementById('addRealStockFormElement');
+    
+    // Tab switching
+    if (addRealStockTab && addSimulatedStockTab) {
+        addRealStockTab.addEventListener('click', () => {
+            addRealStockForm.style.display = 'block';
+            addSimulatedStockForm.style.display = 'none';
+            addRealStockTab.className = 'btn-primary';
+            addSimulatedStockTab.className = 'btn-secondary';
+        });
+        
+        addSimulatedStockTab.addEventListener('click', () => {
+            addRealStockForm.style.display = 'none';
+            addSimulatedStockForm.style.display = 'block';
+            addRealStockTab.className = 'btn-secondary';
+            addSimulatedStockTab.className = 'btn-primary';
+        });
+    }
     
     if (manageStocksBtn) {
         manageStocksBtn.addEventListener('click', async function() {
@@ -2145,11 +2167,16 @@ document.addEventListener('DOMContentLoaded', async function() {
                 const isPositive = changePercent >= 0;
                 const changeClass = isPositive ? 'positive' : 'negative';
                 const changeSymbol = isPositive ? '+' : '';
+                const isReal = stock.is_real_stock || false;
+                const source = stock.source || 'simulated';
                 
                 return `
                     <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <div style="font-weight: 600; font-size: 18px; color: #1f2937;">${stock.symbol}</div>
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div style="font-weight: 600; font-size: 18px; color: #1f2937;">${stock.symbol}</div>
+                                ${isReal ? `<span style="background: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">REAL ${source.toUpperCase()}</span>` : '<span style="background: #6b7280; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">SIMULATED</span>'}
+                            </div>
                             <div style="font-size: 14px; color: #6b7280; margin-top: 4px;">${stock.company_name}</div>
                             <div style="font-size: 16px; font-weight: 600; color: #3b82f6; margin-top: 8px;">
                                 $${parseFloat(stock.current_price).toFixed(2)}
@@ -2157,7 +2184,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                                     ${changeSymbol}${changePercent.toFixed(2)}%
                                 </span>
                             </div>
-                            <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">Volatility: ${stock.volatility}%</div>
+                            ${!isReal ? `<div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">Volatility: ${stock.volatility}%</div>` : ''}
                         </div>
                     </div>
                 `;
@@ -2200,6 +2227,40 @@ document.addEventListener('DOMContentLoaded', async function() {
             } catch (error) {
                 console.error('Error creating stock:', error);
                 alert(`❌ Failed to create stock: ${error.message}`);
+            }
+        });
+    }
+    
+    // Add Real NYSE Stock
+    if (addRealStockFormElement) {
+        addRealStockFormElement.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const symbol = document.getElementById('realStockSymbol').value.toUpperCase().trim();
+            
+            if (!symbol) {
+                alert('Please enter a stock symbol');
+                return;
+            }
+            
+            if (typeof showFormLoadingScreen !== 'undefined') {
+                showFormLoadingScreen('fetching stock data');
+            }
+            
+            try {
+                const result = await supabaseService.addRealStock(symbol);
+                
+                if (result.error) {
+                    alert(`❌ Failed to add stock: ${result.error}`);
+                    return;
+                }
+                
+                alert(`✅ Stock ${symbol} added successfully with real-time NYSE data!`);
+                addRealStockFormElement.reset();
+                await loadStocksList();
+            } catch (error) {
+                console.error('Error adding real stock:', error);
+                alert(`❌ Failed to add stock: ${error.message}`);
             }
         });
     }

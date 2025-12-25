@@ -4594,9 +4594,13 @@ class SupabaseService {
         if (!this.isReady()) return false;
 
         try {
-            // Call the database function to update stock prices
+            // Update simulated stocks via database function
             const { data, error } = await this.client.rpc('update_stock_prices');
             if (error) throw error;
+            
+            // Update real stocks from NYSE
+            await this.updateRealStockPrices();
+            
             return true;
         } catch (error) {
             console.error('Error updating stock prices:', error);
@@ -4813,6 +4817,216 @@ class SupabaseService {
         } catch (error) {
             console.error('Error creating stock:', error);
             return { data: null, error: error.message };
+        }
+    }
+
+    /**
+     * Fetch real stock data from NYSE and add to database
+     * @param {string} symbol - Stock symbol (e.g., AAPL, MSFT)
+     * @returns {Promise<{data: any, error: string|null}>}
+     */
+    async addRealStock(symbol) {
+        if (!this.isReady()) return { data: null, error: 'Supabase not initialized' };
+
+        try {
+            // Fetch stock data from Yahoo Finance API (free, no API key needed)
+            const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`;
+            
+            let stockData;
+            try {
+                const response = await fetch(yahooUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                const data = await response.json();
+                
+                if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
+                    throw new Error('Stock symbol not found');
+                }
+                
+                const result = data.chart.result[0];
+                const meta = result.meta;
+                const quote = result.indicators?.quote?.[0];
+                
+                if (!meta || !quote) {
+                    throw new Error('Invalid stock data received');
+                }
+                
+                const currentPrice = meta.regularMarketPrice || meta.previousClose || 0;
+                const previousClose = meta.previousClose || currentPrice;
+                const changePercent = ((currentPrice - previousClose) / previousClose) * 100;
+                const companyName = meta.longName || meta.shortName || symbol;
+                
+                stockData = {
+                    symbol: symbol.toUpperCase(),
+                    companyName: companyName,
+                    currentPrice: currentPrice,
+                    previousPrice: previousClose,
+                    changePercent: changePercent,
+                    source: 'nyse'
+                };
+            } catch (apiError) {
+                console.error('Error fetching from Yahoo Finance:', apiError);
+                // Fallback: Try Alpha Vantage (requires free API key, but we'll try without)
+                // Or use a simpler approach - just create the stock with a placeholder price
+                throw new Error(`Failed to fetch stock data: ${apiError.message}. Please verify the symbol is correct.`);
+            }
+            
+            // Check if stock already exists
+            const { data: existing } = await this.client
+                .from('stock_market')
+                .select('id')
+                .eq('symbol', symbol.toUpperCase())
+                .maybeSingle();
+            
+            if (existing) {
+                // Update existing stock to be real
+                const { data, error } = await this.client
+                    .from('stock_market')
+                    .update({
+                        company_name: stockData.companyName,
+                        current_price: stockData.currentPrice,
+                        previous_price: stockData.previousPrice,
+                        change_percent: stockData.changePercent,
+                        is_real_stock: true,
+                        source: stockData.source,
+                        last_updated: new Date().toISOString()
+                    })
+                    .eq('id', existing.id)
+                    .select()
+                    .single();
+                
+                if (error) throw error;
+                
+                // Mark as real stock
+                await this.client.rpc('mark_stock_as_real', {
+                    p_stock_id: existing.id,
+                    p_source: stockData.source
+                });
+                
+                return { data, error: null };
+            } else {
+                // Create new stock
+                const { data, error } = await this.client
+                    .from('stock_market')
+                    .insert({
+                        symbol: stockData.symbol,
+                        company_name: stockData.companyName,
+                        current_price: stockData.currentPrice,
+                        previous_price: stockData.previousPrice,
+                        change_percent: stockData.changePercent,
+                        volatility: 5.00, // Default volatility for real stocks
+                        is_real_stock: true,
+                        source: stockData.source,
+                        last_updated: new Date().toISOString()
+                    })
+                    .select()
+                    .single();
+                
+                if (error) throw error;
+                
+                // Create initial price history entry
+                await this.client
+                    .from('stock_price_history')
+                    .insert({
+                        stock_id: data.id,
+                        price: stockData.currentPrice,
+                        recorded_at: new Date().toISOString()
+                    });
+                
+                return { data, error: null };
+            }
+        } catch (error) {
+            console.error('Error adding real stock:', error);
+            return { data: null, error: error.message };
+        }
+    }
+
+    /**
+     * Update real stock prices from NYSE
+     * @returns {Promise<boolean>}
+     */
+    async updateRealStockPrices() {
+        if (!this.isReady()) return false;
+
+        try {
+            // Get all real stocks
+            const { data: realStocks, error: fetchError } = await this.client
+                .from('stock_market')
+                .select('id, symbol')
+                .eq('is_real_stock', true);
+            
+            if (fetchError) throw fetchError;
+            if (!realStocks || realStocks.length === 0) return true; // No real stocks to update
+            
+            console.log(`📊 Updating ${realStocks.length} real stocks from NYSE...`);
+            
+            // Update each real stock (with rate limiting)
+            for (let i = 0; i < realStocks.length; i++) {
+                const stock = realStocks[i];
+                
+                try {
+                    // Fetch current price from Yahoo Finance
+                    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${stock.symbol}?interval=1d&range=1d`;
+                    const response = await fetch(yahooUrl);
+                    
+                    if (!response.ok) {
+                        console.warn(`⚠️ Failed to fetch ${stock.symbol}: HTTP ${response.status}`);
+                        continue;
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
+                        console.warn(`⚠️ No data for ${stock.symbol}`);
+                        continue;
+                    }
+                    
+                    const result = data.chart.result[0];
+                    const meta = result.meta;
+                    
+                    if (!meta) {
+                        console.warn(`⚠️ Invalid data for ${stock.symbol}`);
+                        continue;
+                    }
+                    
+                    const currentPrice = meta.regularMarketPrice || meta.previousClose || 0;
+                    const previousClose = meta.previousClose || currentPrice;
+                    const changePercent = ((currentPrice - previousClose) / previousClose) * 100;
+                    
+                    // Get old price from database
+                    const { data: stockData } = await this.client
+                        .from('stock_market')
+                        .select('current_price')
+                        .eq('id', stock.id)
+                        .single();
+                    
+                    const oldPrice = stockData?.current_price || currentPrice;
+                    
+                    // Update stock price
+                    await this.client.rpc('update_real_stock_price', {
+                        p_stock_id: stock.id,
+                        p_new_price: currentPrice,
+                        p_change_percent: changePercent
+                    });
+                    
+                    console.log(`✅ Updated ${stock.symbol}: $${oldPrice.toFixed(2)} → $${currentPrice.toFixed(2)} (${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%)`);
+                    
+                    // Rate limiting: wait 200ms between requests to avoid hitting API limits
+                    if (i < realStocks.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                    }
+                } catch (error) {
+                    console.error(`❌ Error updating ${stock.symbol}:`, error);
+                    // Continue with next stock
+                }
+            }
+            
+            console.log('✅ Real stock price update complete');
+            return true;
+        } catch (error) {
+            console.error('Error updating real stock prices:', error);
+            return false;
         }
     }
 
