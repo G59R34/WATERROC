@@ -3402,7 +3402,7 @@ class SupabaseService {
         }
 
         const channel = this.client
-            .channel('company-chat')
+            .channel(`company-chat-${Date.now()}`)
             .on(
                 'postgres_changes',
                 {
@@ -3456,8 +3456,37 @@ class SupabaseService {
                                     new: mappedMessage
                                 });
                             }
+                        } else if (payload.eventType === 'UPDATE' && payload.new) {
+                            // For UPDATE events, fetch full message with user info
+                            const { data: message, error } = await this.client
+                                .from('company_chat_messages')
+                                .select(`
+                                    *,
+                                    users:user_id (
+                                        id,
+                                        username,
+                                        full_name,
+                                        is_admin
+                                    )
+                                `)
+                                .eq('id', payload.new.id)
+                                .single();
+
+                            if (error) {
+                                console.error('Error fetching updated message with user info:', error);
+                                callback(payloadWithEvent);
+                            } else if (message) {
+                                const mappedMessage = message.users ? {
+                                    ...message,
+                                    user: message.users
+                                } : message;
+                                callback({
+                                    ...payloadWithEvent,
+                                    new: mappedMessage
+                                });
+                            }
                         } else {
-                            // For UPDATE/DELETE events, just pass the payload
+                            // For DELETE events, just pass the payload
                             callback(payloadWithEvent);
                         }
                     } catch (error) {
@@ -3465,7 +3494,15 @@ class SupabaseService {
                     }
                 }
             )
-            .subscribe();
+            .subscribe((status, err) => {
+                if (err) {
+                    console.error('❌ Company chat subscription error:', err);
+                } else if (status === 'SUBSCRIBED') {
+                    console.log('✅ Company chat subscription active');
+                } else {
+                    console.log('📡 Company chat subscription status:', status);
+                }
+            });
 
         // Return unsubscribe function
         return () => {

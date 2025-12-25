@@ -417,21 +417,69 @@ class CompanyChat {
     }
 
     subscribeToMessages() {
-        if (!supabaseService || !supabaseService.isReady()) return;
+        if (!supabaseService || !supabaseService.isReady()) {
+            console.log('Supabase not ready, retrying subscription in 1 second...');
+            setTimeout(() => this.subscribeToMessages(), 1000);
+            return;
+        }
 
-        this.subscription = supabaseService.subscribeToCompanyChat((newMessage) => {
-            // Check if message already exists (avoid duplicates)
-            if (!this.messages.find(m => m.id === newMessage.id)) {
-                this.messages.push(newMessage);
-                this.renderMessages();
-                
-                // Show notification if chat is closed
-                if (!this.isOpen) {
-                    this.unreadCount++;
-                    this.updateUnreadBadge();
+        console.log('📡 Subscribing to company chat messages...');
+        
+        this.subscription = supabaseService.subscribeToCompanyChat((payload) => {
+            console.log('📨 Received chat update:', payload);
+            
+            try {
+                // Handle different event types
+                if (payload.eventType === 'INSERT' && payload.new) {
+                    const newMessage = payload.new;
+                    
+                    // Check if message already exists (avoid duplicates)
+                    if (!this.messages.find(m => m.id === newMessage.id)) {
+                        console.log('✅ Adding new message:', newMessage.id);
+                        this.messages.push(newMessage);
+                        this.renderMessages();
+                        
+                        // Show notification if chat is closed
+                        if (!this.isOpen) {
+                            this.unreadCount++;
+                            this.updateUnreadBadge();
+                        }
+                    } else {
+                        console.log('⚠️ Message already exists, skipping:', newMessage.id);
+                    }
+                } else if (payload.eventType === 'UPDATE' && payload.new) {
+                    const updatedMessage = payload.new;
+                    const index = this.messages.findIndex(m => m.id === updatedMessage.id);
+                    
+                    if (index !== -1) {
+                        console.log('🔄 Updating message:', updatedMessage.id);
+                        // If message was soft-deleted, remove it
+                        if (updatedMessage.deleted_at) {
+                            this.messages.splice(index, 1);
+                        } else {
+                            // Update the message
+                            this.messages[index] = updatedMessage;
+                        }
+                        this.renderMessages();
+                    } else {
+                        // Message was updated but not in our list, reload to be safe
+                        console.log('⚠️ Updated message not in list, reloading...');
+                        this.loadMessages();
+                    }
+                } else if (payload.eventType === 'DELETE' || (payload.old && payload.old.deleted_at)) {
+                    const deletedMessageId = payload.old?.id || payload.new?.id;
+                    if (deletedMessageId) {
+                        console.log('🗑️ Removing deleted message:', deletedMessageId);
+                        this.messages = this.messages.filter(m => m.id !== deletedMessageId);
+                        this.renderMessages();
+                    }
                 }
+            } catch (error) {
+                console.error('❌ Error handling chat update:', error);
             }
         });
+        
+        console.log('✅ Company chat subscription active');
     }
 
     updateUnreadBadge() {
