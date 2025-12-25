@@ -169,12 +169,27 @@ class VOIPCallManager {
 
             this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
             console.log('✅ Got local media stream');
+            
+            // Log local stream tracks
+            const localAudioTracks = this.localStream.getAudioTracks();
+            const localVideoTracks = this.localStream.getVideoTracks();
+            console.log('🎤 Local audio tracks:', localAudioTracks.length);
+            console.log('📹 Local video tracks:', localVideoTracks.length);
+            localAudioTracks.forEach((track, index) => {
+                console.log(`   Audio track ${index}:`, {
+                    enabled: track.enabled,
+                    muted: track.muted,
+                    readyState: track.readyState,
+                    label: track.label
+                });
+            });
 
             // Create peer connection
             this.peerConnection = new RTCPeerConnection(this.rtcConfig);
 
             // Add local stream tracks to peer connection
             this.localStream.getTracks().forEach(track => {
+                console.log(`📤 Adding ${track.kind} track to peer connection:`, track.label);
                 this.peerConnection.addTrack(track, this.localStream);
             });
 
@@ -193,7 +208,26 @@ class VOIPCallManager {
             // Handle remote stream
             this.peerConnection.ontrack = (event) => {
                 console.log('✅ Received remote stream');
+                console.log('   Event streams:', event.streams.length);
+                console.log('   Event track:', event.track.kind, event.track.enabled);
+                
                 this.remoteStream = event.streams[0];
+                
+                // Ensure audio tracks are enabled
+                if (this.remoteStream) {
+                    const audioTracks = this.remoteStream.getAudioTracks();
+                    audioTracks.forEach(track => {
+                        track.enabled = true;
+                        console.log('🎤 Enabled remote audio track:', track.label);
+                    });
+                    
+                    const videoTracks = this.remoteStream.getVideoTracks();
+                    videoTracks.forEach(track => {
+                        track.enabled = true;
+                        console.log('📹 Enabled remote video track:', track.label);
+                    });
+                }
+                
                 if (this.onCallStateChange) {
                     this.onCallStateChange('connected', this.remoteStream);
                 }
@@ -291,12 +325,27 @@ class VOIPCallManager {
 
             this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
             console.log('✅ Got local media stream for answer');
+            
+            // Log local stream tracks
+            const localAudioTracks = this.localStream.getAudioTracks();
+            const localVideoTracks = this.localStream.getVideoTracks();
+            console.log('🎤 Local audio tracks:', localAudioTracks.length);
+            console.log('📹 Local video tracks:', localVideoTracks.length);
+            localAudioTracks.forEach((track, index) => {
+                console.log(`   Audio track ${index}:`, {
+                    enabled: track.enabled,
+                    muted: track.muted,
+                    readyState: track.readyState,
+                    label: track.label
+                });
+            });
 
             // Create peer connection
             this.peerConnection = new RTCPeerConnection(this.rtcConfig);
 
             // Add local stream tracks
             this.localStream.getTracks().forEach(track => {
+                console.log(`📤 Adding ${track.kind} track to peer connection:`, track.label);
                 this.peerConnection.addTrack(track, this.localStream);
             });
 
@@ -315,7 +364,26 @@ class VOIPCallManager {
             // Handle remote stream
             this.peerConnection.ontrack = (event) => {
                 console.log('✅ Received remote stream');
+                console.log('   Event streams:', event.streams.length);
+                console.log('   Event track:', event.track.kind, event.track.enabled);
+                
                 this.remoteStream = event.streams[0];
+                
+                // Ensure audio tracks are enabled
+                if (this.remoteStream) {
+                    const audioTracks = this.remoteStream.getAudioTracks();
+                    audioTracks.forEach(track => {
+                        track.enabled = true;
+                        console.log('🎤 Enabled remote audio track:', track.label);
+                    });
+                    
+                    const videoTracks = this.remoteStream.getVideoTracks();
+                    videoTracks.forEach(track => {
+                        track.enabled = true;
+                        console.log('📹 Enabled remote video track:', track.label);
+                    });
+                }
+                
                 if (this.onCallStateChange) {
                     this.onCallStateChange('connected', this.remoteStream);
                 }

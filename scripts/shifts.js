@@ -107,7 +107,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     function formatDate(date) {
-        return date.toISOString().split('T')[0];
+        // Use local date to avoid timezone issues
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     }
 
     function formatDateDisplay(date) {
@@ -193,7 +197,15 @@ document.addEventListener('DOMContentLoaded', async function() {
         const shiftMap = {};
         if (shifts) {
             shifts.forEach(shift => {
-                const key = `${shift.employee_id}-${shift.shift_date}`;
+                // Normalize shift_date to YYYY-MM-DD format (handle both string and Date objects)
+                let shiftDate = shift.shift_date;
+                if (shiftDate instanceof Date) {
+                    shiftDate = formatDate(shiftDate);
+                } else if (typeof shiftDate === 'string') {
+                    // Remove time portion if present (handles both YYYY-MM-DD and YYYY-MM-DDTHH:mm:ss formats)
+                    shiftDate = shiftDate.split('T')[0];
+                }
+                const key = `${shift.employee_id}-${shiftDate}`;
                 if (!shiftMap[key]) {
                     shiftMap[key] = [];
                 }
@@ -205,7 +217,15 @@ document.addEventListener('DOMContentLoaded', async function() {
         const exceptionMap = {};
         if (exceptions) {
             exceptions.forEach(exc => {
-                const key = `${exc.employee_id}-${exc.exception_date}`;
+                // Normalize exception_date to YYYY-MM-DD format (handle both string and Date objects)
+                let excDate = exc.exception_date;
+                if (excDate instanceof Date) {
+                    excDate = formatDate(excDate);
+                } else if (typeof excDate === 'string') {
+                    // Remove time portion if present (handles both YYYY-MM-DD and YYYY-MM-DDTHH:mm:ss formats)
+                    excDate = excDate.split('T')[0];
+                }
+                const key = `${exc.employee_id}-${excDate}`;
                 if (!exceptionMap[key]) {
                     exceptionMap[key] = [];
                 }

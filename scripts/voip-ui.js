@@ -181,7 +181,7 @@ class VOIPUI {
                 </div>
                 <div class="call-video" id="remoteVideo">
                     <div class="call-video-label">${this.escapeHtml(receiverName)}</div>
-                    <video id="remoteVideoElement" autoplay playsinline></video>
+                    <video id="remoteVideoElement" autoplay playsinline volume="1.0"></video>
                 </div>
             </div>
             <div class="active-call-info">
@@ -239,8 +239,38 @@ class VOIPUI {
     updateActiveCallVideo(stream) {
         if (this.activeCallModal) {
             const remoteVideo = this.activeCallModal.querySelector('#remoteVideoElement');
-            if (remoteVideo) {
+            if (remoteVideo && stream) {
+                console.log('🎵 Setting remote stream to video element');
+                console.log('   Stream tracks:', stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, muted: t.muted })));
+                
                 remoteVideo.srcObject = stream;
+                
+                // Ensure audio is enabled
+                remoteVideo.muted = false;
+                remoteVideo.volume = 1.0;
+                
+                // Play the video/audio
+                remoteVideo.play().then(() => {
+                    console.log('✅ Remote video/audio playing');
+                }).catch(error => {
+                    console.error('❌ Error playing remote video/audio:', error);
+                });
+                
+                // Log audio tracks
+                const audioTracks = stream.getAudioTracks();
+                if (audioTracks.length > 0) {
+                    console.log('🎤 Remote audio tracks found:', audioTracks.length);
+                    audioTracks.forEach((track, index) => {
+                        console.log(`   Track ${index}:`, {
+                            enabled: track.enabled,
+                            muted: track.muted,
+                            readyState: track.readyState,
+                            label: track.label
+                        });
+                    });
+                } else {
+                    console.warn('⚠️ No audio tracks in remote stream!');
+                }
             }
         }
     }
