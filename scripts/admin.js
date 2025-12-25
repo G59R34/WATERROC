@@ -2280,11 +2280,128 @@ document.addEventListener('DOMContentLoaded', async function() {
     const garnishmentForm = document.getElementById('garnishmentForm');
     const garnishmentAmountType = document.getElementById('garnishmentAmountType');
     const garnishmentAmountLabel = document.getElementById('garnishmentAmountLabel');
+    const viewEmployeeBalancesBtn = document.getElementById('viewEmployeeBalancesBtn');
+    const employeeBalancesModal = document.getElementById('employeeBalancesModal');
+    const closeEmployeeBalances = document.getElementById('closeEmployeeBalances');
+    const cancelEmployeeBalances = document.getElementById('cancelEmployeeBalances');
+    const balanceSearchInput = document.getElementById('balanceSearchInput');
     
     if (manageGarnishmentsBtn) {
         manageGarnishmentsBtn.addEventListener('click', async function() {
             garnishmentModal.style.display = 'block';
             await loadGarnishmentsList();
+        });
+    }
+    
+    if (viewEmployeeBalancesBtn) {
+        viewEmployeeBalancesBtn.addEventListener('click', async function() {
+            employeeBalancesModal.style.display = 'block';
+            await loadEmployeeBalances();
+        });
+    }
+    
+    if (closeEmployeeBalances) {
+        closeEmployeeBalances.addEventListener('click', function() {
+            employeeBalancesModal.style.display = 'none';
+        });
+    }
+    
+    if (cancelEmployeeBalances) {
+        cancelEmployeeBalances.addEventListener('click', function() {
+            employeeBalancesModal.style.display = 'none';
+        });
+    }
+    
+    if (balanceSearchInput) {
+        balanceSearchInput.addEventListener('input', function() {
+            filterEmployeeBalances(this.value);
+        });
+    }
+    
+    async function loadEmployeeBalances() {
+        const list = document.getElementById('employeeBalancesList');
+        if (!list) return;
+        
+        try {
+            const employees = await supabaseService.getEmployees() || [];
+            const balances = [];
+            
+            // Get wallet balance for each employee
+            for (const employee of employees) {
+                try {
+                    const wallet = await supabaseService.getEmployeeWallet(employee.id);
+                    balances.push({
+                        employee,
+                        wallet: wallet || { balance: 0, total_earned: 0, total_spent: 0 }
+                    });
+                } catch (error) {
+                    console.error(`Error loading wallet for ${employee.name}:`, error);
+                    balances.push({
+                        employee,
+                        wallet: { balance: 0, total_earned: 0, total_spent: 0 }
+                    });
+                }
+            }
+            
+            // Sort by balance (highest first)
+            balances.sort((a, b) => parseFloat(b.wallet.balance || 0) - parseFloat(a.wallet.balance || 0));
+            
+            if (balances.length === 0) {
+                list.innerHTML = '<div style="text-align: center; padding: 20px; color: #64748b;">No employees found</div>';
+                return;
+            }
+            
+            list.innerHTML = balances.map(item => {
+                const balance = parseFloat(item.wallet.balance || 0);
+                const earned = parseFloat(item.wallet.total_earned || 0);
+                const spent = parseFloat(item.wallet.total_spent || 0);
+                const balanceClass = balance >= 0 ? 'positive' : 'negative';
+                
+                return `
+                    <div class="employee-balance-item" data-employee-name="${item.employee.name.toLowerCase()}" 
+                         style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin-bottom: 10px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="flex: 1;">
+                                <div style="font-weight: 600; font-size: 18px; color: #1f2937; margin-bottom: 8px;">
+                                    ${item.employee.name}
+                                </div>
+                                <div style="font-size: 14px; color: #6b7280; margin-bottom: 4px;">
+                                    ${item.employee.role}
+                                </div>
+                                <div style="font-size: 12px; color: #9ca3af; margin-top: 8px;">
+                                    Total Earned: $${earned.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} • 
+                                    Total Spent: $${spent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </div>
+                            </div>
+                            <div style="text-align: right; margin-left: 20px;">
+                                <div style="font-size: 24px; font-weight: bold; color: ${balance >= 0 ? '#10b981' : '#ef4444'};">
+                                    $${balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </div>
+                                <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">
+                                    Current Balance
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } catch (error) {
+            console.error('Error loading employee balances:', error);
+            list.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444;">Error loading employee balances</div>';
+        }
+    }
+    
+    function filterEmployeeBalances(searchTerm) {
+        const items = document.querySelectorAll('.employee-balance-item');
+        const term = searchTerm.toLowerCase().trim();
+        
+        items.forEach(item => {
+            const employeeName = item.getAttribute('data-employee-name');
+            if (employeeName.includes(term)) {
+                item.style.display = 'block';
+            } else {
+                item.style.display = 'none';
+            }
         });
     }
     

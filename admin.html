@@ -89,6 +89,7 @@
                         <button id="manageAccountantAccessBtn" class="btn-primary btn-muted" title="Designate employees for accountant access">Accountant Access</button>
                         <button id="managePayRatesBtn" class="btn-primary btn-muted" title="Manage employee pay rates">Pay Rates</button>
                         <button id="manageGarnishmentsBtn" class="btn-primary btn-muted" title="Garnish employee wages">Wage Garnishments</button>
+                        <button id="viewEmployeeBalancesBtn" class="btn-primary btn-muted" title="View employee wallet balances">Employee Balances</button>
                     </div>
                 </div>
                 
@@ -604,6 +605,24 @@
             </div>
             <div class="form-actions">
                 <button type="button" class="btn-secondary" id="cancelGarnishment">Close</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Employee Balances Modal -->
+    <div id="employeeBalancesModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <span class="close" id="closeEmployeeBalances">&times;</span>
+            <h2>💰 Employee Wallet Balances</h2>
+            <div style="margin-bottom: 20px;">
+                <input type="text" id="balanceSearchInput" placeholder="Search employees..." 
+                       style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 4px;">
+            </div>
+            <div id="employeeBalancesList" style="max-height: 600px; overflow-y: auto; margin: 20px 0;">
+                <div style="text-align: center; padding: 20px; color: #64748b;">Loading employee balances...</div>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn-secondary" id="cancelEmployeeBalances">Close</button>
             </div>
         </div>
     </div>

@@ -4801,8 +4801,10 @@ class SupabaseService {
 
             if (amountType === 'fixed') {
                 insertData.amount = amount;
+                insertData.percent_of_pay = null; // Explicitly set to null for fixed
             } else {
                 insertData.percent_of_pay = amount;
+                insertData.amount = null; // Explicitly set to null for percent
             }
 
             if (endDate) {
@@ -4845,10 +4847,10 @@ class SupabaseService {
 
             if (amountType === 'fixed') {
                 updateData.amount = amount;
-                updateData.percent_of_pay = null;
+                updateData.percent_of_pay = null; // Explicitly set to null for fixed
             } else {
                 updateData.percent_of_pay = amount;
-                updateData.amount = null;
+                updateData.amount = null; // Explicitly set to null for percent
             }
 
             if (endDate) {
