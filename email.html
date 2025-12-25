@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WaterROC - Email</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="shortcut icon" type="image/png" href="/favicon.png">
+    <link rel="stylesheet" href="styles/main.css">
+    <script src="scripts/loading-screen.js" defer></script>
+    <script src="scripts/dark-mode.js" defer></script>
+    <style>
+        .email-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            height: calc(100vh - 100px);
+        }
+        
+        .email-sidebar {
+            background: white;
+            border: 2px solid var(--border-light, #e2e8f0);
+            border-radius: 12px;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .email-main {
+            background: white;
+            border: 2px solid var(--border-light, #e2e8f0);
+            border-radius: 12px;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .compose-btn {
+            width: 100%;
+            padding: 12px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        
+        .email-folder {
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 6px;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .email-folder:hover {
+            background: #f3f4f6;
+        }
+        
+        .email-folder.active {
+            background: #dbeafe;
+            color: #3b82f6;
+            font-weight: 600;
+        }
+        
+        .email-folder-badge {
+            background: #3b82f6;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        
+        .email-list {
+            margin-top: 20px;
+        }
+        
+        .email-item {
+            padding: 15px;
+            border-bottom: 1px solid #e5e7eb;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .email-item:hover {
+            background: #f9fafb;
+        }
+        
+        .email-item.unread {
+            background: #eff6ff;
+            font-weight: 600;
+        }
+        
+        .email-item-star {
+            font-size: 20px;
+            cursor: pointer;
+        }
+        
+        .email-item-star.starred {
+            color: #fbbf24;
+        }
+        
+        .email-sender {
+            font-weight: 600;
+            color: var(--text-primary, #1f2937);
+            min-width: 150px;
+        }
+        
+        .email-subject {
+            flex: 1;
+            color: var(--text-primary, #1f2937);
+        }
+        
+        .email-date {
+            font-size: 12px;
+            color: #6b7280;
+            min-width: 100px;
+            text-align: right;
+        }
+        
+        .email-view {
+            display: none;
+        }
+        
+        .email-view.active {
+            display: block;
+        }
+        
+        .email-header {
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .email-meta {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 14px;
+            color: #6b7280;
+        }
+        
+        .email-body {
+            line-height: 1.6;
+            color: var(--text-primary, #1f2937);
+            white-space: pre-wrap;
+        }
+        
+        .compose-modal {
+            display: none;
+        }
+        
+        .compose-modal.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <header class="dashboard-header">
+            <div class="header-left">
+                <img src="favicon.png" alt="WaterROC Logo" class="header-logo" onerror="this.style.display='none';">
+                <h1>📧 Email</h1>
+            </div>
+            <div class="header-right">
+                <a href="employee.html" class="btn-secondary" style="text-decoration: none;">← Back to Dashboard</a>
+                <button id="logoutBtn" class="btn-secondary">Logout</button>
+            </div>
+        </header>
+        
+        <div class="email-container">
+            <!-- Sidebar -->
+            <div class="email-sidebar">
+                <button id="composeBtn" class="compose-btn">✉️ Compose</button>
+                
+                <div class="email-folder active" data-folder="inbox">
+                    <span>📥 Inbox</span>
+                    <span class="email-folder-badge" id="inboxBadge">0</span>
+                </div>
+                <div class="email-folder" data-folder="sent">
+                    <span>📤 Sent</span>
+                </div>
+                
+                <hr style="margin: 20px 0;">
+                
+                <div style="font-size: 12px; color: #6b7280; margin-top: 20px;">
+                    <p>💡 Tip: Use email to communicate with your team members!</p>
+                </div>
+            </div>
+            
+            <!-- Main Content -->
+            <div class="email-main">
+                <div id="emailListView">
+                    <div id="emailList" class="email-list">
+                        <div style="text-align: center; padding: 40px; color: #64748b;">Select a folder to view emails</div>
+                    </div>
+                </div>
+                
+                <div id="emailView" class="email-view">
+                    <div class="email-header">
+                        <h2 id="emailViewSubject">Subject</h2>
+                        <div class="email-meta">
+                            <div>
+                                <strong>From:</strong> <span id="emailViewFrom">-</span><br>
+                                <strong>To:</strong> <span id="emailViewTo">-</span>
+                            </div>
+                            <div>
+                                <span id="emailViewDate">-</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="email-body" id="emailViewBody">Loading...</div>
+                    <div style="margin-top: 20px;">
+                        <button id="replyBtn" class="btn-primary">Reply</button>
+                        <button id="deleteEmailBtn" class="btn-secondary">Delete</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Compose Modal -->
+    <div id="composeModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <span class="close" id="closeComposeModal">&times;</span>
+            <h2>✉️ Compose Email</h2>
+            <form id="composeForm">
+                <div class="form-group">
+                    <label for="composeTo">To</label>
+                    <select id="composeTo" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="composeSubject">Subject</label>
+                    <input type="text" id="composeSubject" required>
+                </div>
+                <div class="form-group">
+                    <label for="composeBody">Message</label>
+                    <textarea id="composeBody" rows="10" required></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Send</button>
+                    <button type="button" class="btn-secondary" id="cancelComposeBtn">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Authentication check
+        (function() {
+            const userRole = sessionStorage.getItem('userRole');
+            if (!userRole) {
+                window.location.href = 'index.html';
+                return;
+            }
+        })();
+    </script>
+    <script src="scripts/supabase.js"></script>
+    <script src="scripts/config.js"></script>
+    <script src="scripts/email-client.js"></script>
+</body>
+</html>
+

@@ -246,6 +246,15 @@
             <p style="margin-top: 15px; opacity: 0.9;">Click to generate money (for payroll purposes only!)</p>
         </div>
         
+        <!-- Company Debt Section -->
+        <div class="payroll-card" style="margin-bottom: 30px;">
+            <h3>💳 Company Debt</h3>
+            <div id="debtList" style="margin-bottom: 20px;">
+                <div style="text-align: center; padding: 20px; color: #64748b;">Loading debt information...</div>
+            </div>
+            <button id="addDebtBtn" class="btn-process">Add New Debt</button>
+        </div>
+        
         <!-- Payroll Summary -->
         <div class="payroll-summary">
             <h2 style="margin: 0 0 20px 0;">Payroll Summary</h2>
@@ -344,6 +353,63 @@
                     No payroll history yet
                 </div>
             </div>
+        </div>
+    </div>
+    
+    <!-- Add Debt Modal -->
+    <div id="addDebtModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeDebtModal">&times;</span>
+            <h2>Add Company Debt</h2>
+            <form id="addDebtForm">
+                <div class="form-group">
+                    <label for="debtName">Debt Name</label>
+                    <input type="text" id="debtName" placeholder="e.g., Business Loan" required>
+                </div>
+                <div class="form-group">
+                    <label for="debtPrincipal">Principal Amount ($)</label>
+                    <input type="number" id="debtPrincipal" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="debtInterestRate">Interest Rate (% per year)</label>
+                    <input type="number" id="debtInterestRate" step="0.01" min="0" max="100" required>
+                </div>
+                <div class="form-group">
+                    <label for="debtMonthlyPayment">Monthly Payment ($)</label>
+                    <input type="number" id="debtMonthlyPayment" step="0.01" min="0" required>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Add Debt</button>
+                    <button type="button" class="btn-secondary" id="cancelDebtBtn">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Pay Debt Modal -->
+    <div id="payDebtModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closePayDebtModal">&times;</span>
+            <h2>Make Debt Payment</h2>
+            <form id="payDebtForm">
+                <input type="hidden" id="payDebtId">
+                <div class="form-group">
+                    <label for="payDebtName">Debt</label>
+                    <input type="text" id="payDebtName" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="payDebtBalance">Remaining Balance</label>
+                    <input type="text" id="payDebtBalance" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="payDebtAmount">Payment Amount ($)</label>
+                    <input type="number" id="payDebtAmount" step="0.01" min="0" required>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Make Payment</button>
+                    <button type="button" class="btn-secondary" id="cancelPayDebtBtn">Cancel</button>
+                </div>
+            </form>
         </div>
     </div>
     

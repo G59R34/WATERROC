@@ -9,6 +9,7 @@ class EmployeeStatusMonitor {
         this.currentUserId = null;
         this.isActive = false;
         this.statusCheckInterval = null;
+        this.isCheckingStatus = false; // Prevent multiple simultaneous checks
         
         // Womp womp sounds for different statuses
         this.statusMessages = {
@@ -20,17 +21,26 @@ class EmployeeStatusMonitor {
             'default': '🔒 WOMP WOMP! Your access has been revoked. You have been logged out.'
         };
         
+        // DISABLED: Status monitor causes constant page reloads
         // Initialize when DOM is loaded
+        console.log('⏸️ Employee Status Monitor is DISABLED to prevent page reloads');
+        // Do not initialize - completely disabled
+        /*
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => this.initialize());
         } else {
             this.initialize();
         }
+        */
     }
     
     async initialize() {
         console.log('🔍 Initializing Employee Status Monitor...');
         console.log('📍 Current page:', window.location.pathname);
+        
+        // TEMPORARILY DISABLED TO PREVENT RELOADS
+        console.log('⏸️ Status monitoring temporarily disabled to prevent page reloads');
+        return;
         
         // Don't run on login page
         if (window.location.pathname.includes('index.html') || window.location.pathname === '/' || window.location.pathname === '') {
@@ -170,8 +180,20 @@ class EmployeeStatusMonitor {
         }
         
         this.isActive = true;
-        console.log('🚀 Starting real-time employee status monitoring for employee ID:', this.currentEmployeeId);
+        console.log('🚀 Starting employee status monitoring for employee ID:', this.currentEmployeeId);
         
+        // DISABLED: Real-time subscription causes too many reloads
+        // Using polling only instead
+        console.log('📊 Using polling-based monitoring (real-time subscription disabled to prevent reloads)');
+        
+        // DISABLED: Periodic polling causes reloads
+        // Only do initial status check, no continuous polling
+        this.startStatusPolling();
+        
+        // Initial status check only (one time on page load)
+        await this.checkCurrentStatus();
+        
+        /* DISABLED REAL-TIME SUBSCRIPTION - CAUSES TOO MANY RELOADS
         try {
             // Set up real-time subscription to employee_profiles table
             // Listen to ALL employee_profiles changes, not just for current user
@@ -204,17 +226,11 @@ class EmployeeStatusMonitor {
                         console.log('📪 Real-time monitoring channel closed');
                     }
                 });
-            
-            // Also set up periodic status check as backup
-            this.startStatusPolling();
-            
-            // Initial status check
-            await this.checkCurrentStatus();
-            
         } catch (error) {
             console.error('❌ Failed to start real-time monitoring:', error);
             this.fallbackToPolling();
         }
+        */
     }
     
     async handleStatusChange(newProfile, oldProfile) {
@@ -228,6 +244,20 @@ class EmployeeStatusMonitor {
             console.log('ℹ️ Status unchanged, ignoring');
             return;
         }
+
+        // Check if we've already handled this status change recently (prevent duplicate handling)
+        const lastHandledStatus = sessionStorage.getItem('lastHandledStatus');
+        const lastHandledTime = sessionStorage.getItem('lastHandledStatusTime');
+        const now = Date.now();
+        
+        if (lastHandledStatus === newStatus && lastHandledTime && (now - parseInt(lastHandledTime)) < 5000) {
+            console.log('ℹ️ Status change already handled recently, ignoring duplicate');
+            return;
+        }
+
+        // Store that we're handling this status change
+        sessionStorage.setItem('lastHandledStatus', newStatus);
+        sessionStorage.setItem('lastHandledStatusTime', now.toString());
 
         // If status changed to an inactive state, boot the user
         if (this.isInactiveStatus(newStatus)) {
@@ -243,15 +273,12 @@ class EmployeeStatusMonitor {
             return;
         }
 
-        // For other status changes (e.g., extended_leave -> active, or admin updates), refresh the page
+        // For other status changes, just update session storage - NO RELOAD
         try {
-            console.log('🔁 Non-inactive status change detected, refreshing page to apply new profile state');
+            console.log('🔁 Non-inactive status change detected, updating session state (NO RELOAD)');
             // Update local session state so page can act on new status immediately
             if (newStatus) sessionStorage.setItem('employmentStatus', newStatus);
-            // Give any UI updates a moment, then reload
-            setTimeout(() => {
-                try { window.location.reload(); } catch (e) { console.warn('Could not reload page:', e); }
-            }, 500);
+            // DO NOT RELOAD - let the user continue working
         } catch (err) {
             console.error('❌ Error while handling non-inactive status change:', err);
         }
@@ -474,11 +501,22 @@ class EmployeeStatusMonitor {
     }
     
     startStatusPolling() {
-        // More frequent polling every 5 seconds for immediate detection
+        // Clear any existing interval first
+        if (this.statusCheckInterval) {
+            clearInterval(this.statusCheckInterval);
+        }
+        
+        // DISABLED: Polling was causing too many reloads
+        // Only check status on initial load, not continuously
+        console.log('⏰ Status polling DISABLED to prevent reloads');
+        
+        /* DISABLED POLLING - CAUSES TOO MANY RELOADS
+        // Poll every 30 seconds instead of 5 to reduce server load and prevent constant reloading
         this.statusCheckInterval = setInterval(() => {
             this.checkCurrentStatus();
-        }, 5000);
-        console.log('⏰ Status polling started - checking every 5 seconds');
+        }, 30000);
+        console.log('⏰ Status polling started - checking every 30 seconds');
+        */
     }
     
     async checkCurrentStatus() {
@@ -487,9 +525,15 @@ class EmployeeStatusMonitor {
             return;
         }
         
+        // Prevent multiple simultaneous status checks
+        if (this.isCheckingStatus) {
+            console.log('⏳ Status check already in progress, skipping');
+            return;
+        }
+        
+        this.isCheckingStatus = true;
+        
         try {
-            console.log('🔍 Checking employment status for employee:', this.currentEmployeeId);
-            
             const { data: profile, error } = await this.supabaseService.client
                 .from('employee_profiles')
                 .select('employment_status, status_changed_at')
@@ -502,18 +546,29 @@ class EmployeeStatusMonitor {
             }
             
             const status = profile?.employment_status || 'active';
-            console.log('📊 Current employment status:', status, 'Changed at:', profile?.status_changed_at);
+            const currentStoredStatus = sessionStorage.getItem('employmentStatus');
             
+            // Only log if status actually changed
+            if (status !== currentStoredStatus) {
+                console.log('📊 Employment status changed:', currentStoredStatus, '→', status);
+                sessionStorage.setItem('employmentStatus', status);
+            }
+            
+            // Only take action if status is inactive or extended_leave
+            // DO NOT reload for any other status changes
             if (this.isInactiveStatus(status)) {
-                console.log('🚨 INACTIVE STATUS FOUND DURING POLLING - INITIATING LOGOUT');
+                console.log('🚨 INACTIVE STATUS FOUND - INITIATING LOGOUT');
                 await this.bootUser(status);
             } else if (status === 'extended_leave') {
-                console.log('🏖️ EXTENDED LEAVE STATUS FOUND DURING POLLING - SHOWING WOMP WOMP');
+                console.log('🏖️ EXTENDED LEAVE STATUS FOUND - SHOWING WOMP WOMP');
                 await this.handleExtendedLeave();
             }
+            // For active status or any other status, do NOTHING - no reload, no action
             
         } catch (error) {
             console.error('❌ Error during status check:', error);
+        } finally {
+            this.isCheckingStatus = false;
         }
     }
     

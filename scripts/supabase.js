@@ -4290,6 +4290,865 @@ class SupabaseService {
             return { data: null, error: error.message };
         }
     }
+
+    // ==========================================
+    // ECONOMY SYSTEM OPERATIONS
+    // ==========================================
+
+    /**
+     * Get employee wallet/balance
+     * @param {number} employeeId - Employee ID
+     * @returns {Promise<Object|null>}
+     */
+    async getEmployeeWallet(employeeId) {
+        if (!this.isReady()) return null;
+
+        try {
+            // Try to get the wallet
+            const { data, error } = await this.client
+                .from('employee_wallets')
+                .select('*')
+                .eq('employee_id', employeeId)
+                .maybeSingle(); // Use maybeSingle instead of single to avoid errors when no row exists
+
+            // PGRST116 = no rows returned (wallet doesn't exist yet) - this is OK
+            if (error) {
+                if (error.code === 'PGRST116') {
+                    // Wallet doesn't exist yet, return null (will be created on first update)
+                    return null;
+                } else if (error.code === '42P01' || error.message?.includes('does not exist')) {
+                    // Table doesn't exist - user needs to run SQL migration
+                    console.warn('⚠️ employee_wallets table does not exist. Please run add-economy-system.sql in Supabase.');
+                    return null;
+                } else if (error.code === '42501' || error.status === 406 || error.code === 'PGRST301') {
+                    // RLS policy issue or Not Acceptable
+                    console.warn('⚠️ Cannot access employee_wallets (RLS policy issue). Error:', error.message);
+                    console.warn('⚠️ Please run fix-employee-wallets-rls-v2.sql in Supabase SQL Editor.');
+                    return null;
+                } else {
+                    console.error('Error getting employee wallet:', error);
+                    return null;
+                }
+            }
+            return data;
+        } catch (error) {
+            console.error('Error getting employee wallet:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Update employee wallet balance
+     * @param {number} employeeId - Employee ID
+     * @param {number} amount - Amount to add (positive) or subtract (negative)
+     * @param {string} transactionType - Type of transaction
+     * @param {string} description - Transaction description
+     * @returns {Promise<{data: any, error: string|null}>}
+     */
+    async updateEmployeeWallet(employeeId, amount, transactionType, description) {
+        if (!this.isReady()) return { data: null, error: 'Supabase not initialized' };
+
+        try {
+            // Get current wallet
+            let wallet = await this.getEmployeeWallet(employeeId);
+            
+            if (!wallet) {
+                // Create wallet if it doesn't exist
+                const { data: newWallet, error: createError } = await this.client
+                    .from('employee_wallets')
+                    .insert({
+                        employee_id: employeeId,
+                        balance: 0,
+                        total_earned: amount > 0 ? amount : 0,
+                        total_spent: amount < 0 ? Math.abs(amount) : 0
+                    })
+                    .select()
+                    .single();
+                
+                if (createError) throw createError;
+                wallet = newWallet;
+            }
+
+            // Update balance (ensure paycheck funds are added correctly)
+            const currentBalance = parseFloat(wallet.balance || 0);
+            const newBalance = currentBalance + amount;
+            
+            // Ensure balance doesn't go negative (unless it's a purchase)
+            const finalBalance = newBalance < 0 && amount > 0 ? currentBalance : newBalance;
+            
+            const updateData = {
+                balance: finalBalance,
+                updated_at: new Date().toISOString()
+            };
+
+            if (amount > 0) {
+                // Adding money (paycheck, etc.)
+                updateData.total_earned = parseFloat(wallet.total_earned || 0) + amount;
+                console.log(`💰 Adding $${amount.toFixed(2)} to wallet. Balance: $${currentBalance.toFixed(2)} → $${finalBalance.toFixed(2)}`);
+            } else {
+                // Spending money (purchase, etc.)
+                updateData.total_spent = parseFloat(wallet.total_spent || 0) + Math.abs(amount);
+                console.log(`💸 Deducting $${Math.abs(amount).toFixed(2)} from wallet. Balance: $${currentBalance.toFixed(2)} → $${finalBalance.toFixed(2)}`);
+            }
+
+            const { data, error } = await this.client
+                .from('employee_wallets')
+                .update(updateData)
+                .eq('employee_id', employeeId)
+                .select()
+                .single();
+
+            if (error) {
+                console.error('Error updating wallet in database:', error);
+                throw error;
+            }
+
+            // Log transaction
+            await this.client
+                .from('transactions')
+                .insert({
+                    employee_id: employeeId,
+                    transaction_type: transactionType,
+                    amount: amount,
+                    description: description,
+                    balance_after: newBalance
+                });
+
+            return { data, error: null };
+        } catch (error) {
+            console.error('Error updating employee wallet:', error);
+            return { data: null, error: error.message };
+        }
+    }
+
+    /**
+     * Get store items
+     * @returns {Promise<Array>}
+     */
+    async getStoreItems() {
+        if (!this.isReady()) return [];
+
+        try {
+            const { data, error } = await this.client
+                .from('store_items')
+                .select('*')
+                .eq('is_active', true)
+                .order('category', { ascending: true })
+                .order('name', { ascending: true });
+
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error getting store items:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Purchase store item
+     * @param {number} employeeId - Employee ID
+     * @param {number} itemId - Store item ID
+     * @param {number} quantity - Quantity to purchase
+     * @returns {Promise<{data: any, error: string|null}>}
+     */
+    async purchaseStoreItem(employeeId, itemId, quantity = 1) {
+        if (!this.isReady()) return { data: null, error: 'Supabase not initialized' };
+
+        try {
+            // Get item details
+            const { data: item, error: itemError } = await this.client
+                .from('store_items')
+                .select('*')
+                .eq('id', itemId)
+                .single();
+
+            if (itemError) throw itemError;
+            if (!item.is_active) {
+                return { data: null, error: 'Item is not available' };
+            }
+
+            // Check stock
+            if (item.stock !== -1 && item.stock < quantity) {
+                return { data: null, error: 'Insufficient stock' };
+            }
+
+            // Get employee wallet
+            const wallet = await this.getEmployeeWallet(employeeId);
+            if (!wallet) {
+                return { data: null, error: 'Wallet not found' };
+            }
+
+            const totalPrice = parseFloat(item.price) * quantity;
+
+            // Check balance
+            if (parseFloat(wallet.balance) < totalPrice) {
+                return { data: null, error: 'Insufficient funds' };
+            }
+
+            // Deduct from wallet
+            const walletResult = await this.updateEmployeeWallet(
+                employeeId,
+                -totalPrice,
+                'purchase',
+                `Purchased ${quantity}x ${item.name}`
+            );
+
+            if (walletResult.error) {
+                return { data: null, error: walletResult.error };
+            }
+
+            // Create purchase record
+            const { data: purchase, error: purchaseError } = await this.client
+                .from('purchases')
+                .insert({
+                    employee_id: employeeId,
+                    item_id: itemId,
+                    quantity: quantity,
+                    total_price: totalPrice,
+                    status: 'completed'
+                })
+                .select()
+                .single();
+
+            if (purchaseError) throw purchaseError;
+
+            // Update stock if not unlimited
+            if (item.stock !== -1) {
+                await this.client
+                    .from('store_items')
+                    .update({ stock: item.stock - quantity })
+                    .eq('id', itemId);
+            }
+
+            return { data: purchase, error: null };
+        } catch (error) {
+            console.error('Error purchasing store item:', error);
+            return { data: null, error: error.message };
+        }
+    }
+
+    /**
+     * Get employee purchases
+     * @param {number} employeeId - Employee ID
+     * @param {number} limit - Number of records
+     * @returns {Promise<Array>}
+     */
+    async getEmployeePurchases(employeeId, limit = 50) {
+        if (!this.isReady()) return [];
+
+        try {
+            const { data, error } = await this.client
+                .from('purchases')
+                .select(`
+                    *,
+                    store_items (
+                        id,
+                        name,
+                        description,
+                        category
+                    )
+                `)
+                .eq('employee_id', employeeId)
+                .order('purchased_at', { ascending: false })
+                .limit(limit);
+
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error getting employee purchases:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get stock market data
+     * @returns {Promise<Array>}
+     */
+    async getStockMarket() {
+        if (!this.isReady()) return [];
+
+        try {
+            const { data, error } = await this.client
+                .from('stock_market')
+                .select('*')
+                .order('symbol', { ascending: true });
+
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error getting stock market:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Update stock prices (random fluctuations)
+     * @returns {Promise<boolean>}
+     */
+    async updateStockPrices() {
+        if (!this.isReady()) return false;
+
+        try {
+            // Call the database function to update stock prices
+            const { data, error } = await this.client.rpc('update_stock_prices');
+            if (error) throw error;
+            return true;
+        } catch (error) {
+            console.error('Error updating stock prices:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Buy stock
+     * @param {number} employeeId - Employee ID
+     * @param {string} stockSymbol - Stock symbol
+     * @param {number} shares - Number of shares to buy
+     * @returns {Promise<{data: any, error: string|null}>}
+     */
+    async buyStock(employeeId, stockSymbol, shares) {
+        if (!this.isReady()) return { data: null, error: 'Supabase not initialized' };
+
+        try {
+            // Get current stock price
+            const { data: stock, error: stockError } = await this.client
+                .from('stock_market')
+                .select('*')
+                .eq('symbol', stockSymbol)
+                .single();
+
+            if (stockError) throw stockError;
+
+            const totalCost = parseFloat(stock.current_price) * shares;
+
+            // Get employee wallet
+            const wallet = await this.getEmployeeWallet(employeeId);
+            if (!wallet || parseFloat(wallet.balance) < totalCost) {
+                return { data: null, error: 'Insufficient funds' };
+            }
+
+            // Deduct from wallet
+            const walletResult = await this.updateEmployeeWallet(
+                employeeId,
+                -totalCost,
+                'stock_buy',
+                `Bought ${shares} shares of ${stockSymbol}`
+            );
+
+            if (walletResult.error) {
+                return { data: null, error: walletResult.error };
+            }
+
+            // Create investment record
+            const { data: investment, error: investError } = await this.client
+                .from('stock_investments')
+                .insert({
+                    employee_id: employeeId,
+                    stock_symbol: stockSymbol,
+                    shares: shares,
+                    purchase_price: stock.current_price,
+                    current_value: totalCost,
+                    status: 'active'
+                })
+                .select()
+                .single();
+
+            if (investError) throw investError;
+
+            return { data: investment, error: null };
+        } catch (error) {
+            console.error('Error buying stock:', error);
+            return { data: null, error: error.message };
+        }
+    }
+
+    /**
+     * Sell stock
+     * @param {number} investmentId - Investment ID
+     * @returns {Promise<{data: any, error: string|null}>}
+     */
+    async sellStock(investmentId) {
+        if (!this.isReady()) return { data: null, error: 'Supabase not initialized' };
+
+        try {
+            // Get investment
+            const { data: investment, error: investError } = await this.client
+                .from('stock_investments')
+                .select('*')
+                .eq('id', investmentId)
+                .single();
+
+            if (investError) throw investError;
+            if (investment.status !== 'active') {
+                return { data: null, error: 'Investment is not active' };
+            }
+
+            // Get current stock price
+            const { data: stock, error: stockError } = await this.client
+                .from('stock_market')
+                .select('*')
+                .eq('symbol', investment.stock_symbol)
+                .single();
+
+            if (stockError) throw stockError;
+
+            const currentValue = parseFloat(stock.current_price) * parseFloat(investment.shares);
+            const profit = currentValue - parseFloat(investment.current_value);
+
+            // Add to wallet
+            const walletResult = await this.updateEmployeeWallet(
+                investment.employee_id,
+                currentValue,
+                profit >= 0 ? 'stock_sell' : 'stock_loss',
+                `Sold ${investment.shares} shares of ${investment.stock_symbol}`
+            );
+
+            if (walletResult.error) {
+                return { data: null, error: walletResult.error };
+            }
+
+            // Update investment
+            const { data: updated, error: updateError } = await this.client
+                .from('stock_investments')
+                .update({
+                    status: 'sold',
+                    sold_at: new Date().toISOString(),
+                    current_value: currentValue
+                })
+                .eq('id', investmentId)
+                .select()
+                .single();
+
+            if (updateError) throw updateError;
+
+            return { data: updated, error: null };
+        } catch (error) {
+            console.error('Error selling stock:', error);
+            return { data: null, error: error.message };
+        }
+    }
+
+    /**
+     * Get employee stock investments
+     * @param {number} employeeId - Employee ID
+     * @returns {Promise<Array>}
+     */
+    async getEmployeeInvestments(employeeId) {
+        if (!this.isReady()) return [];
+
+        try {
+            const { data, error } = await this.client
+                .from('stock_investments')
+                .select(`
+                    *,
+                    stock_market (
+                        symbol,
+                        company_name,
+                        current_price,
+                        change_percent
+                    )
+                `)
+                .eq('employee_id', employeeId)
+                .order('purchased_at', { ascending: false });
+
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error getting employee investments:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get company debt
+     * @returns {Promise<Array>}
+     */
+    async getCompanyDebt() {
+        if (!this.isReady()) return [];
+
+        try {
+            const { data, error } = await this.client
+                .from('company_debt')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error getting company debt:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Add company debt
+     * @param {Object} debtData - Debt information
+     * @returns {Promise<{data: any, error: string|null}>}
+     */
+    async addCompanyDebt(debtData) {
+        if (!this.isReady()) return { data: null, error: 'Supabase not initialized' };
+
+        try {
+            const { data, error } = await this.client
+                .from('company_debt')
+                .insert(debtData)
+                .select()
+                .single();
+
+            if (error) throw error;
+            return { data, error: null };
+        } catch (error) {
+            console.error('Error adding company debt:', error);
+            return { data: null, error: error.message };
+        }
+    }
+
+    /**
+     * Make debt payment
+     * @param {number} debtId - Debt ID
+     * @param {number} paymentAmount - Payment amount
+     * @returns {Promise<{data: any, error: string|null}>}
+     */
+    async makeDebtPayment(debtId, paymentAmount) {
+        if (!this.isReady()) return { data: null, error: 'Supabase not initialized' };
+
+        try {
+            // Get debt
+            const { data: debt, error: debtError } = await this.client
+                .from('company_debt')
+                .select('*')
+                .eq('id', debtId)
+                .single();
+
+            if (debtError) throw debtError;
+
+            const interestAmount = parseFloat(debt.remaining_balance) * (parseFloat(debt.interest_rate) / 100 / 12);
+            const principalAmount = paymentAmount - interestAmount;
+            const newBalance = parseFloat(debt.remaining_balance) - principalAmount;
+
+            // Record payment
+            const { data: payment, error: paymentError } = await this.client
+                .from('debt_payments')
+                .insert({
+                    debt_id: debtId,
+                    payment_amount: paymentAmount,
+                    payment_date: new Date().toISOString().split('T')[0],
+                    principal_paid: principalAmount,
+                    interest_paid: interestAmount,
+                    remaining_balance: newBalance > 0 ? newBalance : 0
+                })
+                .select()
+                .single();
+
+            if (paymentError) throw paymentError;
+
+            // Update debt
+            const updateData = {
+                remaining_balance: newBalance > 0 ? newBalance : 0,
+                next_payment_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+            };
+
+            if (newBalance <= 0) {
+                updateData.status = 'paid';
+            }
+
+            await this.client
+                .from('company_debt')
+                .update(updateData)
+                .eq('id', debtId);
+
+            return { data: payment, error: null };
+        } catch (error) {
+            console.error('Error making debt payment:', error);
+            return { data: null, error: error.message };
+        }
+    }
+
+    /**
+     * Get employee pay rates
+     * @param {number} employeeId - Employee ID
+     * @returns {Promise<Array>}
+     */
+    async getEmployeePayRates(employeeId) {
+        if (!this.isReady()) return [];
+
+        try {
+            const { data, error } = await this.client
+                .from('employee_pay_rates')
+                .select('*')
+                .eq('employee_id', employeeId)
+                .order('effective_date', { ascending: false });
+
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error getting employee pay rates:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Set employee pay rate
+     * @param {number} employeeId - Employee ID
+     * @param {number} hourlyRate - Hourly rate
+     * @param {string} rateType - Rate type (standard, random, custom, performance)
+     * @param {Date} effectiveDate - Effective date
+     * @param {string} notes - Optional notes
+     * @returns {Promise<{data: any, error: string|null}>}
+     */
+    async setEmployeePayRate(employeeId, hourlyRate, rateType = 'standard', effectiveDate = null, notes = null) {
+        if (!this.isReady()) return { data: null, error: 'Supabase not initialized' };
+
+        try {
+            const { data: { user } } = await this.client.auth.getUser();
+            if (!user) {
+                return { data: null, error: 'Not authenticated' };
+            }
+
+            const insertData = {
+                employee_id: employeeId,
+                hourly_rate: hourlyRate,
+                rate_type: rateType,
+                effective_date: effectiveDate || new Date().toISOString().split('T')[0],
+                set_by: user.id
+            };
+
+            if (notes) {
+                insertData.notes = notes;
+            }
+
+            const { data, error } = await this.client
+                .from('employee_pay_rates')
+                .upsert(insertData, {
+                    onConflict: 'employee_id,effective_date'
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+            return { data, error: null };
+        } catch (error) {
+            console.error('Error setting employee pay rate:', error);
+            return { data: null, error: error.message };
+        }
+    }
+
+    /**
+     * Send email
+     * @param {string} toUserId - Recipient user ID (UUID)
+     * @param {string} subject - Email subject
+     * @param {string} body - Email body
+     * @returns {Promise<{data: any, error: string|null}>}
+     */
+    async sendEmail(toUserId, subject, body) {
+        if (!this.isReady()) return { data: null, error: 'Supabase not initialized' };
+
+        try {
+            const { data: { user } } = await this.client.auth.getUser();
+            if (!user) {
+                return { data: null, error: 'Not authenticated' };
+            }
+
+            const { data, error } = await this.client
+                .from('emails')
+                .insert({
+                    from_user_id: user.id,
+                    to_user_id: toUserId,
+                    subject: subject,
+                    body: body
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+            return { data, error: null };
+        } catch (error) {
+            console.error('Error sending email:', error);
+            return { data: null, error: error.message };
+        }
+    }
+
+    /**
+     * Get inbox emails
+     * @param {number} limit - Number of emails
+     * @returns {Promise<Array>}
+     */
+    async getInboxEmails(limit = 50) {
+        if (!this.isReady()) return [];
+
+        try {
+            const { data: { user } } = await this.client.auth.getUser();
+            if (!user) return [];
+
+            const { data, error } = await this.client
+                .from('emails')
+                .select(`
+                    *,
+                    from_user:users!emails_from_user_id_fkey (
+                        id,
+                        username,
+                        full_name,
+                        email
+                    ),
+                    to_user:users!emails_to_user_id_fkey (
+                        id,
+                        username,
+                        full_name,
+                        email
+                    )
+                `)
+                .eq('to_user_id', user.id)
+                .eq('is_deleted', false)
+                .order('sent_at', { ascending: false })
+                .limit(limit);
+
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error getting inbox emails:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get sent emails
+     * @param {number} limit - Number of emails
+     * @returns {Promise<Array>}
+     */
+    async getSentEmails(limit = 50) {
+        if (!this.isReady()) return [];
+
+        try {
+            const { data: { user } } = await this.client.auth.getUser();
+            if (!user) return [];
+
+            const { data, error } = await this.client
+                .from('emails')
+                .select(`
+                    *,
+                    from_user:users!emails_from_user_id_fkey (
+                        id,
+                        username,
+                        full_name,
+                        email
+                    ),
+                    to_user:users!emails_to_user_id_fkey (
+                        id,
+                        username,
+                        full_name,
+                        email
+                    )
+                `)
+                .eq('from_user_id', user.id)
+                .eq('is_deleted', false)
+                .order('sent_at', { ascending: false })
+                .limit(limit);
+
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error getting sent emails:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Mark email as read
+     * @param {number} emailId - Email ID
+     * @returns {Promise<{data: any, error: string|null}>}
+     */
+    async markEmailAsRead(emailId) {
+        if (!this.isReady()) return { data: null, error: 'Supabase not initialized' };
+
+        try {
+            const { data, error } = await this.client
+                .from('emails')
+                .update({
+                    is_read: true,
+                    read_at: new Date().toISOString()
+                })
+                .eq('id', emailId)
+                .select()
+                .single();
+
+            if (error) throw error;
+            return { data, error: null };
+        } catch (error) {
+            console.error('Error marking email as read:', error);
+            return { data: null, error: error.message };
+        }
+    }
+
+    /**
+     * Delete email
+     * @param {number} emailId - Email ID
+     * @returns {Promise<{data: any, error: string|null}>}
+     */
+    async deleteEmail(emailId) {
+        if (!this.isReady()) return { data: null, error: 'Supabase not initialized' };
+
+        try {
+            const { data, error } = await this.client
+                .from('emails')
+                .update({ is_deleted: true })
+                .eq('id', emailId)
+                .select()
+                .single();
+
+            if (error) throw error;
+            return { data, error: null };
+        } catch (error) {
+            console.error('Error deleting email:', error);
+            return { data: null, error: error.message };
+        }
+    }
+
+    /**
+     * Get unread email count
+     * @returns {Promise<number>}
+     */
+    async getUnreadEmailCount() {
+        if (!this.isReady()) return 0;
+
+        try {
+            const { data: { user } } = await this.client.auth.getUser();
+            if (!user) return 0;
+
+            const { count, error } = await this.client
+                .from('emails')
+                .select('*', { count: 'exact', head: true })
+                .eq('to_user_id', user.id)
+                .eq('is_read', false)
+                .eq('is_deleted', false);
+
+            if (error) throw error;
+            return count || 0;
+        } catch (error) {
+            console.error('Error getting unread email count:', error);
+            return 0;
+        }
+    }
+
+    /**
+     * Get all users (for email compose)
+     * @returns {Promise<Array>}
+     */
+    async getAllUsers() {
+        if (!this.isReady()) return [];
+
+        try {
+            const { data, error } = await this.client
+                .from('users')
+                .select('id, username, full_name, email')
+                .order('full_name', { ascending: true });
+
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error getting all users:', error);
+            return [];
+        }
+    }
 }
 
 // Create global instance

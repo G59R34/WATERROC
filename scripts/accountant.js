@@ -98,6 +98,20 @@ document.addEventListener('DOMContentLoaded', async function() {
         let totalHours = 0;
         let hourlyRate = hourlyRates[employee.role] || 25;
         
+        // Get pay rate from employee_pay_rates table (set by admin)
+        if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+            try {
+                const payRates = await supabaseService.getEmployeePayRates(employee.id);
+                if (payRates && payRates.length > 0) {
+                    // Get the most recent pay rate
+                    const latestRate = payRates[0];
+                    hourlyRate = parseFloat(latestRate.hourly_rate);
+                }
+            } catch (error) {
+                console.error('Error getting pay rate:', error);
+            }
+        }
+        
         // Get hours from payroll_hours table (set by admin)
         if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
             try {
@@ -110,6 +124,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 if (payrollHours && payrollHours.length > 0) {
                     const hoursData = payrollHours[0];
                     totalHours = parseFloat(hoursData.hours) || 0;
+                    // Use hourly rate from payroll_hours if set, otherwise use employee_pay_rates
                     if (hoursData.hourly_rate) {
                         hourlyRate = parseFloat(hoursData.hourly_rate);
                     }
@@ -352,6 +367,55 @@ document.addEventListener('DOMContentLoaded', async function() {
         document.getElementById('totalDeductions').textContent = `$${totalDeductions.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         document.getElementById('netPayroll').textContent = `$${totalNet.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         
+        // Add money to employee wallets (CRITICAL: This adds paycheck funds to wallets automatically)
+        // This happens automatically when payroll is processed - employees get paid immediately
+        let walletUpdateSuccess = 0;
+        let walletUpdateFailed = 0;
+        
+        if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+            console.log('💰 Adding paycheck funds to employee wallets...');
+            
+            for (const result of payrollResults) {
+                if (!result.employee || !result.employee.id) {
+                    console.warn('⚠️ Skipping wallet update - invalid employee data');
+                    continue;
+                }
+                
+                if (!result.netPay || result.netPay <= 0) {
+                    console.warn(`⚠️ Skipping wallet update for ${result.employee.name} - no net pay`);
+                    continue;
+                }
+                
+                try {
+                    const walletResult = await supabaseService.updateEmployeeWallet(
+                        result.employee.id,
+                        result.netPay,
+                        'payroll',
+                        `Payroll payment for ${startDate.toISOString().split('T')[0]} - ${endDate.toISOString().split('T')[0]}`
+                    );
+                    
+                    if (walletResult.error) {
+                        console.error(`❌ Failed to update wallet for ${result.employee.name}:`, walletResult.error);
+                        walletUpdateFailed++;
+                    } else {
+                        console.log(`✅ Added $${result.netPay.toFixed(2)} to ${result.employee.name}'s wallet (Balance updated)`);
+                        walletUpdateSuccess++;
+                    }
+                } catch (error) {
+                    console.error(`❌ Error updating wallet for ${result.employee.name}:`, error);
+                    walletUpdateFailed++;
+                }
+            }
+            
+            console.log(`💰 Wallet update complete: ${walletUpdateSuccess} successful, ${walletUpdateFailed} failed`);
+            
+            if (walletUpdateFailed > 0) {
+                console.warn(`⚠️ ${walletUpdateFailed} wallet update(s) failed. Check console for details.`);
+            }
+        } else {
+            console.warn('⚠️ Supabase not available - cannot add funds to wallets');
+        }
+        
         // Save to Supabase
         let payrollHistoryId = null;
         if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
@@ -401,7 +465,15 @@ document.addEventListener('DOMContentLoaded', async function() {
             await sendPayrollEmails(payrollHistoryId, payrollResults, startDate, endDate, payDate);
         }
         
-        alert(`✅ Payroll processed successfully!\n\nTotal Net Payroll: $${totalNet.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        // Show success message with wallet update info
+        const walletMessage = walletUpdateSuccess > 0 
+            ? `\n\n💰 Paycheck funds have been automatically added to ${walletUpdateSuccess} employee wallet(s)!`
+            : '';
+        const walletWarning = walletUpdateFailed > 0
+            ? `\n\n⚠️ Warning: ${walletUpdateFailed} wallet update(s) failed. Check console for details.`
+            : '';
+        
+        alert(`✅ Payroll processed successfully!\n\nTotal Net Payroll: $${totalNet.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${walletMessage}${walletWarning}`);
     }
     
     // Send payroll emails to employees
@@ -557,6 +629,57 @@ document.addEventListener('DOMContentLoaded', async function() {
             alert(`⚠️ Warning: Could not save payroll to database: ${error.message}`);
         }
         
+        // Add money to employee wallets (ensure wallets are updated when paychecks are published)
+        // This ensures paycheck funds are in employee wallets, even if they weren't added during processing
+        // NOTE: This may add funds twice if processPayroll already added them, but updateEmployeeWallet handles this correctly
+        let walletUpdateSuccess = 0;
+        let walletUpdateFailed = 0;
+        
+        if (latestPayroll.results && latestPayroll.results.length > 0) {
+            
+            console.log('💰 Ensuring paycheck funds are in employee wallets...');
+            
+            for (const result of latestPayroll.results) {
+                if (!result.employee || !result.employee.id) {
+                    console.warn('⚠️ Skipping wallet update - invalid employee data');
+                    continue;
+                }
+                
+                if (!result.netPay || result.netPay <= 0) {
+                    console.warn(`⚠️ Skipping wallet update for ${result.employee.name} - no net pay`);
+                    continue;
+                }
+                
+                try {
+                    const walletResult = await supabaseService.updateEmployeeWallet(
+                        result.employee.id,
+                        result.netPay,
+                        'payroll',
+                        `Payroll payment for ${latestPayroll.startDate} - ${latestPayroll.endDate}`
+                    );
+                    
+                    if (walletResult.error) {
+                        console.error(`❌ Failed to update wallet for ${result.employee.name}:`, walletResult.error);
+                        walletUpdateFailed++;
+                    } else {
+                        console.log(`✅ Added $${result.netPay.toFixed(2)} to ${result.employee.name}'s wallet (Balance updated)`);
+                        walletUpdateSuccess++;
+                    }
+                } catch (error) {
+                    console.error(`❌ Error updating wallet for ${result.employee.name}:`, error);
+                    walletUpdateFailed++;
+                }
+            }
+            
+            console.log(`💰 Wallet update complete: ${walletUpdateSuccess} successful, ${walletUpdateFailed} failed`);
+            
+            if (walletUpdateFailed > 0) {
+                console.warn(`⚠️ ${walletUpdateFailed} wallet update(s) failed. Check console for details.`);
+            }
+        } else {
+            console.warn('⚠️ No payroll results found - cannot add funds to wallets');
+        }
+        
         // Refresh payroll history from Supabase to ensure employees can see it
         await loadPayrollHistory();
         
@@ -574,7 +697,15 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         
         // Show success message
-        alert(`✅ Paychecks published successfully!\n\n${latestPayroll.results.length} employee(s) can now view their paychecks on their dashboard.\n\nPay Period: ${latestPayroll.startDate} to ${latestPayroll.endDate}`);
+        // Show success message with wallet update info
+        const walletMessage = walletUpdateSuccess > 0 
+            ? `\n\n💰 Paycheck funds have been automatically added to ${walletUpdateSuccess} employee wallet(s)!`
+            : '';
+        const walletWarning = walletUpdateFailed > 0
+            ? `\n\n⚠️ Warning: ${walletUpdateFailed} wallet update(s) failed. Check console for details.`
+            : '';
+        
+        alert(`✅ Paychecks published successfully!\n\n${latestPayroll.results.length} employee(s) can now view their paychecks on their dashboard.\n\nPay Period: ${latestPayroll.startDate} to ${latestPayroll.endDate}${walletMessage}${walletWarning}`);
         console.log(`✅ Paychecks published for ${latestPayroll.results.length} employees`);
     }
     
@@ -891,10 +1022,170 @@ document.addEventListener('DOMContentLoaded', async function() {
     document.getElementById('payPeriodEnd').valueAsDate = today;
     document.getElementById('payDate').valueAsDate = nextWeek;
     
+    // ==========================================
+    // DEBT MANAGEMENT
+    // ==========================================
+    
+    const addDebtModal = document.getElementById('addDebtModal');
+    const addDebtBtn = document.getElementById('addDebtBtn');
+    const closeDebtModal = document.getElementById('closeDebtModal');
+    const cancelDebtBtn = document.getElementById('cancelDebtBtn');
+    const addDebtForm = document.getElementById('addDebtForm');
+    
+    const payDebtModal = document.getElementById('payDebtModal');
+    const closePayDebtModal = document.getElementById('closePayDebtModal');
+    const cancelPayDebtBtn = document.getElementById('cancelPayDebtBtn');
+    const payDebtForm = document.getElementById('payDebtForm');
+    
+    if (addDebtBtn) {
+        addDebtBtn.addEventListener('click', () => {
+            addDebtModal.style.display = 'block';
+        });
+    }
+    
+    if (closeDebtModal) {
+        closeDebtModal.addEventListener('click', () => {
+            addDebtModal.style.display = 'none';
+        });
+    }
+    
+    if (cancelDebtBtn) {
+        cancelDebtBtn.addEventListener('click', () => {
+            addDebtModal.style.display = 'none';
+        });
+    }
+    
+    if (addDebtForm) {
+        addDebtForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (typeof showFormLoadingScreen !== 'undefined') {
+                showFormLoadingScreen('debt creation');
+            }
+            
+            const debtData = {
+                debt_name: document.getElementById('debtName').value,
+                principal: parseFloat(document.getElementById('debtPrincipal').value),
+                interest_rate: parseFloat(document.getElementById('debtInterestRate').value),
+                monthly_payment: parseFloat(document.getElementById('debtMonthlyPayment').value),
+                remaining_balance: parseFloat(document.getElementById('debtPrincipal').value),
+                next_payment_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                status: 'active'
+            };
+            
+            const result = await supabaseService.addCompanyDebt(debtData);
+            
+            if (result.error) {
+                alert(`❌ Failed to add debt: ${result.error}`);
+            } else {
+                alert('✅ Debt added successfully!');
+                addDebtModal.style.display = 'none';
+                addDebtForm.reset();
+                await loadDebtList();
+            }
+        });
+    }
+    
+    if (closePayDebtModal) {
+        closePayDebtModal.addEventListener('click', () => {
+            payDebtModal.style.display = 'none';
+        });
+    }
+    
+    if (cancelPayDebtBtn) {
+        cancelPayDebtBtn.addEventListener('click', () => {
+            payDebtModal.style.display = 'none';
+        });
+    }
+    
+    if (payDebtForm) {
+        payDebtForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (typeof showFormLoadingScreen !== 'undefined') {
+                showFormLoadingScreen('debt payment');
+            }
+            
+            const debtId = parseInt(document.getElementById('payDebtId').value);
+            const paymentAmount = parseFloat(document.getElementById('payDebtAmount').value);
+            
+            const result = await supabaseService.makeDebtPayment(debtId, paymentAmount);
+            
+            if (result.error) {
+                alert(`❌ Payment failed: ${result.error}`);
+            } else {
+                alert('✅ Payment processed successfully!');
+                payDebtModal.style.display = 'none';
+                payDebtForm.reset();
+                await loadDebtList();
+            }
+        });
+    }
+    
+    async function loadDebtList() {
+        const list = document.getElementById('debtList');
+        if (!list) return;
+        
+        if (typeof showDataLoadingScreen !== 'undefined') {
+            showDataLoadingScreen('debt data');
+        }
+        
+        const debts = await supabaseService.getCompanyDebt();
+        
+        if (debts.length === 0) {
+            list.innerHTML = '<div style="text-align: center; padding: 20px; color: #64748b;">No company debt</div>';
+            return;
+        }
+        
+        list.innerHTML = debts.map(debt => {
+            const statusColor = debt.status === 'paid' ? '#10b981' : debt.status === 'defaulted' ? '#ef4444' : '#3b82f6';
+            const nextPayment = debt.next_payment_date ? new Date(debt.next_payment_date).toLocaleDateString() : 'N/A';
+            
+            return `
+                <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                        <div>
+                            <div style="font-weight: 600; color: var(--text-primary, #1f2937); font-size: 18px;">${debt.debt_name}</div>
+                            <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">
+                                Interest: ${debt.interest_rate}% • Monthly: $${parseFloat(debt.monthly_payment).toFixed(2)}
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 14px; color: #6b7280;">Remaining</div>
+                            <div style="font-size: 20px; font-weight: bold; color: ${statusColor};">
+                                $${parseFloat(debt.remaining_balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </div>
+                            <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">Next Payment: ${nextPayment}</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button class="btn-primary" 
+                                style="flex: 1; padding: 8px;"
+                                data-debt-id="${debt.id}"
+                                data-debt-name="${debt.debt_name}"
+                                data-debt-balance="${debt.remaining_balance}"
+                                onclick="openPayDebtModal(${debt.id}, '${debt.debt_name}', ${debt.remaining_balance})">
+                            Make Payment
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    window.openPayDebtModal = function(debtId, debtName, balance) {
+        document.getElementById('payDebtId').value = debtId;
+        document.getElementById('payDebtName').value = debtName;
+        document.getElementById('payDebtBalance').value = `$${parseFloat(balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        document.getElementById('payDebtAmount').value = '';
+        payDebtModal.style.display = 'block';
+    };
+    
     // Initialize
     updateMoneyDisplay();
     loadTaxConfig();
     await loadEmployees();
     await loadPayrollHistory();
+    await loadDebtList();
 });
 

@@ -2060,4 +2060,147 @@ document.addEventListener('DOMContentLoaded', async function() {
             alert('❌ Failed to update shift: ' + error.message);
         }
     }
+
+    // ==========================================
+    // PAY RATE MANAGEMENT
+    // ==========================================
+    
+    const payRateModal = document.getElementById('payRateModal');
+    const managePayRatesBtn = document.getElementById('managePayRatesBtn');
+    const closePayRateModal = document.getElementById('closePayRateModal');
+    const cancelPayRateBtn = document.getElementById('cancelPayRateBtn');
+    const savePayRatesBtn = document.getElementById('savePayRatesBtn');
+    const randomizeAllBtn = document.getElementById('randomizeAllBtn');
+
+    if (managePayRatesBtn) {
+        managePayRatesBtn.addEventListener('click', async function() {
+            payRateModal.style.display = 'block';
+            await loadPayRatesUI();
+        });
+    }
+
+    if (closePayRateModal) {
+        closePayRateModal.addEventListener('click', function() {
+            payRateModal.style.display = 'none';
+        });
+    }
+
+    if (cancelPayRateBtn) {
+        cancelPayRateBtn.addEventListener('click', function() {
+            payRateModal.style.display = 'none';
+        });
+    }
+
+    if (randomizeAllBtn) {
+        randomizeAllBtn.addEventListener('click', function() {
+            const inputs = document.querySelectorAll('#payRateList input[type="number"][data-employee-id]');
+            inputs.forEach(input => {
+                // Random rate between $15 and $60
+                const randomRate = Math.floor(Math.random() * 45) + 15;
+                input.value = randomRate;
+            });
+        });
+    }
+
+    if (savePayRatesBtn) {
+        savePayRatesBtn.addEventListener('click', async function() {
+            if (typeof showFormLoadingScreen !== 'undefined') {
+                showFormLoadingScreen('pay rates');
+            }
+
+            try {
+                const employees = await supabaseService.getEmployees() || [];
+                const inputs = document.querySelectorAll('#payRateList input[type="number"][data-employee-id]');
+                
+                let savedCount = 0;
+                for (const input of inputs) {
+                    const employeeId = parseInt(input.getAttribute('data-employee-id'));
+                    const hourlyRate = parseFloat(input.value);
+                    const rateType = input.getAttribute('data-rate-type') || 'custom';
+
+                    if (hourlyRate > 0) {
+                        const result = await supabaseService.setEmployeePayRate(
+                            employeeId,
+                            hourlyRate,
+                            rateType
+                        );
+                        if (!result.error) {
+                            savedCount++;
+                        }
+                    }
+                }
+
+                alert(`✅ Saved pay rates for ${savedCount} employee(s)!`);
+                payRateModal.style.display = 'none';
+            } catch (error) {
+                console.error('Error saving pay rates:', error);
+                alert('❌ Failed to save pay rates: ' + error.message);
+            }
+        });
+    }
+
+    async function loadPayRatesUI() {
+        const list = document.getElementById('payRateList');
+        if (!list) return;
+
+        list.innerHTML = '<div style="text-align: center; padding: 20px; color: #64748b;">Loading employees...</div>';
+
+        try {
+            const employees = await supabaseService.getEmployees() || [];
+            
+            if (employees.length === 0) {
+                list.innerHTML = '<div style="text-align: center; padding: 20px; color: #64748b;">No employees found</div>';
+                return;
+            }
+
+            // Default hourly rates by role
+            const defaultRates = {
+                'Project Manager': 45,
+                'Senior Developer': 55,
+                'Developer': 40,
+                'UX Designer': 42,
+                'Designer': 35,
+                'Administrator': 30,
+                'Employee': 25
+            };
+
+            const htmlPromises = employees.map(async (emp) => {
+                // Get current pay rate
+                const payRates = await supabaseService.getEmployeePayRates(emp.id);
+                const currentRate = payRates && payRates.length > 0 
+                    ? parseFloat(payRates[0].hourly_rate) 
+                    : (defaultRates[emp.role] || 25);
+                
+                const rateType = payRates && payRates.length > 0 
+                    ? payRates[0].rate_type 
+                    : 'standard';
+
+                return `
+                    <div style="display: flex; align-items: center; gap: 15px; padding: 15px; border-bottom: 1px solid var(--border-light, #e5e7eb);">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: var(--text-primary, #1f2937);">${emp.name}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary, #6b7280);">${emp.role}</div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <label style="font-size: 14px;">$</label>
+                            <input type="number" 
+                                   data-employee-id="${emp.id}" 
+                                   data-rate-type="${rateType}"
+                                   value="${currentRate}" 
+                                   min="0" 
+                                   step="0.01" 
+                                   style="width: 100px; padding: 8px; border: 1px solid var(--border-light, #e5e7eb); border-radius: 4px;">
+                            <span style="font-size: 14px; color: #6b7280;">/hr</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            const htmlArray = await Promise.all(htmlPromises);
+            list.innerHTML = htmlArray.join('');
+        } catch (error) {
+            console.error('Error loading pay rates UI:', error);
+            list.innerHTML = '<div style="text-align: center; padding: 20px; color: #dc2626;">Error loading employees</div>';
+        }
+    }
 });
