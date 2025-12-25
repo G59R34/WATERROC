@@ -323,7 +323,10 @@ class GanttChart {
         this.startTimeIndicator();
         
         // Initialize multi-select
-        this.initMultiSelect(body);
+        // Only initialize multi-select if editable (admin only)
+        if (this.isEditable) {
+            this.initMultiSelect(body);
+        }
         
         // Smooth scrolling sync
         const timelineHeader = header.querySelector('.gantt-timeline-header');
@@ -2393,6 +2396,11 @@ class GanttChart {
     
     // Initialize multi-select functionality
     initMultiSelect(body) {
+        // Don't initialize if not editable (employees can't delete)
+        if (!this.isEditable) {
+            return;
+        }
+        
         let isMouseDown = false;
         let startX = 0;
         let startY = 0;
@@ -2509,8 +2517,13 @@ class GanttChart {
             }
         });
         
-        // Keyboard shortcuts
+        // Keyboard shortcuts (only for editable charts)
         document.addEventListener('keydown', (e) => {
+            // Only allow delete if chart is editable
+            if (!this.isEditable) {
+                return;
+            }
+            
             // Delete selected items with Delete or Backspace
             if ((e.key === 'Delete' || e.key === 'Backspace') && this.selectedItems.size > 0) {
                 e.preventDefault();
@@ -2572,6 +2585,13 @@ class GanttChart {
     
     // Delete all selected items
     async deleteSelectedItems() {
+        // Don't allow deletion if not editable (employees can't delete)
+        if (!this.isEditable) {
+            console.warn('Delete operation blocked: Chart is not editable');
+            alert('You do not have permission to delete items.');
+            return;
+        }
+        
         if (this.selectedItems.size === 0) {
             console.log('No items selected for deletion');
             return;
