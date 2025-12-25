@@ -143,25 +143,29 @@
     align-items: center;
     z-index: 10001;
     color: white;
+    padding: 20px;
+    box-sizing: border-box;
 }
 
 .active-call-video-container {
     width: 100%;
-    max-width: 1200px;
+    max-width: 1400px;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 20px;
-    padding: 20px;
-    margin-bottom: 30px;
+    gap: 24px;
+    padding: 0;
+    margin-bottom: 40px;
 }
 
 .call-video {
     width: 100%;
     aspect-ratio: 16/9;
     background: #1f2937;
-    border-radius: 12px;
+    border-radius: 16px;
     overflow: hidden;
     position: relative;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    border: 2px solid rgba(255, 255, 255, 0.1);
 }
 
 .call-video video {
@@ -172,110 +176,192 @@
 
 .call-video-label {
     position: absolute;
-    bottom: 10px;
-    left: 10px;
-    background: rgba(0, 0, 0, 0.7);
+    bottom: 12px;
+    left: 12px;
+    background: rgba(0, 0, 0, 0.75);
     color: white;
-    padding: 6px 12px;
-    border-radius: 6px;
+    padding: 8px 16px;
+    border-radius: 8px;
     font-size: 14px;
     font-weight: 600;
+    backdrop-filter: blur(10px);
 }
 
 .active-call-info {
     text-align: center;
-    margin-bottom: 30px;
+    margin-bottom: 40px;
 }
 
 .active-call-name {
-    font-size: 32px;
+    font-size: 28px;
     font-weight: 700;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
+    color: white;
 }
 
 .active-call-duration {
-    font-size: 18px;
+    font-size: 16px;
     color: #9ca3af;
+    font-weight: 500;
 }
 
 .active-call-controls {
     display: flex;
-    gap: 20px;
+    gap: 16px;
     justify-content: center;
     align-items: center;
+    flex-wrap: wrap;
 }
 
 .call-control-button {
-    width: 70px;
-    height: 70px;
+    width: 64px;
+    height: 64px;
     border-radius: 50%;
     border: none;
     cursor: pointer;
-    font-size: 28px;
+    font-size: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    background: rgba(55, 65, 81, 0.9);
+    color: white;
+    backdrop-filter: blur(10px);
+}
+
+.call-control-button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
 }
 
 .call-control-button.mute {
-    background: #374151;
-    color: white;
+    background: rgba(55, 65, 81, 0.9);
 }
 
 .call-control-button.mute:hover {
-    background: #4b5563;
-    transform: scale(1.1);
+    background: rgba(75, 85, 99, 0.9);
 }
 
 .call-control-button.mute.active {
-    background: #ef4444;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
 }
 
 .call-control-button.video-toggle {
-    background: #374151;
-    color: white;
+    background: rgba(55, 65, 81, 0.9);
 }
 
 .call-control-button.video-toggle:hover {
-    background: #4b5563;
-    transform: scale(1.1);
+    background: rgba(75, 85, 99, 0.9);
 }
 
 .call-control-button.video-toggle.active {
-    background: #ef4444;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
 }
 
 .call-control-button.end-call {
     background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-    color: white;
-    width: 80px;
-    height: 80px;
+    width: 72px;
+    height: 72px;
+    font-size: 28px;
 }
 
 .call-control-button.end-call:hover {
-    transform: scale(1.1);
-    box-shadow: 0 6px 16px rgba(239, 68, 68, 0.5);
+    box-shadow: 0 8px 20px rgba(239, 68, 68, 0.6);
 }
 
-/* Audio-only call layout */
+/* Audio-only call layout - compact and centered */
+.active-call-modal.audio-only {
+    padding: 40px 20px;
+}
+
 .active-call-modal.audio-only .active-call-video-container {
     grid-template-columns: 1fr;
-    max-width: 600px;
+    max-width: 400px;
+    margin-bottom: 30px;
 }
 
 .active-call-modal.audio-only .call-video {
     aspect-ratio: 1/1;
+    max-width: 400px;
+    margin: 0 auto;
     display: flex;
     align-items: center;
     justify-content: center;
     background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    position: relative;
 }
 
 .active-call-modal.audio-only .call-video::before {
-    content: '📞';
-    font-size: 120px;
+    content: '';
+    position: absolute;
+    width: 120px;
+    height: 120px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0;
+}
+
+.active-call-modal.audio-only .call-video::after {
+    content: '☎';
+    position: absolute;
+    font-size: 100px;
+    line-height: 1;
+    color: rgba(255, 255, 255, 0.9);
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.active-call-modal.audio-only .active-call-info {
+    margin-bottom: 30px;
+}
+
+.active-call-modal.audio-only .active-call-name {
+    font-size: 24px;
+}
+
+.active-call-modal.audio-only .active-call-duration {
+    font-size: 14px;
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 768px) {
+    .active-call-video-container {
+        grid-template-columns: 1fr;
+        max-width: 100%;
+        gap: 16px;
+    }
+
+    .call-video {
+        aspect-ratio: 4/3;
+    }
+
+    .active-call-modal.audio-only .active-call-video-container {
+        max-width: 100%;
+    }
+
+    .active-call-modal.audio-only .call-video {
+        max-width: 100%;
+    }
+
+    .active-call-controls {
+        gap: 12px;
+    }
+
+    .call-control-button {
+        width: 56px;
+        height: 56px;
+        font-size: 20px;
+    }
+
+    .call-control-button.end-call {
+        width: 64px;
+        height: 64px;
+        font-size: 24px;
+    }
 }
 
 /* Animations */
