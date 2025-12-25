@@ -685,6 +685,178 @@ document.addEventListener('DOMContentLoaded', async function() {
     myProfileModal.querySelector('.close').addEventListener('click', () => {
         myProfileModal.style.display = 'none';
     });
+
+    // My Paycheck Modal
+    const myPaycheckModal = document.getElementById('myPaycheckModal');
+    const myPaycheckBtn = document.getElementById('viewMyPaycheckBtn');
+    const closeMyPaycheckModal = document.getElementById('closeMyPaycheckModal');
+
+    if (myPaycheckBtn) {
+        myPaycheckBtn.addEventListener('click', async () => {
+            myPaycheckModal.style.display = 'block';
+            if (typeof showDataLoadingScreen !== 'undefined') {
+                showDataLoadingScreen('paycheck data');
+            }
+            await loadMyPaycheck();
+        });
+    }
+
+    if (closeMyPaycheckModal) {
+        closeMyPaycheckModal.addEventListener('click', () => {
+            myPaycheckModal.style.display = 'none';
+        });
+    }
+
+    window.addEventListener('click', (e) => {
+        if (e.target === myPaycheckModal) {
+            myPaycheckModal.style.display = 'none';
+        }
+    });
+
+    async function loadMyPaycheck() {
+        const content = document.getElementById('paycheckContent');
+        if (!content) return;
+
+        try {
+            const employee = await getCurrentEmployee();
+            if (!employee) {
+                content.innerHTML = '<div style="text-align: center; padding: 40px; color: #dc2626;">Error loading employee data</div>';
+                return;
+            }
+
+            if (!supabaseService.isReady()) {
+                content.innerHTML = '<div style="text-align: center; padding: 40px; color: #64748b;">Payroll system not available. Please contact your administrator.</div>';
+                return;
+            }
+
+            // Get employee's payroll history
+            console.log('Loading paycheck for employee ID:', employee.id);
+            const payrollHistory = await supabaseService.getEmployeePayrollHistory(employee.id, 10);
+            console.log('Payroll history retrieved:', payrollHistory);
+
+            if (payrollHistory.length === 0) {
+                // Try to get all payroll history to debug
+                const allHistory = await supabaseService.getPayrollHistory(10);
+                console.log('All payroll history (for debugging):', allHistory);
+                
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #64748b;">
+                        <h3>No Paycheck History</h3>
+                        <p>You don't have any payroll records yet. Paychecks will appear here once payroll has been processed.</p>
+                        <p style="font-size: 12px; margin-top: 10px; color: #9ca3af;">Employee ID: ${employee.id}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Display latest paycheck and history
+            const latestPayroll = payrollHistory[0];
+            const payrollData = latestPayroll.employeePayrollData;
+
+            content.innerHTML = `
+                <div style="margin-bottom: 30px;">
+                    <h3 style="margin-bottom: 20px; color: var(--text-primary, #1f2937);">Latest Paycheck</h3>
+                    <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <div>
+                                <div style="font-size: 14px; color: #6b7280;">Pay Period</div>
+                                <div style="font-weight: 600; color: var(--text-primary, #1f2937);">
+                                    ${new Date(latestPayroll.pay_period_start).toLocaleDateString()} - ${new Date(latestPayroll.pay_period_end).toLocaleDateString()}
+                                </div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 14px; color: #6b7280;">Pay Date</div>
+                                <div style="font-weight: 600; color: var(--text-primary, #1f2937);">
+                                    ${new Date(latestPayroll.pay_date).toLocaleDateString()}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="border-top: 1px solid #e5e7eb; padding-top: 15px; margin-top: 15px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                                <span style="color: #6b7280;">Hours Worked:</span>
+                                <span style="font-weight: 600;">${payrollData.hours ? payrollData.hours.toFixed(2) : '0.00'}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                                <span style="color: #6b7280;">Hourly Rate:</span>
+                                <span style="font-weight: 600;">$${payrollData.hourlyRate ? payrollData.hourlyRate.toFixed(2) : '0.00'}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
+                                <span style="color: #6b7280;">Gross Pay:</span>
+                                <span style="font-weight: 600;">$${payrollData.grossPay ? payrollData.grossPay.toFixed(2) : '0.00'}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 14px;">
+                                <span style="color: #6b7280;">Federal Tax:</span>
+                                <span>$${payrollData.federalTax ? payrollData.federalTax.toFixed(2) : '0.00'}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 14px;">
+                                <span style="color: #6b7280;">State Tax:</span>
+                                <span>$${payrollData.stateTax ? payrollData.stateTax.toFixed(2) : '0.00'}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 14px;">
+                                <span style="color: #6b7280;">Social Security:</span>
+                                <span>$${payrollData.socialSecurity ? payrollData.socialSecurity.toFixed(2) : '0.00'}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 14px;">
+                                <span style="color: #6b7280;">Medicare:</span>
+                                <span>$${payrollData.medicare ? payrollData.medicare.toFixed(2) : '0.00'}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 14px;">
+                                <span style="color: #6b7280;">Unemployment:</span>
+                                <span>$${payrollData.unemployment ? payrollData.unemployment.toFixed(2) : '0.00'}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 14px;">
+                                <span style="color: #6b7280;">Health Insurance:</span>
+                                <span>$${payrollData.healthInsurance ? payrollData.healthInsurance.toFixed(2) : '0.00'}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-top: 15px; padding-top: 15px; border-top: 2px solid #3b82f6; font-size: 18px; font-weight: 700;">
+                                <span style="color: var(--text-primary, #1f2937);">Net Pay:</span>
+                                <span style="color: #3b82f6;">$${payrollData.netPay ? payrollData.netPay.toFixed(2) : '0.00'}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 30px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+                    <h3 style="margin-bottom: 15px; color: var(--text-primary, #1f2937);">Paycheck History</h3>
+                    <div id="paycheckHistoryList" style="max-height: 400px; overflow-y: auto;">
+                        ${payrollHistory.slice(1).map(payroll => {
+                            const empData = payroll.employeePayrollData;
+                            return `
+                                <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 15px; margin-bottom: 10px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                        <div>
+                                            <div style="font-weight: 600; color: var(--text-primary, #1f2937);">
+                                                ${new Date(payroll.pay_period_start).toLocaleDateString()} - ${new Date(payroll.pay_period_end).toLocaleDateString()}
+                                            </div>
+                                            <div style="font-size: 12px; color: #6b7280; margin-top: 3px;">
+                                                Paid: ${new Date(payroll.pay_date).toLocaleDateString()}
+                                            </div>
+                                        </div>
+                                        <div style="text-align: right;">
+                                            <div style="font-size: 18px; font-weight: 700; color: #3b82f6;">
+                                                $${empData.netPay ? empData.netPay.toFixed(2) : '0.00'}
+                                            </div>
+                                            <div style="font-size: 12px; color: #6b7280;">
+                                                ${empData.hours ? empData.hours.toFixed(1) : '0'} hrs
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div style="font-size: 12px; color: #6b7280;">
+                                        Gross: $${empData.grossPay ? empData.grossPay.toFixed(2) : '0.00'} | 
+                                        Deductions: $${empData.totalDeductions ? empData.totalDeductions.toFixed(2) : '0.00'}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+        } catch (error) {
+            console.error('Error loading paycheck:', error);
+            content.innerHTML = '<div style="text-align: center; padding: 40px; color: #dc2626;">Error loading paycheck information. Please try again later.</div>';
+        }
+    }
     
     // Setup notification panel
     function setupNotificationPanel() {

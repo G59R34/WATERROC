@@ -1,6 +1,6 @@
 /**
- * PURPOSELY SUPER SLOW: Fake loading screens with randomized 5-10 second delays
- * Creates loading overlays that appear for random durations between 5-10 seconds
+ * Loading screens with 1.5 second delays
+ * Creates loading overlays that appear for 1.5 seconds
  * Plays loading.wav sound when loading completes
  */
 
@@ -68,7 +68,7 @@ function createLoadingOverlay(message = 'Loading...') {
     return overlay;
 }
 
-// Show loading screen with random duration (5-10 seconds)
+// Show loading screen with 1.5 second duration
 function showLoadingScreen(message = 'Loading...', callback = null) {
     const overlay = createLoadingOverlay(message);
     overlay.style.display = 'flex';
@@ -77,24 +77,8 @@ function showLoadingScreen(message = 'Loading...', callback = null) {
     // This allows the page to function while showing the overlay
     overlay.style.pointerEvents = 'auto';
     
-    // Random failure chance: 1 in 5 (20% chance)
-    const shouldFail = Math.random() < 0.2; // 20% chance
-    
-    if (shouldFail) {
-        // FAIL! Redirect to error page after a short delay
-        const failDelay = Math.floor(Math.random() * 3000) + 2000; // 2-5 seconds before failing
-        setTimeout(() => {
-            hideLoadingScreen();
-            // Redirect to error page
-            window.location.href = 'error.html';
-        }, failDelay);
-        return overlay;
-    }
-    
-    // Normal loading - Random duration between 5-12 seconds (increased for more loading!)
-    const minDuration = 5000; // 5 seconds
-    const maxDuration = 12000; // 12 seconds
-    const duration = Math.floor(Math.random() * (maxDuration - minDuration + 1)) + minDuration;
+    // Fixed duration: 1.5 seconds
+    const duration = 1500; // 1.5 seconds
     
     setTimeout(() => {
         hideLoadingScreen();

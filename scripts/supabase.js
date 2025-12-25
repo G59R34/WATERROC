@@ -4123,6 +4123,67 @@ class SupabaseService {
     }
 
     /**
+     * Get payroll history for a specific employee
+     * @param {number} employeeId - Employee ID
+     * @param {number} limit - Number of records to return
+     * @returns {Promise<Array>}
+     */
+    async getEmployeePayrollHistory(employeeId, limit = 50) {
+        if (!this.isReady()) return [];
+
+        try {
+            // Convert employeeId to number for comparison
+            const empId = typeof employeeId === 'string' ? parseInt(employeeId) : employeeId;
+            
+            const { data, error } = await this.client
+                .from('payroll_history')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(limit);
+
+            if (error) throw error;
+            
+            // Filter to only include payrolls where this employee is in payroll_details
+            const employeePayrolls = (data || []).map(payroll => {
+                if (!payroll.payroll_details || !Array.isArray(payroll.payroll_details)) {
+                    return null;
+                }
+                
+                // Find this employee's data in the payroll_details array
+                // Try multiple ways to match the employee ID
+                const employeeData = payroll.payroll_details.find(emp => {
+                    if (!emp || !emp.employee) return false;
+                    
+                    // Try direct ID match (number or string)
+                    const empEmployeeId = typeof emp.employee.id === 'string' 
+                        ? parseInt(emp.employee.id) 
+                        : emp.employee.id;
+                    
+                    return empEmployeeId === empId || 
+                           emp.employee.id === employeeId ||
+                           emp.employee.id === empId ||
+                           String(emp.employee.id) === String(employeeId);
+                });
+                
+                if (!employeeData) {
+                    return null;
+                }
+                
+                return {
+                    ...payroll,
+                    employeePayrollData: employeeData
+                };
+            }).filter(p => p !== null);
+
+            console.log(`Found ${employeePayrolls.length} payroll records for employee ${employeeId}`);
+            return employeePayrolls;
+        } catch (error) {
+            console.error('Error getting employee payroll history:', error);
+            return [];
+        }
+    }
+
+    /**
      * Send payroll email via Edge Function
      * @param {string} to - Recipient email
      * @param {string} subject - Email subject
@@ -4133,18 +4194,33 @@ class SupabaseService {
         if (!this.isReady()) return { success: false, error: 'Supabase not initialized' };
 
         try {
+            // Check if functions are available
+            if (!this.client.functions) {
+                return { success: false, error: 'Edge Functions not available. Please configure the send-email Edge Function in Supabase.' };
+            }
+
             // Call the Edge Function
             const { data, error } = await this.client.functions.invoke('send-email', {
                 body: { to, subject, html }
             });
 
-            if (error) throw error;
+            if (error) {
+                // Provide more helpful error message
+                const errorMsg = error.message || 'Failed to send a request to the Edge Function';
+                console.error('Edge Function error:', error);
+                return { success: false, error: errorMsg };
+            }
 
             console.log('✅ Payroll email sent successfully');
             return { success: true, error: null, data };
         } catch (error) {
             console.error('Error sending payroll email:', error);
-            return { success: false, error: error.message };
+            // Provide more specific error message
+            let errorMessage = error.message || 'Unknown error';
+            if (errorMessage.includes('Failed to send a request') || errorMessage.includes('Edge Function')) {
+                errorMessage = 'Edge Function not configured. Please deploy the send-email Edge Function in Supabase.';
+            }
+            return { success: false, error: errorMessage };
         }
     }
 

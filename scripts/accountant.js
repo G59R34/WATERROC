@@ -491,6 +491,93 @@ document.addEventListener('DOMContentLoaded', async function() {
         console.log(`📧 Payroll emails sent: ${emailsSent} successful, ${emailsFailed} failed`);
     }
     
+    // Publish paychecks to employee pages (makes them available for viewing)
+    async function publishPaychecksToEmployees() {
+        if (typeof supabaseService === 'undefined' || !supabaseService.isReady()) {
+            alert('❌ Supabase is not available. Cannot publish paychecks.');
+            return;
+        }
+        
+        // Get the latest payroll history
+        if (payrollHistory.length === 0) {
+            alert('❌ No payroll history found. Please process payroll first.');
+            return;
+        }
+        
+        const latestPayroll = payrollHistory[0];
+        
+        // Check if this payroll has employee data
+        if (!latestPayroll.results || latestPayroll.results.length === 0) {
+            alert('❌ No employee payroll data found in the latest payroll. Please process payroll first.');
+            return;
+        }
+        
+        // Confirm before publishing
+        const confirmMessage = `Publish paychecks for ${latestPayroll.results.length} employee(s) for pay period ${latestPayroll.startDate} - ${latestPayroll.endDate}?\n\nEmployees will be able to view their paychecks on their dashboard.`;
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+        
+        // Always ensure payroll is saved to Supabase (force save)
+        let payrollHistoryId = latestPayroll.id;
+        
+        try {
+            const historyData = {
+                pay_period_start: latestPayroll.startDate,
+                pay_period_end: latestPayroll.endDate,
+                pay_date: latestPayroll.payDate,
+                employee_count: latestPayroll.employeeCount,
+                total_gross: latestPayroll.totalGross,
+                total_taxes: latestPayroll.totalTaxes,
+                total_deductions: latestPayroll.totalDeductions,
+                total_net: latestPayroll.totalNet,
+                payroll_details: latestPayroll.results
+            };
+            
+            console.log('Saving payroll to Supabase:', {
+                period: `${historyData.pay_period_start} to ${historyData.pay_period_end}`,
+                employeeCount: historyData.employee_count,
+                payrollDetailsCount: historyData.payroll_details.length
+            });
+            
+            const result = await supabaseService.savePayrollHistory(historyData);
+            if (result.data) {
+                payrollHistoryId = result.data.id;
+                console.log('✅ Payroll saved to Supabase with ID:', payrollHistoryId);
+                // Update local history with the new ID
+                latestPayroll.id = payrollHistoryId;
+                payrollHistory[0] = latestPayroll;
+                localStorage.setItem('payrollHistory', JSON.stringify(payrollHistory));
+            } else if (result.error) {
+                console.error('Error saving payroll:', result.error);
+                alert(`⚠️ Warning: Could not save payroll to database: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('Error saving payroll to Supabase:', error);
+            alert(`⚠️ Warning: Could not save payroll to database: ${error.message}`);
+        }
+        
+        // Refresh payroll history from Supabase to ensure employees can see it
+        await loadPayrollHistory();
+        
+        // Verify the payroll was saved
+        const verifyHistory = await supabaseService.getPayrollHistory(5);
+        const savedPayroll = verifyHistory.find(h => 
+            h.pay_period_start === latestPayroll.startDate &&
+            h.pay_period_end === latestPayroll.endDate
+        );
+        
+        if (savedPayroll) {
+            console.log('✅ Verified payroll is in Supabase:', savedPayroll.id);
+        } else {
+            console.warn('⚠️ Payroll not found in Supabase after save');
+        }
+        
+        // Show success message
+        alert(`✅ Paychecks published successfully!\n\n${latestPayroll.results.length} employee(s) can now view their paychecks on their dashboard.\n\nPay Period: ${latestPayroll.startDate} to ${latestPayroll.endDate}`);
+        console.log(`✅ Paychecks published for ${latestPayroll.results.length} employees`);
+    }
+    
     // Generate payroll email HTML
     function generatePayrollEmailHTML(payrollResult, startDate, endDate, payDate) {
         const periodStart = new Date(startDate).toLocaleDateString();
@@ -756,6 +843,15 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // Process payroll button
     document.getElementById('processPayrollBtn').addEventListener('click', processPayroll);
+    
+    // Publish paychecks button (makes paychecks available on employee pages)
+    document.getElementById('publishPaychecksBtn').addEventListener('click', async function() {
+        if (typeof showActionLoadingScreen !== 'undefined') {
+            showActionLoadingScreen('publishing paychecks');
+        }
+        
+        await publishPaychecksToEmployees();
+    });
     
     // Save tax config button
     document.getElementById('saveTaxConfigBtn').addEventListener('click', function() {
