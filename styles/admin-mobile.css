@@ -1,0 +1,137 @@
+/* ============================================
+   Admin Dashboard - Mobile UX (off-canvas controls)
+   Goal: Make Gantt usable on phones (default view),
+         move desktop sidebar controls into a drawer.
+   Scoped by selectors used only on admin.html.
+   ============================================ */
+
+.mobile-only {
+    display: none !important;
+}
+
+.mobile-controls-overlay {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .mobile-only {
+        display: inline-flex !important;
+    }
+
+    /* Make header a bit tighter and keep actions reachable */
+    .dashboard-header {
+        gap: var(--space-2);
+    }
+
+    /* Off-canvas controls drawer */
+    .controls-panel {
+        position: fixed !important;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        width: min(420px, 92vw);
+        max-width: 92vw;
+        z-index: 20000;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        transform: translateX(-105%);
+        transition: transform 250ms ease;
+        border-right: 1px solid var(--border-light);
+        /* Ensure the drawer looks like a panel, not a page */
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+    }
+
+    body.mobile-controls-open .controls-panel {
+        transform: translateX(0);
+    }
+
+    .mobile-controls-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        z-index: 19999;
+        display: none;
+    }
+
+    body.mobile-controls-open .mobile-controls-overlay {
+        display: block;
+    }
+
+    body.mobile-controls-open {
+        overflow: hidden;
+        touch-action: none;
+    }
+
+    /* Drawer header (close + title) */
+    .mobile-controls-header {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: var(--bg-primary);
+        border-bottom: 1px solid var(--border-light);
+        padding: var(--space-3);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-2);
+    }
+
+    .mobile-controls-title {
+        font-weight: 700;
+        color: var(--text-primary);
+        font-size: 0.9375rem;
+    }
+
+    .mobile-quick-actions {
+        padding: var(--space-3);
+        border-bottom: 1px solid var(--border-light);
+        background: var(--bg-secondary);
+    }
+
+    .mobile-quick-actions .mobile-quick-actions-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-2);
+    }
+
+    .mobile-hint {
+        display: block;
+        padding: var(--space-2) var(--space-3);
+        margin: 0 0 var(--space-2) 0;
+        border: 1px solid var(--border-light);
+        background: var(--bg-secondary);
+        color: var(--text-secondary);
+        font-size: 0.8125rem;
+    }
+
+    /* Gantt should be the main view */
+    .dashboard-content {
+        flex-direction: column;
+        gap: var(--space-3);
+    }
+
+    .gantt-container {
+        padding: var(--space-3);
+    }
+
+    /* Give the chart more vertical room on mobile */
+    body:not(.employee-page) .gantt-container > #ganttChart {
+        height: calc(100vh - 190px);
+        min-height: 420px;
+    }
+
+    /* Make horizontal timeline pan feel natural on touch */
+    .gantt-body {
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        touch-action: pan-x pan-y;
+    }
+}
+
+@media (max-width: 480px) {
+    body:not(.employee-page) .gantt-container > #ganttChart {
+        height: calc(100vh - 175px);
+        min-height: 380px;
+    }
+}
+

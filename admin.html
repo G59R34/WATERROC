@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="styles/company-chat.css">
     <link rel="stylesheet" href="styles/voip.css">
     <link rel="stylesheet" href="styles/gantt-context-menu.css">
+    <link rel="stylesheet" href="styles/admin-mobile.css">
     <script src="scripts/loading-screen.js" defer></script>
     <script src="scripts/dark-mode.js" defer></script>
     <script src="scripts/gantt-context-menu.js" defer></script>
@@ -36,6 +37,7 @@
                     <span id="notificationBadge" class="notification-badge">0</span>
                 </button>
                 <span class="user-info" title="Current user role">Admin Dashboard</span>
+                <button id="mobileMenuBtn" class="btn-secondary mobile-only" title="Open admin menu">Menu</button>
                 <button id="logoutBtn" class="btn-secondary" title="Logout from the system">Logout</button>
             </div>
             <!-- Dark mode toggle will be inserted here by dark-mode.js -->
@@ -46,6 +48,22 @@
         
         <div class="dashboard-content">
             <div class="controls-panel">
+                <!-- Mobile-only drawer header -->
+                <div class="mobile-controls-header mobile-only">
+                    <div class="mobile-controls-title">Admin Menu</div>
+                    <button id="mobileMenuCloseBtn" class="btn-secondary" title="Close admin menu">Close</button>
+                </div>
+
+                <!-- Mobile-only quick actions -->
+                <div class="mobile-quick-actions mobile-only">
+                    <div class="mobile-quick-actions-grid">
+                        <button id="mobileQuickAddTaskBtn" class="btn-primary" title="Create a new task assignment">+ Task</button>
+                        <button id="mobileQuickAddEmployeeBtn" class="btn-primary" title="Add a new employee to the system">+ Personnel</button>
+                        <button id="mobileQuickSaveBtn" class="btn-primary btn-muted" title="Save all changes to the schedule">Save</button>
+                        <button id="mobileQuickShiftsBtn" class="btn-primary btn-muted" title="Schedule employee shifts">Shifts</button>
+                    </div>
+                </div>
+
                 <div class="controls-section">
                     <h3>Gantt Chart Controls</h3>
                     <!-- FULL OVERHAUL: Muted blue/gray buttons, no yellow/green/orange -->
@@ -131,6 +149,9 @@
             </div>
             
             <div class="gantt-container">
+                <div class="mobile-hint mobile-only">
+                    Swipe to scroll the timeline. Use the zoom selector or +/− for detail.
+                </div>
                 <!-- ADDED UI: Gantt controls bar with search, zoom, export -->
                 <div class="gantt-controls-bar">
                     <div class="gantt-controls-left">
@@ -156,6 +177,9 @@
             </div>
         </div>
     </div>
+
+    <!-- Mobile controls overlay (tap to close drawer) -->
+    <div id="mobileControlsOverlay" class="mobile-controls-overlay"></div>
     
     <!-- Add Employee Modal -->
     <div id="addEmployeeModal" class="modal">
