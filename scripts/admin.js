@@ -122,6 +122,20 @@ document.addEventListener('DOMContentLoaded', async function() {
         wireProxyClick('mobileQuickSaveBtn', 'saveDataBtn');
         wireProxyClick('mobileQuickShiftsBtn', 'manageShiftsBtn');
 
+        // Mobile quick action: open today's daily tasks (hourly modal defaults to list view on phones)
+        const todayBtn = document.getElementById('mobileQuickTodayTasksBtn');
+        if (todayBtn) {
+            todayBtn.addEventListener('click', () => {
+                const d = new Date();
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                const todayStr = `${y}-${m}-${day}`;
+                closeMobileControls();
+                openHourlyGantt(todayStr);
+            });
+        }
+
         // Default to a more usable zoom on small screens (still user-changeable)
         const scaleSelector = document.getElementById('ganttScaleSelector');
         if (gantt && isMobileAdmin()) {
@@ -1819,6 +1833,203 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
         });
     }
+
+    let currentHourlyDateStr = null;
+    let hourlyTaskCache = [];
+    const hourlyListState = {
+        view: 'timeline',
+        search: '',
+        status: 'all',
+        category: 'all'
+    };
+
+    function setupHourlyTaskListView() {
+        const listBtn = document.getElementById('hourlyListViewBtn');
+        const timelineBtn = document.getElementById('hourlyTimelineViewBtn');
+        const stickyAddBtn = document.getElementById('hourlyStickyAddTaskBtn');
+        const addBtn = document.getElementById('addHourlyTaskBtn');
+
+        const searchInput = document.getElementById('hourlyTaskSearchInput');
+        const statusFilter = document.getElementById('hourlyTaskStatusFilter');
+        const categoryFilter = document.getElementById('hourlyTaskCategoryFilter');
+        const refreshBtn = document.getElementById('hourlyTaskRefreshBtn');
+
+        const setView = (view) => {
+            hourlyListState.view = view;
+
+            const listView = document.getElementById('hourlyTaskListView');
+            const timelineView = document.getElementById('hourlyGanttChart');
+            if (listView) listView.style.display = view === 'list' ? 'block' : 'none';
+            if (timelineView) timelineView.style.display = view === 'timeline' ? 'flex' : 'none';
+
+            if (listBtn) {
+                const active = view === 'list';
+                listBtn.classList.toggle('active', active);
+                listBtn.setAttribute('aria-selected', String(active));
+            }
+            if (timelineBtn) {
+                const active = view === 'timeline';
+                timelineBtn.classList.toggle('active', active);
+                timelineBtn.setAttribute('aria-selected', String(active));
+            }
+
+            if (view === 'list') {
+                refreshHourlyTaskList();
+            }
+        };
+
+        listBtn?.addEventListener('click', () => setView('list'));
+        timelineBtn?.addEventListener('click', () => setView('timeline'));
+
+        stickyAddBtn?.addEventListener('click', () => addBtn?.click());
+
+        const onFiltersChanged = () => {
+            hourlyListState.search = (searchInput?.value || '').trim();
+            hourlyListState.status = statusFilter?.value || 'all';
+            hourlyListState.category = categoryFilter?.value || 'all';
+            refreshHourlyTaskList();
+        };
+
+        searchInput?.addEventListener('input', () => {
+            // debounce-ish: avoid thrashing on fast typing
+            window.clearTimeout(searchInput._t);
+            searchInput._t = window.setTimeout(onFiltersChanged, 120);
+        });
+        statusFilter?.addEventListener('change', onFiltersChanged);
+        categoryFilter?.addEventListener('change', onFiltersChanged);
+        refreshBtn?.addEventListener('click', () => refreshHourlyTaskList(true));
+
+        // Expose setter so openHourlyGantt can choose default
+        window.__setHourlyAdminView = setView;
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = String(str ?? '');
+        return div.innerHTML;
+    }
+
+    function formatWorkArea(area) {
+        const areaNames = {
+            'music-prod': 'Music Prod.',
+            'video-creation': 'Video Creation',
+            'administrative': 'Administrative',
+            'other': 'Other',
+            'note-other': 'Note - Other'
+        };
+        return areaNames[area] || 'Unassigned';
+    }
+
+    function formatStatusLabel(status) {
+        const labels = {
+            'pending': 'Pending',
+            'in-progress': 'In Progress',
+            'completed': 'Completed',
+            'overdue': 'Overdue',
+            'on-hold': 'On Hold'
+        };
+        return labels[status] || String(status || 'pending');
+    }
+
+    async function refreshHourlyTaskList(force = false) {
+        if (!currentHourlyDateStr) return;
+        if (hourlyListState.view !== 'list') return;
+
+        const list = document.getElementById('hourlyTaskList');
+        if (!list) return;
+
+        if (!supabaseService || !supabaseService.isReady()) {
+            list.innerHTML = '<div style="padding: 12px; color: var(--text-secondary);">Supabase not connected. Daily tasks are unavailable offline.</div>';
+            return;
+        }
+
+        // Simple cache-buster by re-fetching unless you want to optimize later
+        list.innerHTML = '<div style="padding: 12px; color: var(--text-secondary);">Loading daily tasks…</div>';
+
+        const tasks = await supabaseService.getHourlyTasks(currentHourlyDateStr, currentHourlyDateStr) || [];
+        hourlyTaskCache = tasks;
+
+        const search = hourlyListState.search.toLowerCase();
+        const status = hourlyListState.status;
+        const category = hourlyListState.category;
+
+        const filtered = tasks.filter(t => {
+            if (status !== 'all' && t.status !== status) return false;
+            if (category !== 'all' && t.work_area !== category) return false;
+            if (!search) return true;
+            const empName = (t.employees?.name || '').toLowerCase();
+            const taskName = (t.name || '').toLowerCase();
+            return empName.includes(search) || taskName.includes(search);
+        });
+
+        // Group by employee for mobile readability
+        filtered.sort((a, b) => {
+            const aEmp = (a.employees?.name || '').localeCompare(b.employees?.name || '');
+            if (aEmp !== 0) return aEmp;
+            return (a.start_time || '').localeCompare(b.start_time || '');
+        });
+
+        if (filtered.length === 0) {
+            list.innerHTML = '<div style="padding: 12px; color: var(--text-secondary);">No tasks match your filters.</div>';
+            return;
+        }
+
+        list.innerHTML = filtered.map(t => {
+            const empName = t.employees?.name || `Employee #${t.employee_id}`;
+            const start = (t.start_time || '').substring(0, 5);
+            const end = (t.end_time || '').substring(0, 5);
+            const areaLabel = formatWorkArea(t.work_area);
+            const statusLabel = formatStatusLabel(t.status);
+            const statusClass = `status-${String(t.status || 'pending')}`;
+
+            return `
+                <div class="hourly-task-card" data-task-id="${t.id}">
+                    <div class="hourly-task-card-header">
+                        <div>
+                            <p class="hourly-task-title">${escapeHtml(t.name || 'Untitled Task')}</p>
+                            <div class="hourly-task-meta">
+                                <div><strong>👤</strong> ${escapeHtml(empName)}</div>
+                                <div><strong>🕐</strong> ${escapeHtml(start)}–${escapeHtml(end)}</div>
+                                <div><strong>📍</strong> ${escapeHtml(areaLabel)}</div>
+                                <div><strong>✅</strong> ${escapeHtml(statusLabel)}</div>
+                            </div>
+                        </div>
+                        <span class="hourly-task-chip ${statusClass}">${escapeHtml(statusLabel)}</span>
+                    </div>
+                    <div class="hourly-task-actions">
+                        <button type="button" class="hourly-task-action-btn primary" onclick="window.__openEditHourlyTaskFromList(${t.id})">Edit</button>
+                        <button type="button" class="hourly-task-action-btn" onclick="window.__quickCompleteHourlyTask(${t.id}); return false;">Complete</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Edit/complete hooks for list view
+    window.__openEditHourlyTaskFromList = function(taskId) {
+        const task = (hourlyTaskCache || []).find(t => t.id === taskId);
+        if (task) window.editHourlyTask(task);
+    };
+
+    window.__quickCompleteHourlyTask = async function(taskId) {
+        if (!supabaseService || !supabaseService.isReady()) {
+            alert('Supabase not connected');
+            return;
+        }
+        try {
+            await supabaseService.updateHourlyTask(taskId, { status: 'completed' });
+            if (currentHourlyGantt) {
+                await currentHourlyGantt.render();
+            }
+            await refreshHourlyTaskList(true);
+        } catch (e) {
+            console.error('Quick complete failed:', e);
+            alert('Failed to complete task: ' + (e?.message || e));
+        }
+    };
+
+    // Initialize list view listeners once DOM is ready
+    setupHourlyTaskListView();
     
     // Helper function to parse date string as local date (not UTC)
     function parseLocalDate(dateStr) {
@@ -1838,6 +2049,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         const hourlyModal = document.getElementById('hourlyGanttModal');
         const titleEl = document.getElementById('hourlyGanttTitle');
         const date = parseLocalDate(dateStr);
+        currentHourlyDateStr = dateStr;
         
         // Open modal first
         hourlyModal.style.display = 'block';
@@ -1856,6 +2068,13 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         // Create or update hourly gantt (this will render asynchronously)
         currentHourlyGantt = new HourlyGanttChart('hourlyGanttChart', dateStr, true);
+
+        // On mobile, default to the daily task list view (still toggleable)
+        if (isMobileAdmin() && typeof window.__setHourlyAdminView === 'function') {
+            window.__setHourlyAdminView('list');
+        } else if (typeof window.__setHourlyAdminView === 'function') {
+            window.__setHourlyAdminView('timeline');
+        }
         
         // Initialize context menu for hourly Gantt chart after a short delay
         setTimeout(() => {
@@ -1917,6 +2136,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             await currentHourlyGantt.addTask(employeeId, name, startTime, endTime, status, category);
             document.getElementById('addHourlyTaskModal').style.display = 'none';
             document.getElementById('addHourlyTaskForm').reset();
+            await refreshHourlyTaskList(true);
             alert('✅ Hourly task added successfully!');
         }
     }
@@ -2149,6 +2369,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             if (currentHourlyGantt) {
                 await currentHourlyGantt.render();
             }
+            await refreshHourlyTaskList(true);
             
             alert('✅ Task updated successfully!');
         } catch (error) {
@@ -2194,6 +2415,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 console.log('Re-rendering hourly gantt...');
                 await currentHourlyGantt.render();
             }
+            await refreshHourlyTaskList(true);
             
             alert('✅ Task deleted successfully!');
         } catch (error) {
