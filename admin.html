@@ -59,6 +59,7 @@
                     <div class="mobile-quick-actions-grid">
                         <button id="mobileQuickAddTaskBtn" class="btn-primary" title="Create a new task assignment">+ Task</button>
                         <button id="mobileQuickAddEmployeeBtn" class="btn-primary" title="Add a new employee to the system">+ Personnel</button>
+                        <button id="mobileQuickTodayTasksBtn" class="btn-primary btn-muted" title="View today’s daily tasks">Today</button>
                         <button id="mobileQuickSaveBtn" class="btn-primary btn-muted" title="Save all changes to the schedule">Save</button>
                         <button id="mobileQuickShiftsBtn" class="btn-primary btn-muted" title="Schedule employee shifts">Shifts</button>
                     </div>
@@ -392,6 +393,38 @@
             <h2 id="hourlyGanttTitle">Hourly Schedule - Loading...</h2>
             <div class="hourly-gantt-controls">
                 <button class="btn-primary" id="addHourlyTaskBtn">+ Add Hourly Task</button>
+                <!-- Mobile-only: switch between list and timeline -->
+                <div class="hourly-view-tabs mobile-only" id="hourlyViewTabs" role="tablist" aria-label="Hourly schedule view">
+                    <button type="button" class="hourly-view-tab" id="hourlyListViewBtn" data-view="list" role="tab" aria-selected="false">List</button>
+                    <button type="button" class="hourly-view-tab" id="hourlyTimelineViewBtn" data-view="timeline" role="tab" aria-selected="false">Timeline</button>
+                </div>
+            </div>
+            <!-- Mobile-first list view (daily tasks) -->
+            <div id="hourlyTaskListView" class="hourly-task-list-view" style="display:none;">
+                <div class="hourly-task-list-toolbar">
+                    <input id="hourlyTaskSearchInput" class="hourly-task-search" type="text" placeholder="Search employee or task..." autocomplete="off" inputmode="search">
+                    <select id="hourlyTaskStatusFilter" class="hourly-task-filter">
+                        <option value="all">All statuses</option>
+                        <option value="pending">Pending</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                        <option value="overdue">Overdue</option>
+                        <option value="on-hold">On Hold</option>
+                    </select>
+                    <select id="hourlyTaskCategoryFilter" class="hourly-task-filter">
+                        <option value="all">All categories</option>
+                        <option value="music-prod">Music Prod.</option>
+                        <option value="video-creation">Video Creation</option>
+                        <option value="administrative">Administrative</option>
+                        <option value="other">Other</option>
+                        <option value="note-other">Note - Other</option>
+                    </select>
+                    <button type="button" id="hourlyTaskRefreshBtn" class="btn-secondary btn-small">Refresh</button>
+                </div>
+                <div id="hourlyTaskList" class="hourly-task-list" aria-live="polite"></div>
+                <div class="hourly-task-list-sticky-actions mobile-only">
+                    <button type="button" id="hourlyStickyAddTaskBtn" class="btn-primary">+ Task</button>
+                </div>
             </div>
             <div id="hourlyGanttChart" class="hourly-gantt-chart"></div>
         </div>
