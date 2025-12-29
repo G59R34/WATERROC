@@ -7,6 +7,15 @@
     <link rel="icon" type="image/png" href="favicon.png">
     <link rel="shortcut icon" type="image/png" href="favicon.png">
     <link rel="stylesheet" href="styles/main.css">
+    <script>
+        // If this site is opened via emp.waterroc.com, send users to the employee-only login.
+        (function () {
+            const host = window.location.hostname || '';
+            if (host.startsWith('emp.')) {
+                window.location.replace('/emp/login.html');
+            }
+        })();
+    </script>
     <script src="scripts/dark-mode.js" defer></script>
     <!-- ADDED UI: QR code scanner library -->
     <script src="https://unpkg.com/html5-qrcode@latest/html5-qrcode.min.js"></script>
