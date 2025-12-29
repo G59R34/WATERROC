@@ -2,6 +2,20 @@
 document.addEventListener('DOMContentLoaded', async function() {
     'use strict';
 
+    function isEmpPortal() {
+        const host = window.location.hostname || '';
+        const path = window.location.pathname || '';
+        return host.startsWith('emp.') || path.startsWith('/emp/');
+    }
+
+    function getLoginUrl() {
+        return isEmpPortal() ? '/emp/login.html' : 'index.html';
+    }
+
+    function getExtendedLeaveUrl() {
+        return isEmpPortal() ? '/extended-leave.html' : 'extended-leave.html';
+    }
+
     // Show page load screen on initial load
     if (typeof showPageLoadScreen !== 'undefined') {
         showPageLoadScreen();
@@ -10,7 +24,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Check authentication first using sessionStorage
     const userRole = sessionStorage.getItem('userRole');
     if (userRole !== 'employee') {
-        window.location.href = 'index.html';
+        window.location.href = getLoginUrl();
         return;
     }
 
@@ -62,7 +76,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             console.error('Could not load user data');
             alert('Could not load user data. Please log in again.');
             sessionStorage.clear();
-            window.location.href = 'index.html';
+            window.location.href = getLoginUrl();
             return;
         }
         
@@ -81,12 +95,12 @@ document.addEventListener('DOMContentLoaded', async function() {
             alert('Your account access has been revoked. Please contact an administrator.');
             await supabaseService.signOut();
             sessionStorage.clear();
-            window.location.href = 'index.html';
+            window.location.href = getLoginUrl();
             return;
         }
         
         if (employmentStatus === 'extended_leave') {
-            window.location.href = 'extended-leave.html';
+            window.location.href = getExtendedLeaveUrl();
             return;
         }
         
@@ -157,7 +171,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             sessionStorage.clear();
             
             // Redirect to login
-            window.location.href = 'index.html';
+            window.location.href = getLoginUrl();
         });
 
         document.getElementById('refreshBtn').addEventListener('click', async () => {
