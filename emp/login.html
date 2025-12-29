@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Employee Login - WaterROC</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="shortcut icon" type="image/png" href="/favicon.png" />
+    <link rel="stylesheet" href="/styles/main.css" />
+    <link rel="stylesheet" href="/styles/employee-tasks.css" />
+    <link rel="stylesheet" href="/emp/emp.css" />
+    <meta name="theme-color" content="#111827" />
+    <script src="/scripts/dark-mode.js" defer></script>
+</head>
+<body class="emp-page emp-login-page">
+    <div class="login-container">
+        <div class="login-card">
+            <div class="logo">
+                <img src="/favicon.png" alt="WaterROC Logo" class="logo-image" onerror="this.style.display='none';">
+                <h1>Employee Login</h1>
+                <p>Tasks portal</p>
+            </div>
+
+            <div id="errorMessage" class="error-message" style="display:none;"></div>
+
+            <div class="login-form">
+                <h2 id="formTitle">Sign In</h2>
+                <form id="empLoginForm">
+                    <div class="form-group">
+                        <label for="username">Username or Email</label>
+                        <input type="text" id="username" name="username" autocomplete="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" autocomplete="current-password" required>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                            <input type="checkbox" id="rememberMe" style="width:auto; margin:0;">
+                            <span>Remember me (this device)</span>
+                        </label>
+                    </div>
+                    <button type="submit" class="btn-primary" id="submitBtn">Login</button>
+                </form>
+
+                <div class="toggle-form" style="margin-top: 14px;">
+                    <p style="margin:0; color: var(--text-secondary); font-size: 0.95rem;">
+                        Admin access? Use the main portal login.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/scripts/supabase.js"></script>
+    <script src="/scripts/config.js"></script>
+    <script src="/emp/emp-login.js"></script>
+</body>
+</html>

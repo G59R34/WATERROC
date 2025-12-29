@@ -1,0 +1,64 @@
+/* emp.waterroc.com lightweight mobile polish */
+
+.emp-page .container.emp-container {
+    padding: 14px;
+    max-width: 900px;
+}
+
+.emp-page .page-header.emp-header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    backdrop-filter: saturate(180%) blur(10px);
+}
+
+.emp-page .page-header.emp-header .header-logo {
+    width: 28px;
+    height: 28px;
+    margin-right: 10px;
+    vertical-align: middle;
+}
+
+.emp-page .emp-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.emp-page .emp-title h1 {
+    margin: 0;
+}
+
+.emp-login-page .login-card {
+    max-width: 520px;
+}
+
+.emp-login-page .btn-primary {
+    width: 100%;
+}
+
+@media (max-width: 480px) {
+    .emp-page .container.emp-container {
+        padding: 10px;
+    }
+
+    .emp-page .header-actions {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        justify-items: stretch;
+        align-items: stretch;
+    }
+
+    .emp-page .header-actions .current-time {
+        grid-column: 1 / -1;
+        border-radius: 12px;
+    }
+
+    .emp-page .header-actions .btn {
+        padding: 14px 12px;
+        font-size: 16px;
+    }
+}
+
