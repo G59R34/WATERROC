@@ -32,87 +32,49 @@
             <div class="info-card">
                 <h2 id="employeeName">Loading...</h2>
                 <p id="currentShift">Loading shift...</p>
-                <p id="currentShift">No shift scheduled</p>
                 <div id="exceptionStatus" style="margin-top: 10px;"></div>
             </div>
         </div>
 
         <div class="tasks-container">
             <div class="upcoming-tasks section-card">
-                <h2>Upcoming (Next 2 Hours)</h2>
-                <div id="upcomingTasksList" class="tasks-list">
-                    <div class="empty-state"><p>Loading...</p></div>
                 <h2>⏰ Upcoming Tasks (Next 2 Hours)</h2>
                 <div id="upcomingTasksList" class="tasks-list">
-                    <div class="empty-state">
-                        <p>No upcoming tasks</p>
-                    </div>
+                    <div class="empty-state"><p>Loading...</p></div>
                 </div>
             </div>
 
             <div class="current-tasks section-card">
-                <h2>Current</h2>
-                <div id="currentTasksList" class="tasks-list">
-                    <div class="empty-state"><p>Loading...</p></div>
                 <h2>🎯 Current Tasks</h2>
                 <div id="currentTasksList" class="tasks-list">
-                    <div class="empty-state">
-                        <p>No active tasks</p>
-                    </div>
+                    <div class="empty-state"><p>Loading...</p></div>
                 </div>
             </div>
 
             <div class="completed-tasks section-card">
-                <h2>Completed Today</h2>
-                <div id="completedTasksList" class="tasks-list">
-                    <div class="empty-state"><p>Loading...</p></div>
                 <h2>✅ Completed Today</h2>
                 <div id="completedTasksList" class="tasks-list">
-                    <div class="empty-state">
-                        <p>No completed tasks</p>
-                    </div>
+                    <div class="empty-state"><p>Loading...</p></div>
                 </div>
             </div>
 
             <div class="all-daily-tasks section-card">
-                <h2>All Today</h2>
-                <div id="allDailyTasksList" class="tasks-list">
-                    <div class="empty-state"><p>Loading...</p></div>
                 <h2>📅 All Daily Tasks</h2>
                 <div id="allDailyTasksList" class="tasks-list">
-                    <div class="empty-state">
-                        <p>No tasks scheduled for today</p>
-                    </div>
+                    <div class="empty-state"><p>Loading...</p></div>
                 </div>
             </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="/scripts/config.js"></script>
     <script src="/scripts/supabase.js"></script>
-    <script src="/scripts/loading-screen.js" defer></script>
-    <script src="/emp/emp-tasks.js"></script>
-    <script>
-        // Immediate authentication check - runs before app loads
-        (function() {
-            const employmentStatus = sessionStorage.getItem('employmentStatus');
-            const userRole = sessionStorage.getItem('userRole');
-            if (employmentStatus === 'extended_leave') {
-                window.location.href = '/extended-leave.html';
-                return;
-            }
-            if (!userRole || userRole !== 'employee') {
-                window.location.href = '/emp/login.html';
-            }
-        })();
-    </script>
     <script src="/scripts/config.js"></script>
-    <script src="/scripts/supabase.js"></script>
     <script src="/scripts/loading-screen.js" defer></script>
     <script src="/scripts/employee-status-monitor.js"></script>
     <script src="/scripts/task-logger.js"></script>
-    <script src="/scripts/employee-tasks.js"></script>
+    <!-- Use the dedicated emp portal tasks app (avoids sessionStorage-only redirects) -->
+    <script src="/emp/emp-tasks.js"></script>
 </body>
 </html>
 
