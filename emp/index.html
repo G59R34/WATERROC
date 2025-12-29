@@ -1,29 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Tasks - MAGROC</title>
-    <link rel="icon" type="image/png" href="/favicon.png">
-    <link rel="shortcut icon" type="image/png" href="/favicon.png">
-    <link rel="stylesheet" href="styles/main.css">
-    <link rel="stylesheet" href="styles/employee-tasks.css">
-    <link rel="stylesheet" href="styles/company-chat.css">
-    <script src="scripts/dark-mode.js" defer></script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Tasks - WaterROC Employee Portal</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="shortcut icon" type="image/png" href="/favicon.png" />
+    <link rel="stylesheet" href="/styles/main.css" />
+    <link rel="stylesheet" href="/styles/employee-tasks.css" />
+    <script src="/scripts/dark-mode.js" defer></script>
 </head>
 <body>
     <div class="container">
         <header class="page-header">
             <div class="header-content">
-                <!-- ADDED: Favicon logo image -->
-                <img src="favicon.png" alt="WaterROC Logo" class="header-logo" onerror="this.style.display='none';" style="width: 32px; height: 32px; margin-right: 10px; vertical-align: middle;">
+                <img src="/favicon.png" alt="WaterROC Logo" class="header-logo" onerror="this.style.display='none';" style="width: 32px; height: 32px; margin-right: 10px; vertical-align: middle;" />
                 <h1>📋 My Tasks</h1>
                 <div class="header-actions">
                     <div class="current-time" id="currentTime"></div>
                     <button class="btn btn-secondary" id="refreshBtn">🔄 Refresh</button>
                     <button class="btn btn-danger" id="logoutBtn">Logout</button>
                 </div>
-                <!-- Dark mode toggle will be inserted here by dark-mode.js -->
             </div>
         </header>
 
@@ -76,41 +73,25 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        // Immediate authentication check - runs before page loads
+        // Immediate authentication check - runs before app loads
         (function() {
             const employmentStatus = sessionStorage.getItem('employmentStatus');
             const userRole = sessionStorage.getItem('userRole');
-            const isEmpPortal = (window.location.hostname || '').startsWith('emp.') || (window.location.pathname || '').startsWith('/emp/');
-            const loginUrl = isEmpPortal ? '/emp/login.html' : 'index.html';
-            const extendedLeaveUrl = isEmpPortal ? '/extended-leave.html' : 'extended-leave.html';
-            
-            // Check if user is on extended leave
             if (employmentStatus === 'extended_leave') {
-                window.location.href = extendedLeaveUrl;
+                window.location.href = '/extended-leave.html';
                 return;
             }
-            
-            // Check if user is authenticated
             if (!userRole || userRole !== 'employee') {
-                window.location.href = loginUrl;
-                return;
+                window.location.href = '/emp/login.html';
             }
         })();
     </script>
-    <script src="scripts/config.js"></script>
-    <script src="scripts/supabase.js"></script>
-    <script src="scripts/loading-screen.js" defer></script>
-    <script src="scripts/employee-status-monitor.js"></script>
-    <script src="scripts/task-logger.js"></script>
-    <script src="scripts/employee-tasks.js"></script>
-    <script src="scripts/company-chat.js"></script>
-    <script>
-        // Show page load screen on initial load
-        window.addEventListener('load', () => {
-            if (typeof showPageLoadScreen !== 'undefined') {
-                showPageLoadScreen();
-            }
-        });
-    </script>
+    <script src="/scripts/config.js"></script>
+    <script src="/scripts/supabase.js"></script>
+    <script src="/scripts/loading-screen.js" defer></script>
+    <script src="/scripts/employee-status-monitor.js"></script>
+    <script src="/scripts/task-logger.js"></script>
+    <script src="/scripts/employee-tasks.js"></script>
 </body>
 </html>
+
