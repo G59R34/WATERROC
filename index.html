@@ -65,7 +65,7 @@
                         <!-- ADDED UI: Password strength hint -->
                         <small class="password-hint" id="passwordHint" style="display: none;">Password should be at least 6 characters</small>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" id="roleGroup">
                         <label for="role">Role</label>
                         <select id="role" name="role" required title="Select your role">
                             <option value="admin">Admin</option>
@@ -73,6 +73,16 @@
                             <option value="accountant">Accountant</option>
                             <option value="crew_scheduler">Crew Scheduler</option>
                         </select>
+                    </div>
+                    <!-- Mobile default: employee tasks portal (toggle full employee dashboard) -->
+                    <div class="form-group checkbox-group" id="mobileEmployeeMode" style="display:none;">
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                            <input type="checkbox" id="useFullEmployeeDashboard" style="width:auto; margin:0;">
+                            <span>Use full employee dashboard (instead of mobile tasks)</span>
+                        </label>
+                        <small style="display:block; margin-top:6px; color: var(--text-secondary);">
+                            On mobile, we default to the fast tasks-only view.
+                        </small>
                     </div>
                     <!-- ADDED UI: Remember me checkbox -->
                     <div class="form-group checkbox-group">

@@ -1,24 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Tasks - WaterROC Employee Portal</title>
-    <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="shortcut icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/styles/main.css" />
-    <link rel="stylesheet" href="/styles/employee-tasks.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Tasks - WaterROC</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="shortcut icon" type="image/png" href="/favicon.png">
+    <link rel="stylesheet" href="/styles/main.css">
+    <link rel="stylesheet" href="/styles/employee-tasks.css">
+    <link rel="stylesheet" href="/emp/emp.css">
+    <meta name="theme-color" content="#111827" />
     <script src="/scripts/dark-mode.js" defer></script>
 </head>
-<body>
-    <div class="container">
-        <header class="page-header">
+<body class="emp-page">
+    <div class="container emp-container">
+        <header class="page-header emp-header">
             <div class="header-content">
-                <img src="/favicon.png" alt="WaterROC Logo" class="header-logo" onerror="this.style.display='none';" style="width: 32px; height: 32px; margin-right: 10px; vertical-align: middle;" />
-                <h1>📋 My Tasks</h1>
+                <div class="emp-title">
+                    <img src="/favicon.png" alt="WaterROC Logo" class="header-logo" onerror="this.style.display='none';">
+                    <h1>My Tasks</h1>
+                </div>
                 <div class="header-actions">
                     <div class="current-time" id="currentTime"></div>
-                    <button class="btn btn-secondary" id="refreshBtn">🔄 Refresh</button>
+                    <button class="btn btn-secondary" id="refreshBtn">Refresh</button>
                     <button class="btn btn-danger" id="logoutBtn">Logout</button>
                 </div>
             </div>
@@ -27,6 +31,7 @@
         <div class="employee-info" id="employeeInfo">
             <div class="info-card">
                 <h2 id="employeeName">Loading...</h2>
+                <p id="currentShift">Loading shift...</p>
                 <p id="currentShift">No shift scheduled</p>
                 <div id="exceptionStatus" style="margin-top: 10px;"></div>
             </div>
@@ -34,6 +39,9 @@
 
         <div class="tasks-container">
             <div class="upcoming-tasks section-card">
+                <h2>Upcoming (Next 2 Hours)</h2>
+                <div id="upcomingTasksList" class="tasks-list">
+                    <div class="empty-state"><p>Loading...</p></div>
                 <h2>⏰ Upcoming Tasks (Next 2 Hours)</h2>
                 <div id="upcomingTasksList" class="tasks-list">
                     <div class="empty-state">
@@ -43,6 +51,9 @@
             </div>
 
             <div class="current-tasks section-card">
+                <h2>Current</h2>
+                <div id="currentTasksList" class="tasks-list">
+                    <div class="empty-state"><p>Loading...</p></div>
                 <h2>🎯 Current Tasks</h2>
                 <div id="currentTasksList" class="tasks-list">
                     <div class="empty-state">
@@ -52,6 +63,9 @@
             </div>
 
             <div class="completed-tasks section-card">
+                <h2>Completed Today</h2>
+                <div id="completedTasksList" class="tasks-list">
+                    <div class="empty-state"><p>Loading...</p></div>
                 <h2>✅ Completed Today</h2>
                 <div id="completedTasksList" class="tasks-list">
                     <div class="empty-state">
@@ -61,6 +75,9 @@
             </div>
 
             <div class="all-daily-tasks section-card">
+                <h2>All Today</h2>
+                <div id="allDailyTasksList" class="tasks-list">
+                    <div class="empty-state"><p>Loading...</p></div>
                 <h2>📅 All Daily Tasks</h2>
                 <div id="allDailyTasksList" class="tasks-list">
                     <div class="empty-state">
@@ -72,6 +89,10 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/scripts/config.js"></script>
+    <script src="/scripts/supabase.js"></script>
+    <script src="/scripts/loading-screen.js" defer></script>
+    <script src="/emp/emp-tasks.js"></script>
     <script>
         // Immediate authentication check - runs before app loads
         (function() {

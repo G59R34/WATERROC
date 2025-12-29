@@ -29,6 +29,16 @@
                 <form id="empLoginForm">
                     <div class="form-group">
                         <label for="username">Username or Email</label>
+                        <input type="text" id="username" name="username" autocomplete="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" autocomplete="current-password" required>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                            <input type="checkbox" id="rememberMe" style="width:auto; margin:0;">
+                            <span>Remember me (this device)</span>
                         <input type="text" id="username" name="username" autocomplete="username" required />
                     </div>
                     <div class="form-group">
@@ -50,6 +60,12 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/scripts/supabase.js"></script>
+    <script src="/scripts/config.js"></script>
+    <script src="/emp/emp-login.js"></script>
+</body>
+</html>
     <footer class="login-footer">
         <p>WaterROC Employee Portal</p>
     </footer>
