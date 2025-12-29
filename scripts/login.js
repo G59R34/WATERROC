@@ -63,6 +63,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     const toggleSignup = document.getElementById('toggleSignup');
     const emailGroup = document.getElementById('emailGroup');
     const fullNameGroup = document.getElementById('fullNameGroup');
+    const roleGroup = document.getElementById('roleGroup');
+    const mobileEmployeeMode = document.getElementById('mobileEmployeeMode');
+    const useFullEmployeeDashboard = document.getElementById('useFullEmployeeDashboard');
     
     // Check if required elements exist
     if (!usernameInput || !passwordInput || !roleSelect || !submitBtn) {
@@ -71,6 +74,54 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     let isSignupMode = false;
+
+    // ==========================================
+    // MOBILE DEFAULTS: employee tasks portal
+    // ==========================================
+    const isMobileDevice = (() => {
+        const byUA = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+        const byViewport = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+        return Boolean(byUA || byViewport);
+    })();
+
+    function getEmployeePortalModeFromUI() {
+        // mobile_tasks => /emp/index.html (tasks-only)
+        // full_employee => /employee.html (full dashboard)
+        return useFullEmployeeDashboard && useFullEmployeeDashboard.checked ? 'full_employee' : 'mobile_tasks';
+    }
+
+    function applyMobileDefaults() {
+        if (!isMobileDevice) return;
+
+        // Default employee-only login UX on mobile
+        if (roleSelect) roleSelect.value = 'employee';
+        if (roleGroup) roleGroup.style.display = 'none';
+
+        if (mobileEmployeeMode) mobileEmployeeMode.style.display = 'block';
+
+        // Persist preference across visits (mobile only)
+        const saved = localStorage.getItem('empPreferFullDashboard');
+        if (useFullEmployeeDashboard && saved !== null) {
+            useFullEmployeeDashboard.checked = saved === 'true';
+        }
+
+        // Keep a session hint so redirect routing knows which page to open
+        sessionStorage.setItem('employeePortalMode', getEmployeePortalModeFromUI());
+    }
+
+    function wireMobileModeToggle() {
+        if (!isMobileDevice) return;
+        if (!useFullEmployeeDashboard) return;
+
+        useFullEmployeeDashboard.addEventListener('change', () => {
+            const mode = getEmployeePortalModeFromUI();
+            sessionStorage.setItem('employeePortalMode', mode);
+            localStorage.setItem('empPreferFullDashboard', useFullEmployeeDashboard.checked ? 'true' : 'false');
+        });
+    }
+
+    applyMobileDefaults();
+    wireMobileModeToggle();
     
     // Toggle between login and signup
     if (toggleSignup) {
@@ -116,12 +167,16 @@ document.addEventListener('DOMContentLoaded', async function() {
             const user = await supabaseService.getCurrentUser();
             if (user) {
                 // Check employment status before allowing access
-                const { data: profile } = await supabaseService.client
-                    .from('employee_profiles')
-                    .select('employment_status')
-                    .eq('employee_id', user.id)
-                    .single();
-                
+                // employee_profiles.employee_id references employees.id (BIGINT), so we must resolve the employee record first.
+                const employee = await supabaseService.getCurrentEmployee();
+                const { data: profile } = employee
+                    ? await supabaseService.client
+                        .from('employee_profiles')
+                        .select('employment_status')
+                        .eq('employee_id', employee.id)
+                        .maybeSingle()
+                    : { data: null };
+
                 const employmentStatus = profile?.employment_status || 'active';
                 
                 if (employmentStatus === 'terminated' || employmentStatus === 'administrative_leave') {
@@ -171,7 +226,17 @@ document.addEventListener('DOMContentLoaded', async function() {
         const email = emailInput.value.trim();
         const fullName = fullNameInput.value.trim();
         const password = passwordInput.value;
+        // Enforce employee role on mobile default login
+        if (isMobileDevice && roleSelect) {
+            roleSelect.value = 'employee';
+        }
         const role = roleSelect.value;
+
+        // Store which employee page to open (mobile only)
+        if (isMobileDevice && role === 'employee') {
+            sessionStorage.setItem('employeePortalMode', getEmployeePortalModeFromUI());
+            localStorage.setItem('empPreferFullDashboard', useFullEmployeeDashboard?.checked ? 'true' : 'false');
+        }
         
         // LOGIC: Session storage for theme preference and remember me
         const rememberMe = document.getElementById('rememberMe');
@@ -431,7 +496,13 @@ document.addEventListener('DOMContentLoaded', async function() {
                 sessionStorage.setItem('isAdmin', 'false');
                 // ADDED: Wait for login sound to finish before redirecting
                 await playLoginSound();
-                window.location.href = 'employee.html';
+                // Mobile default: tasks-only view (unless user opts into full dashboard)
+                const mode = sessionStorage.getItem('employeePortalMode') || 'mobile_tasks';
+                if (isMobileDevice && mode === 'mobile_tasks') {
+                    window.location.href = 'emp/index.html';
+                } else {
+                    window.location.href = 'employee.html';
+                }
             } else {
                 alert('Invalid credentials! Default password is emp123');
             }
@@ -459,6 +530,14 @@ document.addEventListener('DOMContentLoaded', async function() {
         } else if (isAdmin) {
             window.location.href = 'admin.html';
         } else {
+            // Employee routing: mobile defaults to tasks-only view unless user opts into full dashboard.
+            if (role === 'employee' && isMobileDevice) {
+                const mode = sessionStorage.getItem('employeePortalMode') || 'mobile_tasks';
+                if (mode === 'mobile_tasks') {
+                    window.location.href = 'emp/index.html';
+                    return;
+                }
+            }
             window.location.href = 'employee.html';
         }
     }
