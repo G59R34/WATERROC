@@ -6,6 +6,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         window.location.href = 'index.html';
         return;
     }
+
+    // Mobile UI helpers (admin.html only)
+    const isMobileAdmin = () => window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+    const openMobileControls = () => document.body.classList.add('mobile-controls-open');
+    const closeMobileControls = () => document.body.classList.remove('mobile-controls-open');
     
     // Initialize notification system if available
     if (typeof notificationSystem !== 'undefined') {
@@ -84,6 +89,56 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // Make gantt globally accessible
     window.gantt = gantt;
+
+    // Mobile admin UX: off-canvas menu + quick actions + friendlier default zoom
+    (function setupMobileAdminUX() {
+        const menuBtn = document.getElementById('mobileMenuBtn');
+        const menuCloseBtn = document.getElementById('mobileMenuCloseBtn');
+        const overlay = document.getElementById('mobileControlsOverlay');
+
+        if (menuBtn) {
+            menuBtn.addEventListener('click', () => openMobileControls());
+        }
+        if (menuCloseBtn) {
+            menuCloseBtn.addEventListener('click', () => closeMobileControls());
+        }
+        if (overlay) {
+            overlay.addEventListener('click', () => closeMobileControls());
+        }
+
+        // Wire quick actions to existing buttons (avoid duplicating logic)
+        const wireProxyClick = (proxyId, targetId) => {
+            const proxy = document.getElementById(proxyId);
+            const target = document.getElementById(targetId);
+            if (!proxy || !target) return;
+            proxy.addEventListener('click', () => {
+                closeMobileControls();
+                target.click();
+            });
+        };
+
+        wireProxyClick('mobileQuickAddTaskBtn', 'addTaskBtn');
+        wireProxyClick('mobileQuickAddEmployeeBtn', 'addEmployeeBtn');
+        wireProxyClick('mobileQuickSaveBtn', 'saveDataBtn');
+        wireProxyClick('mobileQuickShiftsBtn', 'manageShiftsBtn');
+
+        // Default to a more usable zoom on small screens (still user-changeable)
+        const scaleSelector = document.getElementById('ganttScaleSelector');
+        if (gantt && isMobileAdmin()) {
+            try {
+                // Week view shows something immediately without excessive horizontal panning.
+                gantt.setZoomLevel('week');
+                if (scaleSelector) scaleSelector.value = 'week';
+            } catch (e) {
+                console.warn('Mobile default zoom failed:', e);
+            }
+        }
+
+        // If screen grows (rotate / resize), close the drawer to avoid stuck state
+        window.addEventListener('resize', () => {
+            if (!isMobileAdmin()) closeMobileControls();
+        }, { passive: true });
+    })();
     
     // Check Supabase authentication
     if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
