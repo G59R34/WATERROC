@@ -30,6 +30,7 @@
                 <h2>📅 Shift Schedule</h2>
                 <div class="shifts-controls">
                     <button id="addShiftBtn" class="btn-primary">+ Add Shift</button>
+                    <button id="importScheduleBtn" class="btn-primary" style="background: #8b5cf6;">📷 Import from Image</button>
                     <button id="prevWeekBtn" class="btn-secondary">← Prev Week</button>
                     <span id="weekDisplay"></span>
                     <button id="nextWeekBtn" class="btn-secondary">Next Week →</button>
@@ -105,6 +106,54 @@
         </div>
     </div>
 
+    <!-- Import Schedule from Image Modal -->
+    <div id="importScheduleModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2>📷 Import Schedule from Image</h2>
+                <span class="close" id="closeImportScheduleModal">&times;</span>
+            </div>
+            <div id="importScheduleContent">
+                <div class="form-group">
+                    <label for="scheduleImageUpload">Upload Schedule Image</label>
+                    <input type="file" id="scheduleImageUpload" accept="image/*" style="padding: 10px; border: 2px dashed #ccc; border-radius: 8px; width: 100%;">
+                    <small style="color: #666; display: block; margin-top: 5px;">Upload a photo or screenshot of your work schedule. The system will automatically extract shift times.</small>
+                </div>
+                
+                <div id="imagePreviewContainer" style="display: none; margin: 20px 0;">
+                    <h3>Image Preview</h3>
+                    <img id="imagePreview" style="max-width: 100%; border: 1px solid #ddd; border-radius: 8px;">
+                </div>
+
+                <div id="ocrProgressContainer" style="display: none; margin: 20px 0;">
+                    <div style="text-align: center;">
+                        <div class="loading-message">Processing image with OCR...</div>
+                        <div id="ocrProgressText" style="margin-top: 10px; color: #666;"></div>
+                    </div>
+                </div>
+
+                <div id="parsedShiftsContainer" style="display: none; margin: 20px 0;">
+                    <h3>Detected Shifts</h3>
+                    <div id="parsedShiftsList" style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px; padding: 10px;">
+                        <!-- Parsed shifts will be displayed here -->
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <label>
+                            <input type="checkbox" id="overwriteExistingShifts" style="margin-right: 5px;">
+                            Overwrite existing shifts for these dates
+                        </label>
+                    </div>
+                </div>
+
+                <div class="modal-actions" id="importScheduleActions" style="display: none;">
+                    <button type="button" class="btn-secondary" id="cancelImportScheduleBtn">Cancel</button>
+                    <button type="button" class="btn-secondary" id="retryImportBtn" style="display: none;">Retry</button>
+                    <button type="button" class="btn-primary" id="confirmImportBtn">Import Shifts</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Assign Time Off Modal (Admin Only) -->
     <div id="assignTimeOffModal" class="modal">
         <div class="modal-content" style="max-width: 600px;">
@@ -145,10 +194,12 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
     <script src="scripts/supabase.js"></script>
     <script src="scripts/config.js"></script>
     <script src="scripts/employee-status-monitor.js"></script>
     <script src="scripts/shifts.js"></script>
+    <script src="scripts/schedule-import.js"></script>
     <script>
         // Show page load screen on initial load
         window.addEventListener('load', () => {
