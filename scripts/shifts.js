@@ -137,31 +137,62 @@ document.addEventListener('DOMContentLoaded', async function() {
         calendar.innerHTML = '<div class="loading-message">Loading shifts...</div>';
 
         try {
-            // Load data
-            employees = await supabaseService.getEmployees();
-            shiftTemplates = await supabaseService.getShiftTemplates();
+            // Load data with error handling for each operation
+            try {
+                employees = await supabaseService.getEmployees();
+                console.log('Employees loaded:', employees);
+            } catch (error) {
+                console.error('Error loading employees:', error);
+                employees = [];
+            }
+
+            try {
+                shiftTemplates = await supabaseService.getShiftTemplates();
+                console.log('Shift templates loaded:', shiftTemplates);
+            } catch (error) {
+                console.error('Error loading shift templates:', error);
+                shiftTemplates = [];
+            }
             
-            console.log('Employees loaded:', employees);
-            console.log('Shift templates loaded:', shiftTemplates);
+            if (!employees || employees.length === 0) {
+                calendar.innerHTML = '<div class="loading-message">No employees found. Please add employees first.</div>';
+                return;
+            }
+
+            if (!shiftTemplates || shiftTemplates.length === 0) {
+                console.warn('No shift templates found');
+            }
             
             const weekEnd = new Date(currentWeekStart);
             weekEnd.setDate(weekEnd.getDate() + 6);
             
-            shifts = await supabaseService.getEmployeeShifts(
-                formatDate(currentWeekStart),
-                formatDate(weekEnd)
-            );
-            
-            console.log('Shifts loaded:', shifts);
+            try {
+                shifts = await supabaseService.getEmployeeShifts(
+                    formatDate(currentWeekStart),
+                    formatDate(weekEnd)
+                );
+                console.log('Shifts loaded:', shifts);
+            } catch (error) {
+                console.error('Error loading shifts:', error);
+                shifts = [];
+            }
 
-            // Ensure DO exceptions for each day in the week
+            // Ensure DO exceptions for each day in the week (with timeout protection)
             for (let i = 0; i < 7; i++) {
                 const checkDate = new Date(currentWeekStart);
                 checkDate.setDate(checkDate.getDate() + i);
                 try {
-                    await supabaseService.ensureDOExceptions(formatDate(checkDate));
+                    // Add timeout to prevent hanging
+                    const timeoutPromise = new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Timeout')), 5000)
+                    );
+                    await Promise.race([
+                        supabaseService.ensureDOExceptions(formatDate(checkDate)),
+                        timeoutPromise
+                    ]);
                 } catch (error) {
                     console.error('Error ensuring DO for', formatDate(checkDate), error);
+                    // Continue even if this fails
                 }
             }
 
@@ -208,6 +239,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Create shift map for quick lookup
         const shiftMap = {};
         if (shifts) {
+            console.log(`Building shift map from ${shifts.length} shifts`);
             shifts.forEach(shift => {
                 // Normalize shift_date to YYYY-MM-DD format (handle both string and Date objects)
                 let shiftDate = shift.shift_date;
@@ -222,7 +254,11 @@ document.addEventListener('DOMContentLoaded', async function() {
                     shiftMap[key] = [];
                 }
                 shiftMap[key].push(shift);
+                console.log(`Added shift to map: ${key} - ${shift.start_time} to ${shift.end_time}`);
             });
+            console.log(`Shift map created with ${Object.keys(shiftMap).length} keys`);
+        } else {
+            console.warn('No shifts array to build map from');
         }
 
         // Create exception map for quick lookup
@@ -724,9 +760,367 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     });
 
+    // ==========================================
+    // AUTOMATIC SHIFT ASSIGNMENT
+    // ==========================================
+
+    /**
+     * Calculate hours in a shift
+     */
+    function calculateShiftHours(startTime, endTime) {
+        const start = new Date(`2000-01-01T${startTime}`);
+        let end = new Date(`2000-01-01T${endTime}`);
+        
+        // Handle overnight shifts (end time is next day)
+        if (end <= start) {
+            end.setDate(end.getDate() + 1);
+        }
+        
+        const diffMs = end - start;
+        return diffMs / (1000 * 60 * 60); // Convert to hours
+    }
+
+    /**
+     * Get available days for an employee in a week (excluding time off and existing shifts)
+     * Note: DO exceptions are NOT filtered out because they are automatically removed when shifts are assigned
+     */
+    async function getAvailableDays(employeeId, weekStart) {
+        const availableDays = [];
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+
+        // Get existing shifts for the week
+        const existingShifts = await supabaseService.getEmployeeShifts(
+            formatDate(weekStart),
+            formatDate(weekEnd)
+        );
+        const employeeShifts = (existingShifts || []).filter(s => s.employee_id === employeeId);
+        const shiftDates = new Set(employeeShifts.map(s => {
+            const date = s.shift_date instanceof Date ? formatDate(s.shift_date) : s.shift_date.split('T')[0];
+            return date;
+        }));
+
+        // Get time off requests for the week
+        const timeOffRequests = await supabaseService.getTimeOffRequests();
+        const employeeTimeOff = (timeOffRequests || []).filter(req => 
+            req.employee_id === employeeId && 
+            req.status === 'approved'
+        );
+
+        // Get exception logs for time off (VATO, VAUT) for the week
+        const exceptions = await supabaseService.getExceptionLogs({
+            employeeId: employeeId,
+            startDate: formatDate(weekStart),
+            endDate: formatDate(weekEnd)
+        });
+        const timeOffExceptions = (exceptions || []).filter(exc => 
+            ['VATO', 'VAUT'].includes(exc.exception_code)
+        );
+        const timeOffExceptionDates = new Set(timeOffExceptions.map(exc => {
+            const date = exc.exception_date instanceof Date 
+                ? formatDate(exc.exception_date) 
+                : exc.exception_date.split('T')[0];
+            return date;
+        }));
+
+        // Check each day of the week
+        for (let i = 0; i < 7; i++) {
+            const day = new Date(weekStart);
+            day.setDate(day.getDate() + i);
+            const dateStr = formatDate(day);
+
+            // Skip if already has a shift
+            if (shiftDates.has(dateStr)) {
+                continue;
+            }
+
+            // Skip if has VATO/VAUT exception (time off)
+            if (timeOffExceptionDates.has(dateStr)) {
+                console.log(`Skipping ${dateStr} for employee ${employeeId} - has time off exception`);
+                continue;
+            }
+
+            // Skip if has approved time off request (check date range)
+            const hasTimeOff = employeeTimeOff.some(req => {
+                // Handle both string and Date formats
+                let startDateStr = req.start_date;
+                let endDateStr = req.end_date;
+                
+                if (startDateStr instanceof Date) {
+                    startDateStr = formatDate(startDateStr);
+                } else if (typeof startDateStr === 'string') {
+                    startDateStr = startDateStr.split('T')[0]; // Remove time portion
+                }
+                
+                if (endDateStr instanceof Date) {
+                    endDateStr = formatDate(endDateStr);
+                } else if (typeof endDateStr === 'string') {
+                    endDateStr = endDateStr.split('T')[0]; // Remove time portion
+                }
+                
+                // Compare as date strings (YYYY-MM-DD format)
+                return dateStr >= startDateStr && dateStr <= endDateStr;
+            });
+
+            if (hasTimeOff) {
+                console.log(`Skipping ${dateStr} for employee ${employeeId} - has approved time off request`);
+                continue;
+            }
+
+            // DO NOT filter out DO exceptions - they will be automatically removed when shifts are assigned
+            // DO exceptions are just placeholders for days without shifts
+
+            availableDays.push(dateStr);
+        }
+
+        return availableDays;
+    }
+
+    /**
+     * Automatically assign shifts for all employees based on their employment type
+     */
+    async function autoAssignShifts() {
+        if (!supabaseService || !supabaseService.isReady()) {
+            alert('Supabase not connected');
+            return;
+        }
+
+        if (!confirm('This will automatically assign shifts for all active employees based on their employment type (Part-time: 25 hours/week, Full-time: 40 hours/week).\n\nExisting shifts for this week will be skipped.\n\nContinue?')) {
+            return;
+        }
+
+        const loadingMsg = document.createElement('div');
+        loadingMsg.className = 'loading-message';
+        loadingMsg.textContent = 'Assigning shifts...';
+        loadingMsg.style.position = 'fixed';
+        loadingMsg.style.top = '50%';
+        loadingMsg.style.left = '50%';
+        loadingMsg.style.transform = 'translate(-50%, -50%)';
+        loadingMsg.style.zIndex = '10000';
+        loadingMsg.style.background = 'rgba(0,0,0,0.8)';
+        loadingMsg.style.color = 'white';
+        loadingMsg.style.padding = '20px';
+        loadingMsg.style.borderRadius = '8px';
+        document.body.appendChild(loadingMsg);
+
+        try {
+            // Get employees and profiles separately to avoid relationship ambiguity
+            const [employeesResult, profilesResult] = await Promise.all([
+                supabaseService.client
+                    .from('employees')
+                    .select('*'),
+                supabaseService.client
+                    .from('employee_profiles')
+                    .select('id, employee_id, employment_type, employment_status')
+                    .eq('employment_status', 'active')
+            ]);
+
+            if (employeesResult.error) {
+                throw employeesResult.error;
+            }
+            if (profilesResult.error) {
+                throw profilesResult.error;
+            }
+
+            const employees = employeesResult.data || [];
+            const profiles = profilesResult.data || [];
+
+            // Create a map of employee_id to profile
+            const profileMap = new Map();
+            profiles.forEach(profile => {
+                profileMap.set(profile.employee_id, profile);
+            });
+
+            // Combine employees with their profiles, only including active employees
+            const activeEmployees = employees
+                .filter(emp => {
+                    const profile = profileMap.get(emp.id);
+                    return profile && profile.employment_status === 'active';
+                })
+                .map(emp => ({
+                    ...emp,
+                    employee_profiles: profileMap.get(emp.id)
+                }));
+
+            if (activeEmployees.length === 0) {
+                alert('No active employees found with profiles. Please ensure employees have profiles with employment_status = "active".');
+                loadingMsg.remove();
+                return;
+            }
+
+            console.log(`Found ${activeEmployees.length} active employees:`, activeEmployees.map(e => ({
+                name: e.name,
+                id: e.id,
+                employment_type: e.employee_profiles?.employment_type || 'full-time'
+            })));
+
+            // Get shift templates
+            const templates = await supabaseService.getShiftTemplates();
+            if (!templates || templates.length === 0) {
+                alert('No shift templates found. Please create shift templates first.');
+                loadingMsg.remove();
+                return;
+            }
+
+            console.log(`Found ${templates.length} shift templates:`, templates.map(t => ({
+                name: t.name,
+                hours: calculateShiftHours(t.start_time, t.end_time)
+            })));
+
+            // Calculate template durations
+            const templatesWithHours = templates.map(t => ({
+                ...t,
+                hours: calculateShiftHours(t.start_time, t.end_time)
+            }));
+
+            let totalAssigned = 0;
+            let totalSkipped = 0;
+
+            // Process each employee
+            for (const employee of activeEmployees) {
+                const profile = Array.isArray(employee.employee_profiles) 
+                    ? employee.employee_profiles[0] 
+                    : employee.employee_profiles;
+                
+                const employmentType = profile?.employment_type || 'full-time';
+                const hoursPerWeek = employmentType === 'part-time' ? 25 : 40;
+
+                loadingMsg.textContent = `Assigning shifts for ${employee.name} (${employmentType})...`;
+
+                // Get available days for this week
+                const availableDays = await getAvailableDays(employee.id, currentWeekStart);
+                
+                console.log(`${employee.name}: Found ${availableDays.length} available days:`, availableDays);
+                
+                if (availableDays.length === 0) {
+                    console.log(`No available days for ${employee.name} - may have time off or all days already have shifts`);
+                    totalSkipped++;
+                    continue;
+                }
+
+                // Shuffle available days for randomization
+                const shuffledDays = [...availableDays].sort(() => Math.random() - 0.5);
+
+                // Assign shifts until we reach the target hours
+                let assignedHours = 0;
+                const assignedShifts = [];
+
+                for (const day of shuffledDays) {
+                    if (assignedHours >= hoursPerWeek) break;
+
+                    // Randomly select a template
+                    const availableTemplates = templatesWithHours.filter(t => 
+                        assignedHours + t.hours <= hoursPerWeek + 2 // Allow slight overage
+                    );
+
+                    if (availableTemplates.length === 0) break;
+
+                    const template = availableTemplates[Math.floor(Math.random() * availableTemplates.length)];
+                    const remainingHours = hoursPerWeek - assignedHours;
+
+                    // If this template fits or is close enough, use it
+                    if (template.hours <= remainingHours + 2) {
+                        const shiftData = {
+                            employee_id: employee.id,
+                            shift_date: day,
+                            shift_template_id: template.id,
+                            start_time: template.start_time,
+                            end_time: template.end_time,
+                            status: 'scheduled'
+                        };
+
+                        try {
+                            console.log(`Creating shift for ${employee.name} on ${day}:`, shiftData);
+                            const result = await supabaseService.createEmployeeShift(shiftData);
+                            if (result) {
+                                console.log(`✅ Successfully created shift:`, result);
+                                assignedShifts.push(result);
+                                assignedHours += template.hours;
+                                totalAssigned++;
+                            } else {
+                                console.warn(`⚠️ Failed to create shift for ${employee.name} on ${day} - createEmployeeShift returned null`);
+                            }
+                        } catch (error) {
+                            console.error(`❌ Error creating shift for ${employee.name} on ${day}:`, error);
+                        }
+                    }
+                }
+
+                console.log(`Assigned ${assignedHours.toFixed(1)} hours to ${employee.name} (target: ${hoursPerWeek} hours)`);
+            }
+
+            loadingMsg.remove();
+            
+            console.log(`Auto-assign summary: ${totalAssigned} shifts assigned, ${totalSkipped} employees skipped`);
+            
+            if (totalAssigned === 0) {
+                alert(`⚠️ No shifts were assigned.\n\nPossible reasons:\n- All employees have time off for this week\n- All available days already have shifts\n- No shift templates available\n\nCheck the console for detailed logs.`);
+            } else {
+                // Verify shifts were actually created by querying them
+                const weekEnd = new Date(currentWeekStart);
+                weekEnd.setDate(weekEnd.getDate() + 6);
+                const verifyShifts = await supabaseService.getEmployeeShifts(
+                    formatDate(currentWeekStart),
+                    formatDate(weekEnd)
+                );
+                console.log(`Verification: Found ${verifyShifts?.length || 0} shifts in database for this week`);
+                
+                alert(`✅ Automatic shift assignment complete!\n\n- Shifts assigned: ${totalAssigned}\n- Employees skipped: ${totalSkipped}\n- Shifts in database: ${verifyShifts?.length || 0}\n\nRefreshing schedule...`);
+            }
+            
+            // Refresh the calendar to show new shifts
+            console.log('Refreshing calendar...');
+            await loadShifts();
+            console.log('Calendar refreshed');
+        } catch (error) {
+            console.error('Error in auto-assign shifts:', error);
+            loadingMsg.remove();
+            alert('❌ Error assigning shifts: ' + error.message);
+        }
+    }
+
+    // Add button for automatic shift assignment
+    function addAutoAssignButton() {
+        try {
+            // Check if button already exists
+            if (document.getElementById('autoAssignShiftsBtn')) {
+                return;
+            }
+
+            const autoAssignBtn = document.createElement('button');
+            autoAssignBtn.id = 'autoAssignShiftsBtn';
+            autoAssignBtn.className = 'btn-primary';
+            autoAssignBtn.textContent = '🤖 Auto-Assign Shifts';
+            autoAssignBtn.title = 'Automatically assign shifts based on employment type (Part-time: 25h/week, Full-time: 40h/week)';
+            autoAssignBtn.style.marginLeft = '10px';
+            
+            autoAssignBtn.addEventListener('click', async () => {
+                await autoAssignShifts();
+            });
+
+            // Insert button next to "Add Shift" button (addShiftBtn is already declared above)
+            if (addShiftBtn && addShiftBtn.parentNode) {
+                addShiftBtn.parentNode.insertBefore(autoAssignBtn, addShiftBtn.nextSibling);
+            }
+        } catch (error) {
+            console.error('Error adding auto-assign button:', error);
+        }
+    }
+
     // Initial load
-    await loadShifts();
-    await loadTimeOffRequests();
+    try {
+        await loadShifts();
+        await loadTimeOffRequests();
+        
+        // Add button after initial load completes
+        addAutoAssignButton();
+    } catch (error) {
+        console.error('Error during initial load:', error);
+        const calendar = document.getElementById('shiftCalendar');
+        if (calendar) {
+            calendar.innerHTML = '<div class="loading-message">Error loading shifts: ' + error.message + '</div>';
+        }
+    }
 
     // Check for expired time off and restore employees to active
     if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {

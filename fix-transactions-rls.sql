@@ -54,3 +54,5 @@ CREATE POLICY "Accountants can insert transactions"
 
 
 
+
+

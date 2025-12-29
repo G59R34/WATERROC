@@ -11,3 +11,5 @@ CREATE POLICY "Allow inserts for stock price history"
 -- The above policy should be sufficient for authenticated users
 
 
+
+

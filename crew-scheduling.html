@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WaterROC - Crew Scheduling</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="shortcut icon" type="image/png" href="/favicon.png">
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/shifts.css">
+    <script src="scripts/dark-mode.js" defer></script>
+    <style>
+        .routes-list {
+            display: grid;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .route-card {
+            background: var(--card-bg, #fff);
+            border: 1px solid var(--border-color, #e0e0e0);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .route-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .route-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .route-route {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin: 15px 0;
+        }
+        .route-schedule {
+            margin-top: 15px;
+            padding: 10px;
+            background: var(--bg-secondary, #f5f5f5);
+            border-radius: 6px;
+        }
+        .schedule-days {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        .schedule-day {
+            padding: 4px 8px;
+            background: var(--primary-color, #3b82f6);
+            color: white;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .trip-assignments {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border-color, #e0e0e0);
+        }
+        .trip-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            margin: 5px 0;
+            background: var(--bg-secondary, #f5f5f5);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <header class="dashboard-header">
+            <div class="header-left">
+                <img src="favicon.png" alt="WaterROC Logo" class="header-logo" onerror="this.style.display='none';">
+                <h1>✈️ WaterROC - Crew Scheduling</h1>
+            </div>
+            <div class="header-right">
+                <button id="backToDashboard" class="btn-secondary">← Back to Dashboard</button>
+                <button id="logoutBtn" class="btn-secondary">Logout</button>
+            </div>
+        </header>
+        
+        <div class="shifts-container">
+            <div class="shifts-header">
+                <h2>✈️ Flight Routes</h2>
+                <div class="shifts-controls">
+                    <button id="addRouteBtn" class="btn-primary">+ Add Route</button>
+                    <button id="assignCrewBtn" class="btn-primary">👥 Assign Crew</button>
+                    <button id="prevWeekBtn" class="btn-secondary">← Prev Week</button>
+                    <span id="weekDisplay"></span>
+                    <button id="nextWeekBtn" class="btn-secondary">Next Week →</button>
+                </div>
+            </div>
+
+            <div id="routesList" class="routes-list">
+                <div class="loading-message">Loading routes...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Route Modal -->
+    <div id="routeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>✈️ Add Route</h2>
+                <span class="close">&times;</span>
+            </div>
+            <form id="routeForm">
+                <div class="form-group">
+                    <label for="routeAirline">Airline</label>
+                    <select id="routeAirline" required>
+                        <option value="">Select Airline...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="routeNumber">Route Number</label>
+                    <input type="text" id="routeNumber" placeholder="e.g., SWA100" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="routeOrigin">Origin Airport</label>
+                        <input type="text" id="routeOrigin" placeholder="e.g., KSEA" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="routeDestination">Destination Airport</label>
+                        <input type="text" id="routeDestination" placeholder="e.g., KLAX" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="routeDepartureTime">Default Departure Time</label>
+                        <input type="time" id="routeDepartureTime" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="routeDuration">Flight Duration (minutes)</label>
+                        <input type="number" id="routeDuration" min="30" max="1440" step="15" placeholder="120" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="routeAircraft">Aircraft Type</label>
+                    <input type="text" id="routeAircraft" placeholder="e.g., B737-800">
+                </div>
+
+                <div class="form-group">
+                    <label>Operating Days</label>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                            <input type="checkbox" value="0" class="route-day"> Sun
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                            <input type="checkbox" value="1" class="route-day"> Mon
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                            <input type="checkbox" value="2" class="route-day"> Tue
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                            <input type="checkbox" value="3" class="route-day"> Wed
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                            <input type="checkbox" value="4" class="route-day"> Thu
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                            <input type="checkbox" value="5" class="route-day"> Fri
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                            <input type="checkbox" value="6" class="route-day"> Sat
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="routeDescription">Route Description (optional)</label>
+                    <textarea id="routeDescription" rows="3" placeholder="Additional route information..."></textarea>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="cancelRouteBtn">Cancel</button>
+                    <button type="submit" class="btn-primary">💾 Save Route</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Assign Crew Modal -->
+    <div id="assignCrewModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2>👥 Assign Crew to Route</h2>
+                <span class="close" id="closeAssignCrewModal">&times;</span>
+            </div>
+            <form id="assignCrewForm">
+                <div class="form-group">
+                    <label for="assignCrewRoute">Route *</label>
+                    <select id="assignCrewRoute" required>
+                        <option value="">Select Route...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="assignCrewDate">Trip Date *</label>
+                    <input type="date" id="assignCrewDate" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="assignCrewEmployee">Employee *</label>
+                    <select id="assignCrewEmployee" required>
+                        <option value="">Select Employee...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="assignCrewPosition">Position *</label>
+                    <select id="assignCrewPosition" required>
+                        <option value="">Select Position...</option>
+                        <option value="Captain">Captain</option>
+                        <option value="First Officer">First Officer</option>
+                        <option value="Flight Attendant">Flight Attendant</option>
+                        <option value="Purser">Purser</option>
+                        <option value="Observer">Observer</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="assignCrewNotes">Notes (optional)</label>
+                    <textarea id="assignCrewNotes" rows="3" placeholder="Additional notes..."></textarea>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="cancelAssignCrewBtn">Cancel</button>
+                    <button type="submit" class="btn-primary">✅ Assign Crew</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="scripts/supabase.js"></script>
+    <script src="scripts/config.js"></script>
+    <script src="scripts/crew-scheduling.js"></script>
+    <script>
+        window.addEventListener('load', () => {
+            if (typeof showPageLoadScreen !== 'undefined') {
+                showPageLoadScreen();
+            }
+        });
+    </script>
+</body>
+</html>

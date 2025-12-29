@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WaterROC - My Trips</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="shortcut icon" type="image/png" href="/favicon.png">
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/shifts.css">
+    <script src="scripts/dark-mode.js" defer></script>
+    <style>
+        .trips-container {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .trips-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .trip-card {
+            background: var(--card-bg, #fff);
+            border: 1px solid var(--border-color, #e0e0e0);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .trip-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .trip-airline {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--primary-color, #3b82f6);
+        }
+        .trip-status {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .trip-status.assigned { background: #dbeafe; color: #1e40af; }
+        .trip-status.confirmed { background: #d1fae5; color: #065f46; }
+        .trip-status.completed { background: #e0e7ff; color: #3730a3; }
+        .trip-status.cancelled { background: #fee2e2; color: #991b1b; }
+        .trip-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .trip-detail-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .trip-detail-label {
+            font-size: 12px;
+            color: var(--text-secondary, #666);
+            margin-bottom: 4px;
+        }
+        .trip-detail-value {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .trip-route {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 20px;
+            font-weight: bold;
+            margin: 15px 0;
+        }
+        .trip-position {
+            background: var(--primary-color, #3b82f6);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <header class="dashboard-header">
+            <div class="header-left">
+                <img src="favicon.png" alt="WaterROC Logo" class="header-logo" onerror="this.style.display='none';">
+                <h1>✈️ WaterROC - My Trips</h1>
+            </div>
+            <div class="header-right">
+                <button id="backToDashboard" class="btn-secondary">← Back to Dashboard</button>
+                <button id="logoutBtn" class="btn-secondary">Logout</button>
+            </div>
+        </header>
+        
+        <div class="trips-container">
+            <div class="trips-header">
+                <h2>✈️ My Flight Assignments</h2>
+                <div>
+                    <button id="prevWeekBtn" class="btn-secondary">← Prev Week</button>
+                    <span id="weekDisplay" style="margin: 0 15px;"></span>
+                    <button id="nextWeekBtn" class="btn-secondary">Next Week →</button>
+                </div>
+            </div>
+
+            <div id="tripsList">
+                <div class="loading-message">Loading your trips...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="scripts/supabase.js"></script>
+    <script src="scripts/config.js"></script>
+    <script src="scripts/my-trips.js"></script>
+    <script>
+        window.addEventListener('load', () => {
+            if (typeof showPageLoadScreen !== 'undefined') {
+                showPageLoadScreen();
+            }
+        });
+    </script>
+</body>
+</html>
+

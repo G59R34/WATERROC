@@ -378,6 +378,15 @@ document.addEventListener('DOMContentLoaded', async function() {
                 // For now, allow if user explicitly selected accountant role
             }
             
+            if (role === 'crew_scheduler' && userRole !== 'crew_scheduler' && !isAdmin) {
+                // Allow admins to access crew scheduler dashboard, but check role for others
+                console.log('Checking crew scheduler access...');
+                if (userRole !== 'crew_scheduler') {
+                    await supabaseService.signOut();
+                    throw new Error('You do not have crew scheduler privileges. Contact an administrator to grant crew scheduler access.');
+                }
+            }
+            
             if (role === 'employee' && isAdmin) {
                 // Allow admins to view employee dashboard if they want
                 console.log('Admin viewing employee dashboard');
@@ -445,6 +454,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         await playLoginSound();
         if (role === 'accountant') {
             window.location.href = 'accountant.html';
+        } else if (role === 'crew_scheduler') {
+            window.location.href = 'crew-scheduling.html';
         } else if (isAdmin) {
             window.location.href = 'admin.html';
         } else {

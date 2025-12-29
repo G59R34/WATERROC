@@ -37,3 +37,5 @@ $$ LANGUAGE plpgsql;
 GRANT EXECUTE ON FUNCTION update_stock_prices() TO authenticated;
 
 
+
+

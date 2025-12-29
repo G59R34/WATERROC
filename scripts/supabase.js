@@ -302,6 +302,46 @@ class SupabaseService {
             return null;
         }
     }
+
+    /**
+     * Get employees with their profiles including employment type
+     */
+    async getEmployeesWithProfiles() {
+        if (!this.isReady()) return null;
+
+        try {
+            const { data, error } = await this.client
+                .from('employees')
+                .select(`
+                    *,
+                    user:user_id (
+                        id,
+                        username,
+                        email,
+                        is_admin
+                    ),
+                    employee_profiles (
+                        id,
+                        employment_type,
+                        employment_status
+                    )
+                `)
+                .order('created_at', { ascending: true });
+
+            if (error) throw error;
+            
+            // Filter to only active employees with profiles
+            return (data || []).filter(emp => {
+                const profile = Array.isArray(emp.employee_profiles) 
+                    ? emp.employee_profiles[0] 
+                    : emp.employee_profiles;
+                return profile && profile.employment_status === 'active';
+            });
+        } catch (error) {
+            console.error('Error fetching employees with profiles:', error);
+            return null;
+        }
+    }
     
     /**
      * Add a new employee to Supabase
@@ -5991,6 +6031,370 @@ class SupabaseService {
             console.error('Error getting all users:', error);
             return [];
         }
+    }
+
+    // ==========================================
+    // CREW SCHEDULING / ROUTE MANAGEMENT
+    // ==========================================
+
+    /**
+     * Get all active airlines
+     */
+    async getAirlines() {
+        if (!this.isReady()) return null;
+
+        const { data, error } = await this.client
+            .from('airlines')
+            .select('*')
+            .eq('is_active', true)
+            .order('name', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching airlines:', error);
+            return null;
+        }
+
+        return data;
+    }
+
+    /**
+     * Get all routes with schedules
+     */
+    async getRoutes(airlineId = null) {
+        if (!this.isReady()) return null;
+
+        let query = this.client
+            .from('routes')
+            .select(`
+                *,
+                airlines:airline_id (
+                    id,
+                    code,
+                    name
+                ),
+                route_schedules (
+                    id,
+                    day_of_week,
+                    departure_time,
+                    is_active
+                )
+            `)
+            .eq('is_active', true)
+            .order('route_number', { ascending: true });
+
+        if (airlineId) {
+            query = query.eq('airline_id', airlineId);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            console.error('Error fetching routes:', error);
+            return null;
+        }
+
+        return data;
+    }
+
+    /**
+     * Create a new route
+     */
+    async createRoute(routeData) {
+        if (!this.isReady()) return null;
+
+        const { scheduleDays, ...routeInfo } = routeData;
+        
+        // Create route
+        const { data: route, error: routeError } = await this.client
+            .from('routes')
+            .insert({
+                ...routeInfo,
+                created_by: this.currentUser?.id
+            })
+            .select(`
+                *,
+                airlines:airline_id (
+                    id,
+                    code,
+                    name
+                )
+            `)
+            .single();
+
+        if (routeError) {
+            console.error('Error creating route:', routeError);
+            return null;
+        }
+
+        // Create route schedules
+        if (scheduleDays && scheduleDays.length > 0) {
+            const schedules = scheduleDays.map(day => ({
+                route_id: route.id,
+                day_of_week: parseInt(day),
+                departure_time: routeInfo.default_departure_time,
+                is_active: true
+            }));
+
+            const { error: scheduleError } = await this.client
+                .from('route_schedules')
+                .insert(schedules);
+
+            if (scheduleError) {
+                console.error('Error creating route schedules:', scheduleError);
+                // Route was created, but schedules failed - still return route
+            }
+        }
+
+        console.log('✅ Route created');
+        return route;
+    }
+
+    /**
+     * Update a route
+     */
+    async updateRoute(routeId, updates) {
+        if (!this.isReady()) return null;
+
+        const { data, error } = await this.client
+            .from('routes')
+            .update({
+                ...updates,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', routeId)
+            .select(`
+                *,
+                airlines:airline_id (
+                    id,
+                    code,
+                    name
+                )
+            `)
+            .single();
+
+        if (error) {
+            console.error('Error updating route:', error);
+            return null;
+        }
+
+        return data;
+    }
+
+    /**
+     * Delete a route
+     */
+    async deleteRoute(routeId) {
+        if (!this.isReady()) return null;
+
+        const { error } = await this.client
+            .from('routes')
+            .delete()
+            .eq('id', routeId);
+
+        if (error) {
+            console.error('Error deleting route:', error);
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Get trips (crew assignments) for an employee
+     */
+    async getEmployeeTrips(employeeId, startDate = null, endDate = null) {
+        if (!this.isReady()) return null;
+
+        let query = this.client
+            .from('trips')
+            .select(`
+                *,
+                routes:route_id (
+                    *,
+                    airlines:airline_id (
+                        id,
+                        code,
+                        name
+                    )
+                ),
+                employees:employee_id (
+                    id,
+                    name
+                )
+            `)
+            .eq('employee_id', employeeId)
+            .order('trip_date', { ascending: true })
+            .order('departure_time', { ascending: true });
+
+        if (startDate && endDate) {
+            query = query
+                .gte('trip_date', startDate)
+                .lte('trip_date', endDate);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            console.error('Error fetching employee trips:', error);
+            return null;
+        }
+
+        return data;
+    }
+
+    /**
+     * Get all trips for a date range (for crew schedulers)
+     */
+    async getAllTrips(startDate, endDate) {
+        if (!this.isReady()) return null;
+
+        const { data, error } = await this.client
+            .from('trips')
+            .select(`
+                *,
+                routes:route_id (
+                    *,
+                    airlines:airline_id (
+                        id,
+                        code,
+                        name
+                    )
+                ),
+                employees:employee_id (
+                    id,
+                    name
+                )
+            `)
+            .gte('trip_date', startDate)
+            .lte('trip_date', endDate)
+            .order('trip_date', { ascending: true })
+            .order('departure_time', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching trips:', error);
+            return null;
+        }
+
+        return data;
+    }
+
+    /**
+     * Assign crew to a route (creates a trip)
+     */
+    async assignCrewToRoute(tripData) {
+        if (!this.isReady()) return null;
+
+        // Get route to calculate arrival time
+        const { data: route, error: routeError } = await this.client
+            .from('routes')
+            .select('flight_duration_minutes, default_departure_time')
+            .eq('id', tripData.route_id)
+            .single();
+
+        if (routeError) {
+            console.error('Error fetching route:', routeError);
+            return null;
+        }
+
+        // Calculate arrival time
+        const departureTime = tripData.departure_time || route.default_departure_time;
+        const durationMinutes = route.flight_duration_minutes;
+        
+        // Calculate arrival time (simple calculation)
+        const [hours, minutes] = departureTime.split(':').map(Number);
+        const totalMinutes = hours * 60 + minutes + durationMinutes;
+        const arrivalHours = Math.floor(totalMinutes / 60) % 24;
+        const arrivalMins = totalMinutes % 60;
+        const arrivalTime = `${String(arrivalHours).padStart(2, '0')}:${String(arrivalMins).padStart(2, '0')}:00`;
+
+        const { data, error } = await this.client
+            .from('trips')
+            .insert({
+                ...tripData,
+                arrival_time: arrivalTime,
+                assigned_by: this.currentUser?.id
+            })
+            .select(`
+                *,
+                routes:route_id (
+                    *,
+                    airlines:airline_id (
+                        id,
+                        code,
+                        name
+                    )
+                ),
+                employees:employee_id (
+                    id,
+                    name
+                )
+            `)
+            .single();
+
+        if (error) {
+            console.error('Error assigning crew:', error);
+            return null;
+        }
+
+        console.log('✅ Crew assigned to route');
+        return data;
+    }
+
+    /**
+     * Update trip status
+     */
+    async updateTrip(tripId, updates) {
+        if (!this.isReady()) return null;
+
+        const { data, error } = await this.client
+            .from('trips')
+            .update({
+                ...updates,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', tripId)
+            .select(`
+                *,
+                flights:flight_id (
+                    *,
+                    airlines:airline_id (
+                        id,
+                        code,
+                        name
+                    )
+                ),
+                employees:employee_id (
+                    id,
+                    name
+                )
+            `)
+            .single();
+
+        if (error) {
+            console.error('Error updating trip:', error);
+            return null;
+        }
+
+        return data;
+    }
+
+    /**
+     * Remove crew assignment (delete trip)
+     */
+    async removeCrewAssignment(tripId) {
+        if (!this.isReady()) return null;
+
+        const { error } = await this.client
+            .from('trips')
+            .delete()
+            .eq('id', tripId);
+
+        if (error) {
+            console.error('Error removing crew assignment:', error);
+            return false;
+        }
+
+        return true;
     }
 }
 
