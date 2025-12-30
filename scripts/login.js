@@ -66,6 +66,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     const roleGroup = document.getElementById('roleGroup');
     const mobileEmployeeMode = document.getElementById('mobileEmployeeMode');
     const useFullEmployeeDashboard = document.getElementById('useFullEmployeeDashboard');
+    const mobileRoleSwitch = document.getElementById('mobileRoleSwitch');
+    const mobileRoleMoreBtn = document.getElementById('mobileRoleMore');
+    const mobileRoleHint = document.getElementById('mobileRoleHint');
     
     // Check if required elements exist
     if (!usernameInput || !passwordInput || !roleSelect || !submitBtn) {
@@ -84,20 +87,87 @@ document.addEventListener('DOMContentLoaded', async function() {
         return Boolean(byUA || byViewport);
     })();
 
+    const urlParams = new URLSearchParams(window.location.search || '');
+    const urlRole = (urlParams.get('role') || '').trim().toLowerCase();
+
     function getEmployeePortalModeFromUI() {
         // mobile_tasks => /emp/index.html (tasks-only)
         // full_employee => /employee.html (full dashboard)
         return useFullEmployeeDashboard && useFullEmployeeDashboard.checked ? 'full_employee' : 'mobile_tasks';
     }
 
+    function setMobileRoleHint(text) {
+        if (!mobileRoleHint) return;
+        if (!text) {
+            mobileRoleHint.textContent = '';
+            mobileRoleHint.style.display = 'none';
+            return;
+        }
+        mobileRoleHint.textContent = text;
+        mobileRoleHint.style.display = 'block';
+    }
+
+    function markActiveRoleButton(role) {
+        if (!mobileRoleSwitch) return;
+        const buttons = mobileRoleSwitch.querySelectorAll('.role-switch-btn');
+        buttons.forEach((btn) => {
+            const btnRole = (btn.getAttribute('data-role') || '').trim().toLowerCase();
+            if (btnRole === role) btn.classList.add('is-active');
+            else btn.classList.remove('is-active');
+        });
+    }
+
+    function setSelectedRole(role, { fromUI = false } = {}) {
+        const nextRole = (role || '').trim().toLowerCase();
+        if (!nextRole) return;
+        if (roleSelect) roleSelect.value = nextRole;
+
+        // Mobile UX: hide the full role dropdown unless user asks for it,
+        // but allow switching to admin quickly.
+        if (isMobileDevice) {
+            if (nextRole === 'employee') {
+                if (roleGroup) roleGroup.style.display = 'none';
+                if (mobileEmployeeMode) mobileEmployeeMode.style.display = 'block';
+                setMobileRoleHint('Employee login defaults to the fast mobile tasks view.');
+            } else {
+                if (mobileEmployeeMode) mobileEmployeeMode.style.display = 'none';
+                // Keep the dropdown hidden unless "More roles…" was opened;
+                // admins can still log in via this quick switch.
+                setMobileRoleHint(nextRole === 'admin' ? 'Admin login will open the admin dashboard.' : '');
+            }
+            markActiveRoleButton(nextRole);
+        }
+
+        // Persist last selection for convenience (safe across refresh)
+        if (fromUI) {
+            try {
+                localStorage.setItem('lastLoginRole', nextRole);
+            } catch (e) {
+                // ignore
+            }
+        }
+    }
+
     function applyMobileDefaults() {
         if (!isMobileDevice) return;
 
-        // Default employee-only login UX on mobile
-        if (roleSelect) roleSelect.value = 'employee';
+        // Show quick portal picker on mobile
+        if (mobileRoleSwitch) mobileRoleSwitch.style.display = 'grid';
+        // Hide the full role dropdown by default (can be opened via "More roles…")
         if (roleGroup) roleGroup.style.display = 'none';
 
-        if (mobileEmployeeMode) mobileEmployeeMode.style.display = 'block';
+        // Default to employee on mobile, unless URL explicitly requests a role
+        // (e.g., ?role=admin) or user previously selected a role.
+        let preferred = 'employee';
+        try {
+            const stored = (localStorage.getItem('lastLoginRole') || '').trim().toLowerCase();
+            if (stored) preferred = stored;
+        } catch (e) {
+            // ignore
+        }
+        if (urlRole) preferred = urlRole;
+
+        setSelectedRole(preferred);
 
         // Persist preference across visits (mobile only)
         const saved = localStorage.getItem('empPreferFullDashboard');
@@ -105,8 +175,10 @@ document.addEventListener('DOMContentLoaded', async function() {
             useFullEmployeeDashboard.checked = saved === 'true';
         }
 
-        // Keep a session hint so redirect routing knows which page to open
-        sessionStorage.setItem('employeePortalMode', getEmployeePortalModeFromUI());
+        // Keep a session hint so redirect routing knows which page to open (employee only)
+        if ((roleSelect?.value || '') === 'employee') {
+            sessionStorage.setItem('employeePortalMode', getEmployeePortalModeFromUI());
+        }
     }
 
     function wireMobileModeToggle() {
@@ -122,6 +194,42 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     applyMobileDefaults();
     wireMobileModeToggle();
+
+    // Mobile role switch wiring
+    if (isMobileDevice && mobileRoleSwitch) {
+        mobileRoleSwitch.addEventListener('click', (e) => {
+            const target = e.target;
+            if (!(target instanceof Element)) return;
+
+            const roleBtn = target.closest('.role-switch-btn');
+            if (roleBtn) {
+                const role = (roleBtn.getAttribute('data-role') || '').trim().toLowerCase();
+                if (role) {
+                    setSelectedRole(role, { fromUI: true });
+                    // When switching via quick buttons, keep the "More roles" dropdown closed.
+                    if (roleGroup) roleGroup.style.display = 'none';
+                    if (mobileRoleMoreBtn) mobileRoleMoreBtn.setAttribute('aria-expanded', 'false');
+                }
+                return;
+            }
+
+            const moreBtn = target.closest('#mobileRoleMore');
+            if (moreBtn) {
+                const isOpen = roleGroup && roleGroup.style.display !== 'none';
+                const nextOpen = !isOpen;
+                if (roleGroup) roleGroup.style.display = nextOpen ? 'block' : 'none';
+                if (mobileRoleMoreBtn) mobileRoleMoreBtn.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
+                return;
+            }
+        });
+    }
+
+    // If user opens "More roles…" and changes the role dropdown, keep mobile UI in sync.
+    if (isMobileDevice && roleSelect) {
+        roleSelect.addEventListener('change', () => {
+            setSelectedRole(roleSelect.value, { fromUI: true });
+        });
+    }
     
     // Toggle between login and signup
     if (toggleSignup) {
@@ -226,10 +334,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         const email = emailInput.value.trim();
         const fullName = fullNameInput.value.trim();
         const password = passwordInput.value;
-        // Enforce employee role on mobile default login
-        if (isMobileDevice && roleSelect) {
-            roleSelect.value = 'employee';
-        }
         const role = roleSelect.value;
 
         // Store which employee page to open (mobile only)

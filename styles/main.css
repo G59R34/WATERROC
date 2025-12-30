@@ -553,6 +553,42 @@ a:hover {
     text-decoration: underline;
 }
 
+/* ============================================
+   LOGIN - Mobile portal switch (Employee/Admin)
+   ============================================ */
+
+.mobile-role-switch {
+    display: none;
+    margin: 0 0 var(--space-4) 0;
+    gap: var(--space-2);
+}
+
+.role-switch-btn,
+.role-switch-more {
+    width: 100%;
+    min-height: 44px; /* thumb-friendly */
+}
+
+.role-switch-btn.is-active {
+    background: var(--primary-600);
+    color: var(--text-inverse);
+    border-color: var(--primary-600);
+}
+
+.role-switch-btn.is-active:hover {
+    background: var(--primary-700);
+    border-color: var(--primary-700);
+}
+
+.mobile-role-hint {
+    margin: 0 0 var(--space-4) 0;
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
 /* FULL OVERHAUL: QR code button and modal */
 .btn-qr {
     width: 100%;
@@ -990,6 +1026,16 @@ a:hover {
     .login-card {
         max-width: 100%;
         padding: var(--space-6);
+    }
+
+    .mobile-role-switch {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .mobile-role-switch .role-switch-more {
+        grid-column: 1 / -1;
+        min-height: 40px;
     }
     
     .login-footer {

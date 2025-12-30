@@ -44,7 +44,7 @@
                     <button type="submit" class="btn-primary" id="submitBtn">Login</button>
                 </form>
                 <div class="toggle-form">
-                    <p><a href="/index.html">Back to main login</a></p>
+                    <p><a id="mainPortalLink" href="#">Main portal / Admin login</a></p>
                 </div>
             </div>
         </div>
@@ -59,5 +59,15 @@
     <script src="/scripts/config.js"></script>
     <!-- Use the single employee portal login handler -->
     <script src="/scripts/emp-login.js"></script>
+    <script>
+        // Ensure admins can jump from emp.* back to the main portal on mobile.
+        (function () {
+            const link = document.getElementById('mainPortalLink');
+            if (!link) return;
+            const host = window.location.hostname || '';
+            const mainHost = host.startsWith('emp.') ? host.replace(/^emp\./, '') : host;
+            link.href = `${window.location.protocol}//${mainHost}/index.html?role=admin`;
+        })();
+    </script>
 </body>
 </html>
