@@ -57,6 +57,11 @@ CREATE TRIGGER trigger_sync_employee_status
 ALTER TABLE public.employee_profiles ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for employee_profiles
+-- Drop existing policies if they exist (for idempotency)
+DROP POLICY IF EXISTS "Allow authenticated users to read profiles" ON public.employee_profiles;
+DROP POLICY IF EXISTS "Allow users to read own profile" ON public.employee_profiles;
+DROP POLICY IF EXISTS "Allow admins to manage profiles" ON public.employee_profiles;
+
 -- Allow authenticated users to read all profiles
 CREATE POLICY "Allow authenticated users to read profiles" ON public.employee_profiles
     FOR SELECT

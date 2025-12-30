@@ -139,8 +139,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         try {
             // Load data with error handling for each operation
             try {
-                employees = await supabaseService.getEmployees();
-                console.log('Employees loaded:', employees);
+            employees = await supabaseService.getEmployees();
+            console.log('Employees loaded:', employees);
             } catch (error) {
                 console.error('Error loading employees:', error);
                 employees = [];
@@ -148,7 +148,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
             try {
                 shiftTemplates = await supabaseService.getShiftTemplates();
-                console.log('Shift templates loaded:', shiftTemplates);
+            console.log('Shift templates loaded:', shiftTemplates);
             } catch (error) {
                 console.error('Error loading shift templates:', error);
                 shiftTemplates = [];
@@ -167,11 +167,11 @@ document.addEventListener('DOMContentLoaded', async function() {
             weekEnd.setDate(weekEnd.getDate() + 6);
             
             try {
-                shifts = await supabaseService.getEmployeeShifts(
-                    formatDate(currentWeekStart),
-                    formatDate(weekEnd)
-                );
-                console.log('Shifts loaded:', shifts);
+            shifts = await supabaseService.getEmployeeShifts(
+                formatDate(currentWeekStart),
+                formatDate(weekEnd)
+            );
+            console.log('Shifts loaded:', shifts);
             } catch (error) {
                 console.error('Error loading shifts:', error);
                 shifts = [];
@@ -1109,8 +1109,8 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Initial load
     try {
-        await loadShifts();
-        await loadTimeOffRequests();
+    await loadShifts();
+    await loadTimeOffRequests();
         
         // Add button after initial load completes
         addAutoAssignButton();

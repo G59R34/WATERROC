@@ -1,4 +1,4 @@
-// Employee Screen Sharing - Automatically shares screen to admin monitor
+// Employee Screen Sharing - WebRTC Live Stream
 class EmployeeScreenShare {
     constructor() {
         this.stream = null;
@@ -6,13 +6,15 @@ class EmployeeScreenShare {
         this.dataChannel = null;
         this.employeeId = null;
         this.isSharing = false;
-        this.frameInterval = null;
+        this.channel = null;
+        this.mediaRecorder = null;
+        this.recordedChunks = [];
     }
 
     async initialize(employeeId) {
         this.employeeId = employeeId;
         
-        // Check if screen sharing is enabled (can be controlled by admin)
+        // Check if screen sharing is enabled
         const sharingEnabled = await this.checkSharingEnabled();
         
         if (sharingEnabled) {
@@ -21,11 +23,8 @@ class EmployeeScreenShare {
     }
 
     async checkSharingEnabled() {
-        // Check if admin has enabled screen sharing for this employee
-        // For now, we'll enable it by default, but this can be controlled via database
         try {
             if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
-                // Could check a setting in the database here
                 return true; // Default to enabled
             }
         } catch (error) {
@@ -42,13 +41,13 @@ class EmployeeScreenShare {
                 return;
             }
 
-            // Request screen capture (will prompt user for permission)
+            // Request screen capture
             this.stream = await navigator.mediaDevices.getDisplayMedia({
                 video: {
                     mediaSource: 'screen',
                     width: { ideal: 1280, max: 1920 },
                     height: { ideal: 720, max: 1080 },
-                    frameRate: { ideal: 5, max: 10 } // Lower frame rate to reduce bandwidth
+                    frameRate: { ideal: 15, max: 30 }
                 },
                 audio: false
             });
@@ -62,8 +61,8 @@ class EmployeeScreenShare {
                 this.stopSharing();
             });
 
-            // Start sending frames via Supabase
-            await this.setupRealtimeSharing();
+            // Start WebRTC connection
+            await this.setupWebRTC();
 
         } catch (error) {
             console.error('Error starting screen share:', error);
@@ -75,86 +74,195 @@ class EmployeeScreenShare {
         }
     }
 
-    async setupRealtimeSharing() {
+    async setupWebRTC() {
         if (!this.stream || !this.employeeId) return;
 
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        const video = document.createElement('video');
-        
-        video.srcObject = this.stream;
-        video.play();
+        // Create RTCPeerConnection
+        const configuration = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+            ]
+        };
 
-        video.addEventListener('loadedmetadata', () => {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
+        this.peerConnection = new RTCPeerConnection(configuration);
+
+        // Add stream tracks to peer connection
+        this.stream.getTracks().forEach(track => {
+            this.peerConnection.addTrack(track, this.stream);
         });
 
-        // Wait for video to be ready
-        video.addEventListener('loadedmetadata', () => {
-            canvas.width = Math.min(video.videoWidth, 1280);
-            canvas.height = Math.min(video.videoHeight, 720);
-            
-            // Capture and send frames periodically
-            this.frameInterval = setInterval(async () => {
-                if (video.readyState === video.HAVE_ENOUGH_DATA && this.isSharing) {
-                    try {
-                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                        
-                        // Convert to base64 (lower quality for bandwidth)
-                        const frameData = canvas.toDataURL('image/jpeg', 0.4);
-                        
-                        // Send via Supabase
-                        await this.sendFrame(frameData);
-                    } catch (error) {
-                        console.error('Error capturing frame:', error);
-                    }
-                }
-            }, 200); // 5 FPS to reduce bandwidth
+        // Handle ICE candidates
+        this.peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                this.sendSignal({
+                    type: 'ice-candidate',
+                    candidate: event.candidate,
+                    employee_id: this.employeeId
+                });
+            }
+        };
+
+        // Create offer
+        const offer = await this.peerConnection.createOffer({
+            offerToReceiveVideo: false,
+            offerToReceiveAudio: false
         });
 
-        // Also set up Supabase channel for signaling
-        if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
-            const channel = supabaseService.client.channel(`screen-share-${this.employeeId}`);
-            
-            channel.subscribe((status) => {
-                if (status === 'SUBSCRIBED') {
-                    console.log('Screen share channel subscribed');
-                }
-            });
+        await this.peerConnection.setLocalDescription(offer);
+
+        // Send offer via Supabase Realtime
+        this.sendSignal({
+            type: 'offer',
+            offer: offer,
+            employee_id: this.employeeId
+        });
+
+        // Set up signaling channel
+        this.setupSignalingChannel();
+
+        // Also set up MediaRecorder as fallback for browsers that don't support WebRTC well
+        this.setupMediaRecorderFallback();
+    }
+
+    setupSignalingChannel() {
+        if (typeof supabaseService === 'undefined' || !supabaseService.isReady()) {
+            return;
+        }
+
+        const channelName = `screen-share-${this.employeeId}`;
+        this.channel = supabaseService.client.channel(channelName);
+
+        // Listen for answers and ICE candidates from admin
+        this.channel.on('broadcast', { event: 'signal' }, (payload) => {
+            this.handleSignal(payload.payload);
+        });
+
+        this.channel.subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+                console.log('Screen share signaling channel subscribed');
+            }
+        });
+    }
+
+    async handleSignal(signal) {
+        if (!this.peerConnection) return;
+
+        try {
+            if (signal.type === 'answer') {
+                await this.peerConnection.setRemoteDescription(new RTCSessionDescription(signal.answer));
+            } else if (signal.type === 'ice-candidate' && signal.candidate) {
+                await this.peerConnection.addIceCandidate(new RTCIceCandidate(signal.candidate));
+            }
+        } catch (error) {
+            console.error('Error handling signal:', error);
         }
     }
 
-    async sendFrame(frameData) {
+    sendSignal(signal) {
+        if (!this.channel) {
+            // Fallback: store in database for polling
+            this.storeSignalInDB(signal);
+            return;
+        }
+
+        this.channel.send({
+            type: 'broadcast',
+            event: 'signal',
+            payload: signal
+        });
+    }
+
+    async storeSignalInDB(signal) {
+        // Fallback method: store signals in database for admin to poll
         try {
             if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
-                // Store frame in a table that admin can read
-                const { error } = await supabaseService.client
+                await supabaseService.client
                     .from('employee_screen_shares')
                     .upsert({
                         employee_id: this.employeeId,
-                        frame_data: frameData,
-                        timestamp: new Date().toISOString(),
+                        signal_data: signal, // Store as JSONB directly
                         updated_at: new Date().toISOString()
                     }, {
                         onConflict: 'employee_id'
                     });
-
-                if (error) {
-                    console.error('Error sending frame:', error);
-                }
             }
         } catch (error) {
-            console.error('Error in sendFrame:', error);
+            // Silently handle - signal_data column might not exist yet
+            console.debug('Error storing signal (column may not exist):', error.message);
+        }
+    }
+
+    setupMediaRecorderFallback() {
+        // Use canvas-based frame capture as fallback (simpler than MediaRecorder)
+        // This sends smaller JPEG frames at higher frequency
+        try {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const video = document.createElement('video');
+            
+            video.srcObject = this.stream;
+            video.play();
+
+            video.addEventListener('loadedmetadata', () => {
+                canvas.width = Math.min(video.videoWidth, 1280);
+                canvas.height = Math.min(video.videoHeight, 720);
+                
+                // Capture and send frames periodically (higher frequency for smoother updates)
+                this.frameInterval = setInterval(async () => {
+                    if (video.readyState === video.HAVE_ENOUGH_DATA && this.isSharing) {
+                        try {
+                            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                            
+                            // Convert to base64 JPEG (optimized quality/size balance)
+                            const frameData = canvas.toDataURL('image/jpeg', 0.7);
+                            
+                            // Store as fallback frame - use upsert to always update
+                            if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
+                                try {
+                                    await supabaseService.client
+                                        .from('employee_screen_shares')
+                                        .upsert({
+                                            employee_id: this.employeeId,
+                                            frame_data: frameData,
+                                            updated_at: new Date().toISOString()
+                                        }, {
+                                            onConflict: 'employee_id'
+                                        });
+                                } catch (dbError) {
+                                    // Silently handle DB errors to avoid console spam
+                                    if (dbError.code !== '42P01' && dbError.code !== 'PGRST116') {
+                                        console.debug('DB update error:', dbError.message);
+                                    }
+                                }
+                            }
+                        } catch (error) {
+                            console.debug('Error capturing frame:', error);
+                        }
+                    }
+                }, 500); // 1 FPS - updates every second for seamless viewing
+            });
+        } catch (error) {
+            console.debug('Canvas fallback not available:', error);
         }
     }
 
     stopSharing() {
         this.isSharing = false;
 
-        if (this.frameInterval) {
-            clearInterval(this.frameInterval);
-            this.frameInterval = null;
+        if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+            this.mediaRecorder.stop();
+            this.mediaRecorder = null;
+        }
+
+        if (this.peerConnection) {
+            this.peerConnection.close();
+            this.peerConnection = null;
+        }
+
+        if (this.channel) {
+            this.channel.unsubscribe();
+            this.channel = null;
         }
 
         if (this.stream) {
@@ -179,40 +287,78 @@ class EmployeeScreenShare {
 }
 
 // Initialize screen sharing when employee page loads
-document.addEventListener('DOMContentLoaded', async function() {
-    // Only initialize on employee pages
+async function initializeScreenShare() {
     const userRole = sessionStorage.getItem('userRole');
-    if (userRole !== 'employee') return;
+    if (userRole !== 'employee') {
+        return;
+    }
 
-    // Wait for Supabase and employee data
     if (typeof supabaseService === 'undefined' || !supabaseService.isReady()) {
-        setTimeout(arguments.callee, 100);
+        setTimeout(initializeScreenShare, 500);
         return;
     }
 
     try {
-        // Get current employee ID
-        await supabaseService.loadCurrentUser();
-        const user = await supabaseService.getCurrentUser();
-        
-        if (user && user.id) {
-            // Get employee record
-            const { data: employee } = await supabaseService.client
-                .from('employees')
-                .select('id')
-                .eq('user_id', user.id)
-                .single();
+        let employeeId = null;
 
-            if (employee && employee.id) {
-                // Initialize screen sharing
-                window.employeeScreenShare = new EmployeeScreenShare();
-                await window.employeeScreenShare.initialize(employee.id);
+        // Method 1: Get from current user
+        try {
+            await supabaseService.loadCurrentUser();
+            const user = await supabaseService.getCurrentUser();
+            
+            if (user && user.id) {
+                const { data: employee, error: empError } = await supabaseService.client
+                    .from('employees')
+                    .select('id')
+                    .eq('user_id', user.id)
+                    .maybeSingle();
+
+                if (!empError && employee && employee.id) {
+                    employeeId = employee.id;
+                }
             }
+        } catch (error) {
+            console.debug('Method 1 failed, trying alternative:', error);
+        }
+
+        // Method 2: Session storage
+        if (!employeeId) {
+            const storedEmpId = sessionStorage.getItem('employeeId');
+            if (storedEmpId) {
+                employeeId = parseInt(storedEmpId, 10);
+            }
+        }
+
+        // Method 3: Global employee object
+        if (!employeeId && typeof getCurrentEmployee === 'function') {
+            try {
+                const currentEmp = await getCurrentEmployee();
+                if (currentEmp && currentEmp.employeeId) {
+                    employeeId = currentEmp.employeeId;
+                }
+            } catch (error) {
+                console.debug('Method 3 failed:', error);
+            }
+        }
+
+        if (employeeId) {
+            window.employeeScreenShare = new EmployeeScreenShare();
+            await window.employeeScreenShare.initialize(employeeId);
+            console.log('Screen sharing initialized for employee:', employeeId);
+        } else {
+            console.debug('Could not determine employee ID for screen sharing');
         }
     } catch (error) {
         console.error('Error initializing screen share:', error);
     }
-});
+}
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeScreenShare);
+} else {
+    initializeScreenShare();
+}
 
 // Clean up on page unload
 window.addEventListener('beforeunload', () => {
@@ -220,4 +366,3 @@ window.addEventListener('beforeunload', () => {
         window.employeeScreenShare.cleanup();
     }
 });
-

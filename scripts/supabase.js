@@ -1937,8 +1937,10 @@ class SupabaseService {
             .order('task_date', { ascending: true })
             .order('start_time', { ascending: true });
 
-        if (employeeId) {
-            query = query.eq('employee_id', employeeId);
+        if (employeeId !== null && employeeId !== undefined) {
+            // Ensure employeeId is a number for comparison
+            const empId = typeof employeeId === 'number' ? employeeId : parseInt(employeeId, 10);
+            query = query.eq('employee_id', empId);
         }
 
         const { data, error} = await query;
@@ -1946,6 +1948,11 @@ class SupabaseService {
         if (error) {
             console.error('Error fetching hourly tasks:', error);
             return null;
+        }
+
+        // Debug logging
+        if (data && data.length > 0) {
+            console.log(`getHourlyTasks returned ${data.length} tasks for date range ${startDate} to ${endDate}${employeeId ? `, employee ${employeeId}` : ''}`);
         }
 
         return data;

@@ -88,18 +88,84 @@ document.addEventListener('DOMContentLoaded', async function() {
                 return;
             }
 
-            const today = new Date().toISOString().split('T')[0];
+            // Get today's date in local timezone (not UTC) to avoid timezone issues
             const now = new Date();
+            // Format date as YYYY-MM-DD in local timezone (not UTC)
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const today = `${year}-${month}-${day}`;
+            
+            console.log(`[Employee Monitor] Using date: ${today} (local timezone, current time: ${now.toLocaleString()})`);
+
+            // Fetch all shifts for today ONCE (not per employee)
+            let allShiftsToday = [];
+            try {
+                const shiftsData = await supabaseService.getEmployeeShifts(today, today);
+                allShiftsToday = Array.isArray(shiftsData) ? shiftsData : [];
+            } catch (error) {
+                console.error('Error fetching shifts:', error);
+                allShiftsToday = [];
+            }
 
             // Load additional data for each employee
             const newEmployeeData = await Promise.all(employees.map(async (emp) => {
                 try {
-                    // Get today's shift
-                    const shifts = await supabaseService.getEmployeeShifts(today, today, emp.id);
-                    const todayShift = shifts && shifts.length > 0 ? shifts[0] : null;
+                    // Find today's shift for this employee from the pre-fetched shifts
+                    let todayShift = null;
+                    if (allShiftsToday.length > 0) {
+                        // Ensure we compare the same type (both as numbers)
+                        const empId = typeof emp.id === 'number' ? emp.id : parseInt(emp.id, 10);
+                        todayShift = allShiftsToday.find(s => {
+                            if (!s || !s.employee_id) return false;
+                            const shiftEmpId = typeof s.employee_id === 'number' ? s.employee_id : parseInt(s.employee_id, 10);
+                            return shiftEmpId === empId;
+                        }) || null;
+                    }
 
                     // Get today's tasks
-                    const tasks = await supabaseService.getHourlyTasks(today, today, emp.id) || [];
+                    // Ensure employee ID is the correct type
+                    const empIdForQuery = typeof emp.id === 'number' ? emp.id : parseInt(emp.id, 10);
+                    
+                    console.log(`[Employee Monitor] Fetching tasks for employee ${empIdForQuery} (${emp.name}) on date ${today}`);
+                    let tasks = await supabaseService.getHourlyTasks(today, today, empIdForQuery);
+                    
+                    // If no tasks found with employee filter, try fetching all tasks for the date and filter client-side
+                    if ((!tasks || tasks.length === 0) && empIdForQuery) {
+                        console.log(`[Employee Monitor] No tasks with employee filter, trying to fetch all tasks for ${today} and filter client-side...`);
+                        const allTasks = await supabaseService.getHourlyTasks(today, today, null);
+                        if (allTasks && Array.isArray(allTasks)) {
+                            // Filter by employee ID client-side
+                            tasks = allTasks.filter(task => {
+                                const taskEmpId = typeof task.employee_id === 'number' ? task.employee_id : parseInt(task.employee_id, 10);
+                                return taskEmpId === empIdForQuery;
+                            });
+                            console.log(`[Employee Monitor] Found ${tasks.length} tasks after client-side filtering for ${emp.name}`);
+                        }
+                    }
+                    
+                    if (!tasks || !Array.isArray(tasks)) {
+                        tasks = [];
+                    }
+                    // Ensure tasks is always an array
+                    tasks = Array.isArray(tasks) ? tasks : [];
+                    
+                    // Debug logging
+                    if (tasks.length > 0) {
+                        console.log(`✅ [Employee Monitor] Loaded ${tasks.length} tasks for employee ${empIdForQuery} (${emp.name})`);
+                        tasks.forEach((task, idx) => {
+                            console.log(`  Task ${idx + 1}: ${task.name} (${task.start_time}-${task.end_time}) - employee_id: ${task.employee_id} (type: ${typeof task.employee_id}), task_date: ${task.task_date}`);
+                        });
+                    } else {
+                        console.log(`⚠️ [Employee Monitor] No tasks found for employee ${empIdForQuery} (${emp.name}) on ${today}`);
+                        // Additional debugging - check if tasks exist for this employee on any date
+                        const allEmployeeTasks = await supabaseService.getHourlyTasks('2000-01-01', '2099-12-31', empIdForQuery);
+                        if (allEmployeeTasks && allEmployeeTasks.length > 0) {
+                            console.log(`  ℹ️ Found ${allEmployeeTasks.length} total tasks for this employee (but none for ${today})`);
+                            const uniqueDates = [...new Set(allEmployeeTasks.map(t => t.task_date))];
+                            console.log(`  ℹ️ Tasks exist on dates: ${uniqueDates.join(', ')}`);
+                        }
+                    }
 
                     // Get current exception status
                     const exceptions = await supabaseService.getExceptionLogs({
@@ -114,7 +180,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                             .from('employee_screen_shares')
                             .select('frame_data, updated_at')
                             .eq('employee_id', emp.id)
-                            .single();
+                            .maybeSingle(); // Use maybeSingle instead of single to avoid errors if not found
                         
                         if (!error && screenShare) {
                             // Check if screen share is recent (within last minute)
@@ -125,22 +191,37 @@ document.addEventListener('DOMContentLoaded', async function() {
                             }
                         }
                     } catch (error) {
-                        // Screen share not found or error - that's okay
+                        // Screen share not found or error - that's okay, table might not exist yet
+                        console.debug('Screen share check for employee', emp.id, ':', error.message);
                     }
 
-                    // Calculate status
-                    const status = calculateEmployeeStatus(emp, todayShift, tasks, exceptions, now);
+                    // Calculate status (pass screenShare to consider it in status)
+                    const status = calculateEmployeeStatus(emp, todayShift, tasks, exceptions, now, screenShareData);
+
+                    // Preserve existing screen share if new one is null but old one exists and is recent
+                    let finalScreenShare = screenShareData;
+                    if (!finalScreenShare && allEmployees && allEmployees.length > 0) {
+                        const existingEmp = allEmployees.find(e => e.id === emp.id);
+                        if (existingEmp && existingEmp.screenShare) {
+                            const shareTime = new Date(existingEmp.screenShare.updated_at);
+                            const timeDiff = now - shareTime;
+                            if (timeDiff < 60000) { // Still recent
+                                finalScreenShare = existingEmp.screenShare;
+                            }
+                        }
+                    }
 
                     return {
                         ...emp,
                         shift: todayShift,
                         tasks: tasks,
                         exceptions: exceptions,
-                        screenShare: screenShareData,
+                        screenShare: finalScreenShare,
                         status: status
                     };
                 } catch (error) {
-                    console.error(`Error loading data for employee ${emp.id}:`, error);
+                    console.error(`Error loading data for employee ${emp.id} (${emp.name}):`, error);
+                    // Return employee with minimal data so they still show up
                     return {
                         ...emp,
                         shift: null,
@@ -175,7 +256,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
 
-    function calculateEmployeeStatus(employee, shift, tasks, exceptions, now) {
+    function calculateEmployeeStatus(employee, shift, tasks, exceptions, now, screenShare = null) {
         // Check employment status
         if (employee.employment_status === 'terminated' || employee.employment_status === 'administrative_leave') {
             return {
@@ -183,6 +264,19 @@ document.addEventListener('DOMContentLoaded', async function() {
                 label: employee.employment_status === 'terminated' ? 'Terminated' : 'Admin Leave',
                 color: '#ef4444'
             };
+        }
+
+        // PRIORITY: If actively screen sharing, they are definitely active/on-duty
+        if (screenShare && screenShare.frame_data) {
+            const shareTime = new Date(screenShare.updated_at);
+            const timeDiff = now - shareTime;
+            if (timeDiff < 60000) { // Within last minute
+                return {
+                    type: 'active',
+                    label: 'Active',
+                    color: '#10b981'
+                };
+            }
         }
 
         // Check if on shift
@@ -273,8 +367,20 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
 
         grid.innerHTML = filtered.map(emp => {
+            // Format shift time correctly (handle both TIME and VARCHAR formats)
+            const formatShiftTime = (timeStr) => {
+                if (!timeStr) return 'N/A';
+                if (timeStr.includes(':')) {
+                    return timeStr.substring(0, 5); // HH:MM
+                } else if (timeStr.length === 4) {
+                    // HHMM format
+                    return timeStr.substring(0, 2) + ':' + timeStr.substring(2, 4);
+                }
+                return timeStr;
+            };
+            
             const shiftInfo = emp.shift 
-                ? `${emp.shift.start_time.substring(0,5)} - ${emp.shift.end_time.substring(0,5)}`
+                ? `${formatShiftTime(emp.shift.start_time)} - ${formatShiftTime(emp.shift.end_time)}`
                 : 'No shift';
             
             const taskCount = emp.tasks ? emp.tasks.length : 0;
@@ -301,7 +407,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                         </div>
                         
                         <div class="detail-row">
-                            <span class="detail-label">📋 Tasks:</span>
+                            <span class="detail-label">📋 Hourly Tasks:</span>
                             <span class="detail-value">
                                 ${taskCount} total
                                 ${completedTasks > 0 ? `<span style="color: #10b981;">✓${completedTasks}</span>` : ''}
@@ -326,30 +432,49 @@ document.addEventListener('DOMContentLoaded', async function() {
                     </div>
 
                     <div class="employee-tasks-preview">
-                        ${emp.tasks && emp.tasks.length > 0 ? `
+                        <div class="tasks-section-header">Hourly Tasks:</div>
+                        ${(emp.tasks && Array.isArray(emp.tasks) && emp.tasks.length > 0) ? `
                             <div class="tasks-list">
-                                ${emp.tasks.slice(0, 3).map(task => {
+                                ${emp.tasks.slice(0, 5).map(task => {
+                                    const formatTaskTime = (timeStr) => {
+                                        if (!timeStr) return 'N/A';
+                                        if (timeStr.includes(':')) {
+                                            return timeStr.substring(0, 5); // HH:MM
+                                        } else if (timeStr.length === 4) {
+                                            return timeStr.substring(0, 2) + ':' + timeStr.substring(2, 4);
+                                        }
+                                        return timeStr;
+                                    };
+                                    
                                     const taskStatusColor = task.status === 'completed' ? '#10b981' : 
                                                           task.status === 'overdue' ? '#ef4444' : 
                                                           task.status === 'in-progress' ? '#3b82f6' : '#64748b';
                                     return `
                                         <div class="task-item-mini">
-                                            <span class="task-time">${task.start_time.substring(0,5)}-${task.end_time.substring(0,5)}</span>
-                                            <span class="task-name">${escapeHtml(task.name)}</span>
+                                            <span class="task-time">${formatTaskTime(task.start_time)}-${formatTaskTime(task.end_time)}</span>
+                                            <span class="task-name" title="${escapeHtml(task.name)}">${escapeHtml(task.name)}</span>
                                             <span class="task-status" style="background: ${taskStatusColor}">${task.status}</span>
                                         </div>
                                     `;
                                 }).join('')}
-                                ${emp.tasks.length > 3 ? `<div class="more-tasks">+${emp.tasks.length - 3} more tasks</div>` : ''}
+                                ${emp.tasks.length > 5 ? `<div class="more-tasks">+${emp.tasks.length - 5} more hourly tasks</div>` : ''}
                             </div>
-                        ` : '<div class="no-tasks">No tasks scheduled</div>'}
+                        ` : '<div class="no-tasks">No hourly tasks scheduled</div>'}
                     </div>
 
                     ${emp.screenShare && emp.screenShare.frame_data ? `
                         <div class="employee-screen-preview">
                             <div class="screen-preview-header">
                                 <span class="screen-label">🖥️ Screen Share</span>
-                                <span class="screen-status live">● Live</span>
+                                <div class="screen-preview-actions">
+                                    <span class="screen-status live">● Live</span>
+                                    <button class="fullscreen-btn" 
+                                            data-employee-id="${emp.id}" 
+                                            title="Fullscreen"
+                                            onclick="openScreenShareFullscreen(${emp.id}, '${escapeHtml(emp.name)}')">
+                                        ⛶
+                                    </button>
+                                </div>
                             </div>
                             <div class="screen-preview-container">
                                 <img src="${emp.screenShare.frame_data}" 
@@ -374,7 +499,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         }, 5000); // Refresh every 5 seconds
         
         // Update screen shares separately every 2 seconds for smoother video
-        setInterval(updateScreenShares, 2000);
+        // Update screen shares every 1 second for seamless updates
+        setInterval(updateScreenShares, 1000);
     }
     
     function updateEmployeeCards() {
@@ -419,8 +545,18 @@ document.addEventListener('DOMContentLoaded', async function() {
             // Update shift info
             const shiftValue = card.querySelector('.detail-row:nth-child(1) .detail-value');
             if (shiftValue) {
+                const formatShiftTime = (timeStr) => {
+                    if (!timeStr) return 'N/A';
+                    if (timeStr.includes(':')) {
+                        return timeStr.substring(0, 5); // HH:MM
+                    } else if (timeStr.length === 4) {
+                        return timeStr.substring(0, 2) + ':' + timeStr.substring(2, 4);
+                    }
+                    return timeStr;
+                };
+                
                 const shiftInfo = emp.shift 
-                    ? `${emp.shift.start_time.substring(0,5)} - ${emp.shift.end_time.substring(0,5)}`
+                    ? `${formatShiftTime(emp.shift.start_time)} - ${formatShiftTime(emp.shift.end_time)}`
                     : 'No shift';
                 shiftValue.textContent = shiftInfo;
             }
@@ -478,34 +614,69 @@ document.addEventListener('DOMContentLoaded', async function() {
                 employmentValue.textContent = `${emp.employment_type || 'N/A'} - ${emp.employment_status || 'active'}`;
             }
 
-            // Update tasks preview (only if structure changed significantly)
+            // Update tasks preview - always check and update if needed
             const tasksPreview = card.querySelector('.employee-tasks-preview');
-            if (tasksPreview && emp.tasks && emp.tasks.length > 0) {
+            if (tasksPreview) {
+                const formatTaskTime = (timeStr) => {
+                    if (!timeStr) return 'N/A';
+                    if (timeStr.includes(':')) {
+                        return timeStr.substring(0, 5); // HH:MM
+                    } else if (timeStr.length === 4) {
+                        return timeStr.substring(0, 2) + ':' + timeStr.substring(2, 4);
+                    }
+                    return timeStr;
+                };
+
+                // Check current state
                 const taskItems = tasksPreview.querySelectorAll('.task-item-mini');
-                if (taskItems.length !== Math.min(emp.tasks.length, 3)) {
-                    // Task count changed, re-render tasks section
-                    const taskCount = emp.tasks.length;
-                    const completedTasks = emp.tasks.filter(t => t.status === 'completed').length;
-                    const pendingTasks = emp.tasks.filter(t => t.status === 'pending' || t.status === 'in-progress').length;
-                    const overdueTasks = emp.tasks.filter(t => t.status === 'overdue').length;
+                const noTasksMsg = tasksPreview.querySelector('.no-tasks');
+                const hasTasksInData = emp.tasks && Array.isArray(emp.tasks) && emp.tasks.length > 0;
+                const hasTasksInDOM = taskItems.length > 0;
+
+                // Always update if there's a mismatch between data and DOM
+                if (hasTasksInData) {
+                    const expectedTaskCount = Math.min(emp.tasks.length, 5);
+                    const currentTaskCount = taskItems.length;
                     
+                    // Update if: showing "no tasks" message, or task count doesn't match
+                    if (noTasksMsg || currentTaskCount !== expectedTaskCount) {
+                        tasksPreview.innerHTML = `
+                            <div class="tasks-section-header">Hourly Tasks:</div>
+                            <div class="tasks-list">
+                                ${emp.tasks.slice(0, 5).map(task => {
+                                    const taskStatusColor = task.status === 'completed' ? '#10b981' : 
+                                                          task.status === 'overdue' ? '#ef4444' : 
+                                                          task.status === 'in-progress' ? '#3b82f6' : '#64748b';
+                                    return `
+                                        <div class="task-item-mini">
+                                            <span class="task-time">${formatTaskTime(task.start_time)}-${formatTaskTime(task.end_time)}</span>
+                                            <span class="task-name" title="${escapeHtml(task.name)}">${escapeHtml(task.name)}</span>
+                                            <span class="task-status" style="background: ${taskStatusColor}">${task.status}</span>
+                                        </div>
+                                    `;
+                                }).join('')}
+                                ${emp.tasks.length > 5 ? `<div class="more-tasks">+${emp.tasks.length - 5} more hourly tasks</div>` : ''}
+                            </div>
+                        `;
+                    }
+                } else if (!hasTasksInData && hasTasksInDOM) {
+                    // Had tasks in DOM but no tasks in data - update to show "no tasks"
                     tasksPreview.innerHTML = `
-                        <div class="tasks-list">
-                            ${emp.tasks.slice(0, 3).map(task => {
-                                const taskStatusColor = task.status === 'completed' ? '#10b981' : 
-                                                      task.status === 'overdue' ? '#ef4444' : 
-                                                      task.status === 'in-progress' ? '#3b82f6' : '#64748b';
-                                return `
-                                    <div class="task-item-mini">
-                                        <span class="task-time">${task.start_time.substring(0,5)}-${task.end_time.substring(0,5)}</span>
-                                        <span class="task-name">${escapeHtml(task.name)}</span>
-                                        <span class="task-status" style="background: ${taskStatusColor}">${task.status}</span>
-                                    </div>
-                                `;
-                            }).join('')}
-                            ${emp.tasks.length > 3 ? `<div class="more-tasks">+${emp.tasks.length - 3} more tasks</div>` : ''}
-                        </div>
+                        <div class="tasks-section-header">Hourly Tasks:</div>
+                        <div class="no-tasks">No hourly tasks scheduled</div>
                     `;
+                } else if (!hasTasksInData && !hasTasksInDOM && !noTasksMsg) {
+                    // No tasks in data or DOM, and no message shown - show message
+                    tasksPreview.innerHTML = `
+                        <div class="tasks-section-header">Hourly Tasks:</div>
+                        <div class="no-tasks">No hourly tasks scheduled</div>
+                    `;
+                }
+            } else {
+                // Tasks preview doesn't exist - this shouldn't happen, but create it if needed
+                const tasksPreviewContainer = card.querySelector('.employee-tasks-preview');
+                if (!tasksPreviewContainer) {
+                    // This will be handled in the initial render
                 }
             }
 
@@ -513,32 +684,377 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     }
 
+    // Store active video streams and peer connections
+    const activeStreams = new Map();
+    const peerConnections = new Map();
+    const videoChunks = new Map(); // Store video chunks for playback
+
+    // Track last seen screen share times to prevent premature hiding
+    const lastSeenScreenShares = new Map();
+
     async function updateScreenShares() {
         if (!allEmployees || allEmployees.length === 0) return;
 
         try {
-            // Get all active screen shares
+            // Get all active screen shares (check last 2 minutes for recent updates)
+            // Only fetch what we need for seamless image updates
             const { data: screenShares, error } = await supabaseService.client
                 .from('employee_screen_shares')
                 .select('employee_id, frame_data, updated_at')
-                .gte('updated_at', new Date(Date.now() - 60000).toISOString()); // Only get recent (last minute)
+                .gte('updated_at', new Date(Date.now() - 120000).toISOString()); // Last 2 minutes
 
             if (error) {
-                console.error('Error fetching screen shares:', error);
-                return;
+                // Table might not exist yet - that's okay
+                if (error.code !== 'PGRST116' && error.code !== '42P01') {
+                    console.debug('Error fetching screen shares:', error.message);
+                }
+                // Don't return early - preserve existing previews
             }
 
-            if (!screenShares || screenShares.length === 0) return;
+            const now = Date.now();
+            const activeShareIds = new Set();
 
-            // Update screen preview images
-            screenShares.forEach(share => {
-                const img = document.querySelector(`.screen-preview-image[data-employee-id="${share.employee_id}"]`);
-                if (img && share.frame_data) {
-                    img.src = share.frame_data + '?t=' + Date.now(); // Cache bust
+            if (screenShares && screenShares.length > 0) {
+                // Update last seen times for active shares
+                screenShares.forEach(share => {
+                    const shareEmpId = typeof share.employee_id === 'number' ? share.employee_id : parseInt(share.employee_id, 10);
+                    lastSeenScreenShares.set(shareEmpId, now);
+                    activeShareIds.add(shareEmpId);
+                });
+
+                // Set up Realtime subscriptions for live video
+                screenShares.forEach(share => {
+                    const shareEmpId = typeof share.employee_id === 'number' ? share.employee_id : parseInt(share.employee_id, 10);
+                    setupLiveStreamSubscription(shareEmpId);
+                });
+
+                // Update screen preview and status
+                screenShares.forEach(share => {
+                const shareEmpId = typeof share.employee_id === 'number' ? share.employee_id : parseInt(share.employee_id, 10);
+                
+                const employee = allEmployees.find(emp => {
+                    const empId = typeof emp.id === 'number' ? emp.id : parseInt(emp.id, 10);
+                    return empId === shareEmpId;
+                });
+                
+                if (employee) {
+                    employee.screenShare = share;
+                    
+                    // Recalculate status
+                    const now = new Date();
+                    const newStatus = calculateEmployeeStatus(
+                        employee, 
+                        employee.shift, 
+                        employee.tasks, 
+                        employee.exceptions, 
+                        now, 
+                        share
+                    );
+                    
+                    if (employee.status.type !== newStatus.type) {
+                        employee.status = newStatus;
+                        const card = document.querySelector(`.employee-card[data-employee-id="${shareEmpId}"]`);
+                        if (card) {
+                            const statusBadge = card.querySelector('.status-badge');
+                            const statusIndicator = card.querySelector('.employee-status-indicator');
+                            if (statusBadge) {
+                                statusBadge.textContent = newStatus.label;
+                                statusBadge.style.background = newStatus.color;
+                            }
+                            if (statusIndicator) {
+                                statusIndicator.style.background = newStatus.color;
+                            }
+                        }
+                    }
+                }
+                
+                // Create or update video preview
+                updateVideoPreview(shareEmpId, share, employee);
+                });
+            }
+            
+            // Only hide previews if employee hasn't been seen for more than 2 minutes
+            allEmployees.forEach(emp => {
+                const empId = typeof emp.id === 'number' ? emp.id : parseInt(emp.id, 10);
+                const lastSeen = lastSeenScreenShares.get(empId);
+                
+                if (!activeShareIds.has(empId)) {
+                    // Only hide if we haven't seen them in over 2 minutes
+                    if (!lastSeen || (now - lastSeen) > 120000) {
+                        hideVideoPreview(empId);
+                        lastSeenScreenShares.delete(empId);
+                    } else {
+                        // Keep showing existing preview even if query didn't return new data
+                        // This prevents flickering/disappearing
+                        const card = document.querySelector(`.employee-card[data-employee-id="${empId}"]`);
+                        if (card) {
+                            const screenPreview = card.querySelector('.employee-screen-preview');
+                            if (screenPreview) {
+                                screenPreview.style.display = 'block';
+                            }
+                        }
+                    }
                 }
             });
         } catch (error) {
-            console.error('Error updating screen shares:', error);
+            console.debug('Error updating screen shares:', error.message);
+        }
+    }
+
+    function updateVideoPreview(employeeId, share, employee) {
+        const card = document.querySelector(`.employee-card[data-employee-id="${employeeId}"]`);
+        if (!card) return;
+
+        let screenPreview = card.querySelector('.employee-screen-preview');
+        if (!screenPreview) {
+            const tasksPreview = card.querySelector('.employee-tasks-preview');
+            if (tasksPreview) {
+                screenPreview = document.createElement('div');
+                screenPreview.className = 'employee-screen-preview';
+                screenPreview.innerHTML = `
+                    <div class="screen-preview-header">
+                        <span class="screen-label">🖥️ Screen Share</span>
+                        <div class="screen-preview-actions">
+                            <span class="screen-status live">● Live</span>
+                            <button class="fullscreen-btn" 
+                                    data-employee-id="${employeeId}" 
+                                    title="Fullscreen"
+                                    onclick="openScreenShareFullscreen(${employeeId}, '${escapeHtml(employee?.name || 'Employee')}')">
+                                ⛶
+                            </button>
+                        </div>
+                    </div>
+                    <div class="screen-preview-container">
+                        <video autoplay playsinline muted 
+                               class="screen-preview-video"
+                               data-employee-id="${employeeId}"
+                               style="width: 100%; height: auto; max-height: 300px; background: #000;">
+                        </video>
+                        <img src="" 
+                             alt="Screen share fallback" 
+                             class="screen-preview-image"
+                             data-employee-id="${employeeId}"
+                             style="display: none; width: 100%; height: auto; max-height: 300px;">
+                    </div>
+                `;
+                tasksPreview.insertAdjacentElement('afterend', screenPreview);
+            }
+        }
+
+        if (screenPreview) {
+            const video = screenPreview.querySelector(`.screen-preview-video[data-employee-id="${employeeId}"]`);
+            const img = screenPreview.querySelector(`.screen-preview-image[data-employee-id="${employeeId}"]`);
+            
+            // Try to use live video stream first
+            if (activeStreams.has(employeeId)) {
+                const stream = activeStreams.get(employeeId);
+                if (video && video.srcObject !== stream) {
+                    video.srcObject = stream;
+                    video.style.display = 'block';
+                    if (img) img.style.display = 'none';
+                    
+                    // Also update fullscreen if open
+                    const fullscreenOverlay = document.querySelector('.screen-share-fullscreen');
+                    if (fullscreenOverlay) {
+                        const fullscreenVideo = fullscreenOverlay.querySelector(`.fullscreen-video[data-employee-id="${employeeId}"]`);
+                        if (fullscreenVideo) {
+                            fullscreenVideo.srcObject = stream;
+                            fullscreenVideo.play();
+                        }
+                    }
+                }
+            } else if (share && share.frame_data) {
+                // Fallback to static image - seamless update with preloading
+                if (img) {
+                    const newSrc = share.frame_data;
+                    
+                    // Only update if the frame data actually changed (compare base64 content)
+                    const currentSrcBase = img.src.split('?t=')[0];
+                    if (currentSrcBase !== newSrc) {
+                        // Preload new image before swapping to prevent flickering
+                        const newImg = new Image();
+                        newImg.onload = () => {
+                            // Swap images seamlessly when new one is ready
+                            if (img && img.parentElement) {
+                                // Direct swap - no fade needed since it's the same image element
+                                img.src = newImg.src;
+                                
+                                // Also update fullscreen if open
+                                const fullscreenOverlay = document.querySelector('.screen-share-fullscreen');
+                                if (fullscreenOverlay) {
+                                    const fullscreenImage = fullscreenOverlay.querySelector(`.fullscreen-image[data-employee-id="${employeeId}"]`);
+                                    if (fullscreenImage) {
+                                        fullscreenImage.src = newImg.src;
+                                    }
+                                }
+                            }
+                        };
+                        newImg.onerror = () => {
+                            // If new image fails, keep old one visible
+                            console.debug('Failed to preload screen share frame');
+                        };
+                        
+                        // Start loading the new image
+                        newImg.src = newSrc;
+                    }
+                    
+                    img.style.display = 'block';
+                    if (video) video.style.display = 'none';
+                }
+            } else {
+                // No new data, but keep existing image visible if it exists
+                if (img && img.src && img.src.startsWith('data:')) {
+                    img.style.display = 'block';
+                    if (video) video.style.display = 'none';
+                }
+            }
+            
+            // Always show preview if we have any data
+            if (screenPreview && (share?.frame_data || activeStreams.has(employeeId))) {
+                screenPreview.style.display = 'block';
+            }
+        }
+    }
+
+    function hideVideoPreview(employeeId) {
+        const card = document.querySelector(`.employee-card[data-employee-id="${employeeId}"]`);
+        if (card) {
+            const screenPreview = card.querySelector('.employee-screen-preview');
+            if (screenPreview) {
+                screenPreview.style.display = 'none';
+            }
+        }
+        
+        // Clean up stream
+        if (activeStreams.has(employeeId)) {
+            const stream = activeStreams.get(employeeId);
+            stream.getTracks().forEach(track => track.stop());
+            activeStreams.delete(employeeId);
+        }
+        
+        // Clean up peer connection
+        if (peerConnections.has(employeeId)) {
+            const pc = peerConnections.get(employeeId);
+            pc.close();
+            peerConnections.delete(employeeId);
+        }
+    }
+
+    function cleanupInactiveStreams() {
+        const activeIds = new Set(
+            Array.from(document.querySelectorAll('.employee-card[data-employee-id]'))
+                .map(card => parseInt(card.getAttribute('data-employee-id'), 10))
+        );
+
+        activeStreams.forEach((stream, empId) => {
+            if (!activeIds.has(empId)) {
+                stream.getTracks().forEach(track => track.stop());
+                activeStreams.delete(empId);
+            }
+        });
+
+        peerConnections.forEach((pc, empId) => {
+            if (!activeIds.has(empId)) {
+                pc.close();
+                peerConnections.delete(empId);
+            }
+        });
+    }
+
+    function setupLiveStreamSubscription(employeeId) {
+        if (!supabaseService || !supabaseService.isReady()) return;
+
+        const channelName = `screen-share-${employeeId}`;
+        
+        // Check if already subscribed
+        if (document.querySelector(`[data-channel="${channelName}"]`)) {
+            return;
+        }
+
+        const channel = supabaseService.client.channel(channelName);
+
+        // Note: Video chunks via Realtime are disabled - using WebRTC and fallback frames instead
+
+        // Listen for WebRTC signals
+        channel.on('broadcast', { event: 'signal' }, async (payload) => {
+            const signal = payload.payload;
+            if (signal.employee_id === employeeId) {
+                await handleWebRTCSignal(employeeId, signal);
+            }
+        });
+
+        channel.subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+                console.log(`Subscribed to live stream for employee ${employeeId}`);
+            }
+        });
+
+        // Mark channel as subscribed
+        const card = document.querySelector(`.employee-card[data-employee-id="${employeeId}"]`);
+        if (card) {
+            card.setAttribute('data-channel', channelName);
+        }
+    }
+
+
+    async function handleWebRTCSignal(employeeId, signal) {
+        try {
+            if (signal.type === 'offer') {
+                // Create answer
+                const pc = new RTCPeerConnection({
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
+                    ]
+                });
+
+                peerConnections.set(employeeId, pc);
+
+                pc.ontrack = (event) => {
+                    const stream = event.streams[0];
+                    activeStreams.set(employeeId, stream);
+                    updateVideoPreview(employeeId, { frame_data: null }, null);
+                };
+
+                pc.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        // Send answer back via channel
+                        const channel = supabaseService.client.channel(`screen-share-${employeeId}`);
+                        channel.send({
+                            type: 'broadcast',
+                            event: 'signal',
+                            payload: {
+                                type: 'ice-candidate',
+                                candidate: event.candidate,
+                                employee_id: employeeId
+                            }
+                        });
+                    }
+                };
+
+                await pc.setRemoteDescription(new RTCSessionDescription(signal.offer));
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+
+                // Send answer
+                const channel = supabaseService.client.channel(`screen-share-${employeeId}`);
+                channel.send({
+                    type: 'broadcast',
+                    event: 'signal',
+                    payload: {
+                        type: 'answer',
+                        answer: answer,
+                        employee_id: employeeId
+                    }
+                });
+            } else if (signal.type === 'ice-candidate' && signal.candidate) {
+                const pc = peerConnections.get(employeeId);
+                if (pc) {
+                    await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+                }
+            }
+        } catch (error) {
+            console.debug('Error handling WebRTC signal:', error);
         }
     }
 
@@ -562,6 +1078,137 @@ document.addEventListener('DOMContentLoaded', async function() {
         div.textContent = text;
         return div.innerHTML;
     }
+
+    // Fullscreen screen share functionality
+    window.openScreenShareFullscreen = function(employeeId, employeeName) {
+        const card = document.querySelector(`.employee-card[data-employee-id="${employeeId}"]`);
+        if (!card) return;
+
+        const video = card.querySelector(`.screen-preview-video[data-employee-id="${employeeId}"]`);
+        const img = card.querySelector(`.screen-preview-image[data-employee-id="${employeeId}"]`);
+        
+        // Check if we have a video stream or image
+        const hasVideo = video && video.srcObject;
+        const hasImage = img && img.src && img.style.display !== 'none';
+
+        if (!hasVideo && !hasImage) {
+            console.log('No screen share available for fullscreen');
+            return;
+        }
+
+        // Create fullscreen overlay
+        const fullscreenOverlay = document.createElement('div');
+        fullscreenOverlay.className = 'screen-share-fullscreen';
+        fullscreenOverlay.innerHTML = `
+            <div class="fullscreen-header">
+                <div class="fullscreen-title">
+                    <span class="fullscreen-label">🖥️ ${escapeHtml(employeeName)} - Screen Share</span>
+                    <span class="fullscreen-status live">● Live</span>
+                </div>
+                <button class="fullscreen-close-btn" onclick="closeScreenShareFullscreen()" title="Close (ESC)">
+                    ✕
+                </button>
+            </div>
+            <div class="fullscreen-content">
+                ${hasVideo ? `
+                    <video autoplay playsinline muted 
+                           class="fullscreen-video"
+                           data-employee-id="${employeeId}">
+                    </video>
+                ` : `
+                    <img src="" 
+                         alt="Screen share for ${escapeHtml(employeeName)}" 
+                         class="fullscreen-image"
+                         data-employee-id="${employeeId}">
+                `}
+            </div>
+        `;
+
+        document.body.appendChild(fullscreenOverlay);
+
+        // Set up the content
+        if (hasVideo) {
+            const fullscreenVideo = fullscreenOverlay.querySelector('.fullscreen-video');
+            fullscreenVideo.srcObject = video.srcObject;
+            fullscreenVideo.play();
+        } else if (hasImage) {
+            const fullscreenImage = fullscreenOverlay.querySelector('.fullscreen-image');
+            fullscreenImage.src = img.src;
+        }
+
+        // Update fullscreen content when screen share updates
+        const updateFullscreenContent = () => {
+            if (!document.body.contains(fullscreenOverlay)) return;
+
+            const card = document.querySelector(`.employee-card[data-employee-id="${employeeId}"]`);
+            if (!card) {
+                closeScreenShareFullscreen();
+                return;
+            }
+
+            const video = card.querySelector(`.screen-preview-video[data-employee-id="${employeeId}"]`);
+            const img = card.querySelector(`.screen-preview-image[data-employee-id="${employeeId}"]`);
+            
+            if (hasVideo && video && video.srcObject) {
+                const fullscreenVideo = fullscreenOverlay.querySelector('.fullscreen-video');
+                if (fullscreenVideo && fullscreenVideo.srcObject !== video.srcObject) {
+                    fullscreenVideo.srcObject = video.srcObject;
+                }
+            } else if (hasImage && img && img.src) {
+                const fullscreenImage = fullscreenOverlay.querySelector('.fullscreen-image');
+                if (fullscreenImage && fullscreenImage.src !== img.src) {
+                    fullscreenImage.src = img.src;
+                }
+            }
+        };
+
+        // Update fullscreen content periodically
+        const fullscreenUpdateInterval = setInterval(updateFullscreenContent, 1000);
+
+        // Store interval ID for cleanup
+        fullscreenOverlay.dataset.updateInterval = fullscreenUpdateInterval;
+
+        // Close on ESC key
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                closeScreenShareFullscreen();
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+        fullscreenOverlay.dataset.escHandler = 'true';
+
+        // Fade in
+        setTimeout(() => {
+            fullscreenOverlay.classList.add('active');
+        }, 10);
+    };
+
+    window.closeScreenShareFullscreen = function() {
+        const fullscreenOverlay = document.querySelector('.screen-share-fullscreen');
+        if (!fullscreenOverlay) return;
+
+        // Clear update interval
+        const intervalId = fullscreenOverlay.dataset.updateInterval;
+        if (intervalId) {
+            clearInterval(parseInt(intervalId, 10));
+        }
+
+        // Remove ESC handler
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                closeScreenShareFullscreen();
+            }
+        };
+        document.removeEventListener('keydown', escHandler);
+
+        // Fade out and remove
+        fullscreenOverlay.classList.remove('active');
+        setTimeout(() => {
+            if (fullscreenOverlay.parentElement) {
+                fullscreenOverlay.parentElement.removeChild(fullscreenOverlay);
+            }
+        }, 300);
+    };
 
     // Initialize
     init();

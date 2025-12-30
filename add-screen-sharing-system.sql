@@ -8,7 +8,8 @@
 CREATE TABLE IF NOT EXISTS public.employee_screen_shares (
     id BIGSERIAL PRIMARY KEY,
     employee_id BIGINT NOT NULL REFERENCES public.employees(id) ON DELETE CASCADE,
-    frame_data TEXT NOT NULL, -- Base64 encoded image data
+    frame_data TEXT, -- Base64 encoded image data (fallback)
+    signal_data JSONB, -- WebRTC signaling data (offer/answer/ICE candidates)
     timestamp TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(employee_id)
