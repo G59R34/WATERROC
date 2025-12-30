@@ -806,91 +806,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
 
-    /**
-     * Punish employee - Force logout with womp womp screen
-     * Temporarily sets employee status to 'suspended' which triggers the womp womp logout
-     */
-    window.punishEmployee = async function(employeeId, employeeName) {
-        if (!confirm(`⚠️ Are you sure you want to punish ${employeeName}?\n\nThis will force them to logout with the womp womp screen.`)) {
-            return;
-        }
-        
-        try {
-            console.log(`👢 Punishing employee ${employeeId} (${employeeName})...`);
-            
-            // Get current profile to save the original status
-            const { data: currentProfile } = await supabaseService.client
-                .from('employee_profiles')
-                .select('employment_status')
-                .eq('employee_id', employeeId)
-                .maybeSingle();
-            
-            const originalStatus = currentProfile?.employment_status || 'active';
-            
-            // Get current admin user for status_changed_by
-            const currentUser = await supabaseService.getCurrentUser();
-            
-            // Temporarily set status to 'suspended' to trigger womp womp logout
-            const { data: updatedProfile, error } = await supabaseService.client
-                .from('employee_profiles')
-                .upsert({
-                    employee_id: employeeId,
-                    employment_status: 'suspended',
-                    status_changed_at: new Date().toISOString(),
-                    status_changed_by: currentUser?.id || null
-                }, {
-                    onConflict: 'employee_id'
-                })
-                .select()
-                .single();
-            
-            if (error) {
-                console.error('Error punishing employee:', error);
-                alert('❌ Failed to punish employee. Please try again.');
-                return;
-            }
-            
-            console.log(`✅ Employee ${employeeName} has been punished! They will see the womp womp screen and be logged out.`);
-            
-            // Show success message
-            const card = document.querySelector(`.employee-card[data-employee-id="${employeeId}"]`);
-            if (card) {
-                const punishBtn = card.querySelector('.punish-btn');
-                if (punishBtn) {
-                    const originalText = punishBtn.textContent;
-                    punishBtn.textContent = '✅ Punished!';
-                    punishBtn.disabled = true;
-                    punishBtn.style.background = '#10b981';
-                    
-                    // Restore button after 3 seconds
-                    setTimeout(() => {
-                        punishBtn.textContent = originalText;
-                        punishBtn.disabled = false;
-                        punishBtn.style.background = '';
-                    }, 3000);
-                }
-            }
-            
-            // Optionally restore status after a delay (or leave it for admin to manually restore)
-            // Uncomment the following if you want to auto-restore after 30 seconds:
-            /*
-            setTimeout(async () => {
-                await supabaseService.client
-                    .from('employee_profiles')
-                    .update({
-                        employment_status: originalStatus,
-                        status_changed_at: new Date().toISOString()
-                    })
-                    .eq('employee_id', employeeId);
-                console.log(`✅ Restored ${employeeName} to ${originalStatus} status`);
-            }, 30000); // 30 seconds
-            */
-            
-        } catch (error) {
-            console.error('Error punishing employee:', error);
-            alert('❌ Error punishing employee. Please try again.');
-        }
-    };
 });
         } catch (error) {
             console.debug('Error updating screen shares:', error.message);
@@ -1328,18 +1243,33 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             const originalStatus = currentProfile?.employment_status || 'active';
             
-            // Get current admin user for status_changed_by
-            const currentUser = await supabaseService.getCurrentUser();
+            // Get current admin's employee ID for status_changed_by (must be bigint, not UUID)
+            let changedByEmployeeId = null;
+            try {
+                const currentAdminEmployee = await supabaseService.getCurrentEmployee();
+                if (currentAdminEmployee && currentAdminEmployee.id) {
+                    changedByEmployeeId = currentAdminEmployee.id;
+                }
+            } catch (e) {
+                console.warn('Could not get current admin employee ID:', e);
+                // Continue without status_changed_by if admin doesn't have employee record
+            }
             
             // Temporarily set status to 'suspended' to trigger womp womp logout
+            const updateData = {
+                employee_id: employeeId,
+                employment_status: 'suspended',
+                status_changed_at: new Date().toISOString()
+            };
+            
+            // Only add status_changed_by if we have an employee ID (bigint, not UUID)
+            if (changedByEmployeeId) {
+                updateData.status_changed_by = changedByEmployeeId;
+            }
+            
             const { data: updatedProfile, error } = await supabaseService.client
                 .from('employee_profiles')
-                .upsert({
-                    employee_id: employeeId,
-                    employment_status: 'suspended',
-                    status_changed_at: new Date().toISOString(),
-                    status_changed_by: currentUser?.id || null
-                }, {
+                .upsert(updateData, {
                     onConflict: 'employee_id'
                 })
                 .select()
