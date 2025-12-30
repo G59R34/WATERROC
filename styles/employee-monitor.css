@@ -146,6 +146,47 @@
     to { transform: rotate(360deg); }
 }
 
+/* Employee Actions */
+.employee-actions {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid var(--border-color, #334155);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.punish-btn {
+    padding: 8px 16px;
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.punish-btn:hover {
+    background: #dc2626;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.punish-btn:active {
+    transform: translateY(0);
+}
+
+.punish-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
 .employee-card {
     background: var(--bg-secondary, #1e293b);
     border: 1px solid var(--border-color, #334155);
