@@ -41,11 +41,24 @@
             </div>
             <div class="login-form">
                 <h2 id="formTitle">Sign In</h2>
+                <!-- Mobile UX: quick portal picker (Employee/Admin) -->
+                <div id="mobileRoleSwitch" class="mobile-role-switch" style="display:none;">
+                    <button type="button" class="btn-secondary role-switch-btn" data-role="employee" aria-label="Employee login">
+                        Employee
+                    </button>
+                    <button type="button" class="btn-secondary role-switch-btn" data-role="admin" aria-label="Admin login">
+                        Admin
+                    </button>
+                    <button type="button" class="btn-secondary role-switch-more" id="mobileRoleMore" aria-expanded="false" aria-controls="roleGroup">
+                        More roles…
+                    </button>
+                </div>
+                <p id="mobileRoleHint" class="mobile-role-hint" style="display:none;"></p>
                 <form id="loginForm">
                     <!-- LOGIC: Form validation on login -->
                     <div class="form-group">
                         <label for="username">Employee ID / Username</label>
-                        <input type="text" id="username" name="username" required title="Enter your employee ID or username">
+                        <input type="text" id="username" name="username" autocomplete="username" required title="Enter your employee ID or username">
                         <small class="field-error" id="usernameError"></small>
                     </div>
                     <div class="form-group" id="emailGroup" style="display: none;">
@@ -60,7 +73,7 @@
                     </div>
                     <div class="form-group">
                         <label for="password">Password</label>
-                        <input type="password" id="password" name="password" required title="Enter your password">
+                        <input type="password" id="password" name="password" autocomplete="current-password" required title="Enter your password">
                         <small class="field-error" id="passwordError"></small>
                         <!-- ADDED UI: Password strength hint -->
                         <small class="password-hint" id="passwordHint" style="display: none;">Password should be at least 6 characters</small>
