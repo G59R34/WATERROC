@@ -336,10 +336,19 @@ document.addEventListener('DOMContentLoaded', async function() {
         const password = passwordInput.value;
         const role = roleSelect.value;
 
-        // Store which employee page to open (mobile only)
-        if (isMobileDevice && role === 'employee') {
-            sessionStorage.setItem('employeePortalMode', getEmployeePortalModeFromUI());
-            localStorage.setItem('empPreferFullDashboard', useFullEmployeeDashboard?.checked ? 'true' : 'false');
+        // Store which employee page to open (all devices).
+        // Default is the dedicated employee tasks portal; users can opt into the full dashboard.
+        if (role === 'employee') {
+            try {
+                sessionStorage.setItem('employeePortalMode', getEmployeePortalModeFromUI());
+            } catch (e) {
+                // ignore
+            }
+            try {
+                localStorage.setItem('empPreferFullDashboard', useFullEmployeeDashboard?.checked ? 'true' : 'false');
+            } catch (e) {
+                // ignore
+            }
         }
         
         // LOGIC: Session storage for theme preference and remember me
@@ -600,12 +609,12 @@ document.addEventListener('DOMContentLoaded', async function() {
                 sessionStorage.setItem('isAdmin', 'false');
                 // ADDED: Wait for login sound to finish before redirecting
                 await playLoginSound();
-                // Mobile default: tasks-only view (unless user opts into full dashboard)
+                // Default to employee portal (/emp/); full dashboard is opt-in
                 const mode = sessionStorage.getItem('employeePortalMode') || 'mobile_tasks';
-                if (isMobileDevice && mode === 'mobile_tasks') {
-                    window.location.href = 'emp/index.html';
-                } else {
+                if (mode === 'full_employee') {
                     window.location.href = 'employee.html';
+                } else {
+                    window.location.href = 'emp/index.html';
                 }
             } else {
                 alert('Invalid credentials! Default password is emp123');
@@ -634,13 +643,16 @@ document.addEventListener('DOMContentLoaded', async function() {
         } else if (isAdmin) {
             window.location.href = 'admin.html';
         } else {
-            // Employee routing: mobile defaults to tasks-only view unless user opts into full dashboard.
-            if (role === 'employee' && isMobileDevice) {
+            // Employee routing: default to the dedicated employee portal (/emp/) on ALL devices.
+            // Full dashboard is opt-in via employeePortalMode.
+            if (role === 'employee') {
                 const mode = sessionStorage.getItem('employeePortalMode') || 'mobile_tasks';
-                if (mode === 'mobile_tasks') {
+                if (mode === 'full_employee') {
+                    window.location.href = 'employee.html';
+                } else {
                     window.location.href = 'emp/index.html';
-                    return;
                 }
+                return;
             }
             window.location.href = 'employee.html';
         }
