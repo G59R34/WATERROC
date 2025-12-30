@@ -71,6 +71,101 @@ class GanttChart {
             this._initialized = false;
         });
     }
+
+    // Mobile/touch heuristics (used to tune column widths + UX)
+    isMobileViewport() {
+        try {
+            if (!window.matchMedia) return window.innerWidth <= 768;
+            return window.matchMedia('(max-width: 768px)').matches || window.matchMedia('(pointer: coarse)').matches;
+        } catch (_) {
+            return window.innerWidth <= 768;
+        }
+    }
+
+    isVerySmallViewport() {
+        try {
+            if (!window.matchMedia) return window.innerWidth <= 480;
+            return window.matchMedia('(max-width: 480px)').matches;
+        } catch (_) {
+            return window.innerWidth <= 480;
+        }
+    }
+
+    // Used by the current-time indicator; must match responsive CSS, not a hardcoded 200px.
+    getEmployeeColumnWidth() {
+        if (!this.container) return 200;
+        const headerCell = this.container.querySelector('.gantt-employee-header');
+        const rowCell = this.container.querySelector('.gantt-employee-cell');
+        return headerCell?.offsetWidth || rowCell?.offsetWidth || 200;
+    }
+
+    // Mobile-friendly alternative to right-click: long-press on an item.
+    // Safe to call repeatedly; it binds per-element.
+    attachLongPressContextMenu(element, item, itemType) {
+        if (!element) return;
+        if (!this.contextMenu) return;
+        if (!this.isMobileViewport()) return;
+
+        // Avoid double-binding if element persists across renders.
+        if (element.__ganttLongPressBound) return;
+        element.__ganttLongPressBound = true;
+
+        const HOLD_MS = 520;
+        const MOVE_PX = 10;
+        let timer = null;
+        let startX = 0;
+        let startY = 0;
+        let firedAt = 0;
+
+        const clear = () => {
+            if (timer) {
+                clearTimeout(timer);
+                timer = null;
+            }
+        };
+
+        const schedule = (x, y) => {
+            clear();
+            startX = x;
+            startY = y;
+            timer = setTimeout(() => {
+                firedAt = Date.now();
+                const fakeEvent = {
+                    preventDefault() {},
+                    stopPropagation() {},
+                    clientX: x,
+                    clientY: y
+                };
+                this.contextMenu.show(fakeEvent, item, itemType);
+            }, HOLD_MS);
+        };
+
+        element.addEventListener('touchstart', (e) => {
+            if (!e.touches || e.touches.length !== 1) return;
+            const t = e.touches[0];
+            schedule(t.clientX, t.clientY);
+        }, { passive: true });
+
+        element.addEventListener('touchmove', (e) => {
+            if (!timer) return;
+            const t = e.touches?.[0];
+            if (!t) return;
+            if (Math.abs(t.clientX - startX) > MOVE_PX || Math.abs(t.clientY - startY) > MOVE_PX) {
+                clear();
+            }
+        }, { passive: true });
+
+        element.addEventListener('touchend', () => clear(), { passive: true });
+        element.addEventListener('touchcancel', () => clear(), { passive: true });
+
+        // If a long-press fired, suppress the subsequent synthetic click.
+        element.addEventListener('click', (e) => {
+            if (firedAt && Date.now() - firedAt < 900) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, true);
+    }
     
     async init() {
         // Set date range - from 1 week ago to 3 months ahead (to include recent tasks)
@@ -340,6 +435,24 @@ class GanttChart {
                         isScrolling = false;
                     });
                 }
+            }, { passive: true });
+        }
+
+        // Re-render on viewport changes (rotate / resize) so widths stay usable on mobile.
+        // Debounced and only bound once.
+        if (!this._resizeHandlerBound) {
+            this._resizeHandlerBound = true;
+            let resizeTimer = null;
+            window.addEventListener('resize', () => {
+                if (!this.container) return;
+                // Only do the expensive re-render if we're likely on mobile/tablet.
+                if (!this.isMobileViewport()) return;
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => {
+                    // Keep the same zoom level, just re-apply responsive widths.
+                    this.applyZoomLevel();
+                    this.render().catch(() => {});
+                }, 200);
             }, { passive: true });
         }
         
@@ -1490,6 +1603,9 @@ class GanttChart {
                 this.contextMenu.show(e, shift, 'shift');
             }
         });
+
+        // Mobile: long-press opens the same context menu (edit/add/delete)
+        this.attachLongPressContextMenu(shiftBar, shift, 'shift');
         
         // VISUAL: Hover tooltip
         shiftBar.title = `Shift: ${startTime} - ${endTime}\n${shift.shift_templates?.name || 'Custom Shift'}\nClick to edit`;
@@ -1784,6 +1900,9 @@ class GanttChart {
                 this.contextMenu.show(e, task, 'task');
             }
         });
+
+        // Mobile: long-press context menu
+        this.attachLongPressContextMenu(taskDiv, task, 'task');
         
         return taskDiv;
     }
@@ -1921,6 +2040,9 @@ class GanttChart {
                 this.contextMenu.show(e, task, 'task');
             }
         });
+
+        // Mobile: long-press context menu
+        this.attachLongPressContextMenu(taskDiv, task, 'task');
         
         return taskDiv;
     }
@@ -2012,7 +2134,7 @@ class GanttChart {
             const timeWidthPercent = (taskDurationInHour / 60) * 100;
             
             // Collision detection for hourly tasks in hour view
-            const taskHeight = 25;
+            const taskHeight = this.isMobileViewport() ? 34 : 25;
             let lane = 0;
             let collision = true;
             
@@ -2117,6 +2239,9 @@ class GanttChart {
                     this.contextMenu.show(e, hourlyTask, 'hourlyTask');
                 }
             });
+
+            // Mobile: long-press context menu
+            this.attachLongPressContextMenu(taskDiv, hourlyTask, 'hourlyTask');
             
             return taskDiv;
         }
@@ -2157,7 +2282,7 @@ class GanttChart {
         const timeLeft = (startMinutes / dayEndMinutes) * width;
         
         // Collision detection for hourly tasks
-        const taskHeight = 25;
+        const taskHeight = this.isMobileViewport() ? 34 : 25;
         let lane = 0;
         let collision = true;
         
@@ -2277,6 +2402,9 @@ class GanttChart {
                 this.contextMenu.show(e, hourlyTask, 'hourlyTask');
             }
         });
+
+        // Mobile: long-press context menu
+        this.attachLongPressContextMenu(taskDiv, hourlyTask, 'hourlyTask');
         
         // Tooltip with full details
         taskDiv.title = `${hourlyTask.name}\n${startTime} - ${endTime}\n${hourlyTask.work_area || 'other'}\nClick to view hourly schedule`;
@@ -2770,7 +2898,7 @@ class GanttChart {
             
             // Get the timeline header to calculate available width
             const timelineHeader = this.container.querySelector('.gantt-timeline-header');
-            const employeeColumnWidth = 200;
+            const employeeColumnWidth = this.getEmployeeColumnWidth();
             let availableWidth = window.innerWidth - employeeColumnWidth;
             
             if (timelineHeader) {
@@ -2815,7 +2943,7 @@ class GanttChart {
         const timePercent = (hours * 3600 + minutes * 60 + seconds) / (24 * 3600);
         
         // Calculate left position: employee column width (200px) + (today column index * dayWidth) + (time percent * dayWidth)
-        const employeeColumnWidth = 200;
+        const employeeColumnWidth = this.getEmployeeColumnWidth();
         const left = employeeColumnWidth + (todayColumnIndex * this.dayWidth) + (timePercent * this.dayWidth);
         
         // Update indicator position
@@ -2827,7 +2955,27 @@ class GanttChart {
     applyZoomLevel() {
         const level = this.zoomLevels[this.currentZoomLevel];
         if (level) {
-            this.dayWidth = level.dayWidth;
+            // IMPORTANT: dayWidth is used for both layout (cell widths) and bar positioning.
+            // On mobile, we must reduce it, otherwise the chart becomes unusable and CSS media
+            // queries won't help because gantt.js sets widths inline.
+            const isMobile = this.isMobileViewport();
+            const isTiny = this.isVerySmallViewport();
+
+            if (level.rangeType === 'day') {
+                // Day view is hour-granular; scale by hour width (24 hours).
+                const hourWidth = isMobile ? (isTiny ? 44 : 52) : (level.hourWidth || 100);
+                this.dayWidth = hourWidth * 24;
+            } else if (level.rangeType === 'hour') {
+                // Hour view uses full-width cells; dayWidth is mostly irrelevant but kept sane.
+                this.dayWidth = isMobile ? 120 : level.dayWidth;
+            } else if (level.rangeType === 'week') {
+                this.dayWidth = isMobile ? (isTiny ? 80 : 92) : level.dayWidth;
+            } else if (level.rangeType === 'month') {
+                // Month view default was 200px/day which is far too wide on phones.
+                this.dayWidth = isMobile ? (isTiny ? 80 : 92) : level.dayWidth;
+            } else {
+                this.dayWidth = level.dayWidth;
+            }
             
             // Adjust date range based on zoom level
             const today = new Date();
