@@ -310,7 +310,8 @@ class SupabaseService {
         if (!this.isReady()) return null;
 
         try {
-            const { data, error } = await this.client
+            // Fetch employees and profiles separately to avoid relationship ambiguity
+            const { data: employees, error: empError } = await this.client
                 .from('employees')
                 .select(`
                     *,
@@ -319,22 +320,39 @@ class SupabaseService {
                         username,
                         email,
                         is_admin
-                    ),
-                    employee_profiles (
-                        id,
-                        employment_type,
-                        employment_status
                     )
                 `)
                 .order('created_at', { ascending: true });
 
-            if (error) throw error;
-            
+            if (empError) throw empError;
+
+            // Fetch all profiles
+            const { data: profiles, error: profileError } = await this.client
+                .from('employee_profiles')
+                .select('id, employee_id, employment_type, employment_status');
+
+            if (profileError) throw profileError;
+
+            // Create a map of employee_id -> profile
+            const profileMap = new Map();
+            if (profiles) {
+                profiles.forEach(profile => {
+                    profileMap.set(profile.employee_id, profile);
+                });
+            }
+
+            // Combine employees with their profiles
+            const employeesWithProfiles = (employees || []).map(emp => {
+                const profile = profileMap.get(emp.id);
+                return {
+                    ...emp,
+                    employee_profiles: profile || null
+                };
+            });
+
             // Filter to only active employees with profiles
-            return (data || []).filter(emp => {
-                const profile = Array.isArray(emp.employee_profiles) 
-                    ? emp.employee_profiles[0] 
-                    : emp.employee_profiles;
+            return employeesWithProfiles.filter(emp => {
+                const profile = emp.employee_profiles;
                 return profile && profile.employment_status === 'active';
             });
         } catch (error) {
@@ -2051,6 +2069,73 @@ class SupabaseService {
             return data;
         } catch (error) {
             console.error('Error in acknowledgeHourlyTask:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Mark an hourly task as completed and create admin notification
+     */
+    async markHourlyTaskAsCompleted(taskId, employeeId, employeeName) {
+        if (!this.isReady()) return null;
+
+        try {
+            // First get the task to verify it exists and get details
+            const { data: task, error: fetchError } = await this.client
+                .from('hourly_tasks')
+                .select('*')
+                .eq('id', taskId)
+                .single();
+
+            if (fetchError || !task) {
+                console.error('Task not found or error fetching:', fetchError);
+                return null;
+            }
+
+            console.log('Found hourly task to mark as completed:', task);
+
+            // Update task status to completed
+            const { data: updatedTask, error: updateError } = await this.client
+                .from('hourly_tasks')
+                .update({
+                    status: 'completed',
+                    modified_at: new Date().toISOString()
+                })
+                .eq('id', taskId)
+                .select()
+                .single();
+
+            if (updateError) {
+                console.error('Error updating hourly task to completed:', updateError);
+                return null;
+            }
+
+            // Create admin notification
+            const { data: notification, error: notifError } = await this.client
+                .from('task_completion_notifications')
+                .insert({
+                    task_id: taskId,
+                    employee_id: employeeId,
+                    employee_name: employeeName,
+                    task_name: task.name,
+                    task_date: task.task_date,
+                    status: 'pending'
+                })
+                .select()
+                .single();
+
+            if (notifError) {
+                console.error('Error creating completion notification:', notifError);
+                // Task is still marked as completed, so return success
+                console.warn('Task marked as completed but notification failed');
+            } else {
+                console.log('✅ Admin notification created:', notification);
+            }
+
+            console.log('✅ Hourly task marked as completed:', updatedTask);
+            return updatedTask;
+        } catch (error) {
+            console.error('Error in markHourlyTaskAsCompleted:', error);
             return null;
         }
     }

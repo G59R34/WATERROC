@@ -195,13 +195,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load exception logs
     async function loadExceptionLogs(filters = {}) {
         const tbody = document.getElementById('exceptionLogsBody');
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px;"><div style="color: #94a3b8;">Loading...</div></td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 40px;"><div style="color: #94a3b8;">Loading...</div></td></tr>';
         
         try {
             const logs = await supabaseService.getExceptionLogs(filters);
             
             if (logs.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px;"><div style="color: #94a3b8;">No exception logs found</div></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 40px;"><div style="color: #94a3b8;">No exception logs found</div></td></tr>';
+                document.getElementById('deleteSelectedBtn').style.display = 'none';
+                document.getElementById('selectAllExceptions').checked = false;
                 return;
             }
             
@@ -213,7 +215,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     : 'Full Day';
                 
                 return `
-                    <tr>
+                    <tr data-exception-id="${log.id}">
+                        <td style="text-align: center;">
+                            <input type="checkbox" class="exception-checkbox" value="${log.id}" onchange="updateDeleteButton()">
+                        </td>
                         <td>${new Date(log.exception_date).toLocaleDateString()}</td>
                         <td><strong>${log.employee_name}</strong></td>
                         <td><span style="background: ${codeColor}; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 11px;">${log.exception_code}</span></td>
@@ -228,11 +233,83 @@ document.addEventListener('DOMContentLoaded', async () => {
                 `;
             }).join('');
             
+            // Setup select all checkbox
+            setupSelectAll();
+            updateDeleteButton();
+            
         } catch (error) {
             console.error('Error loading exception logs:', error);
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #ef4444;">Error loading logs</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 40px; color: #ef4444;">Error loading logs</td></tr>';
         }
     }
+    
+    // Setup select all checkbox
+    function setupSelectAll() {
+        const selectAll = document.getElementById('selectAllExceptions');
+        if (!selectAll) return;
+        
+        selectAll.onclick = function() {
+            const checkboxes = document.querySelectorAll('.exception-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = selectAll.checked;
+            });
+            updateDeleteButton();
+        };
+    }
+    
+    // Update delete button visibility based on selected checkboxes
+    window.updateDeleteButton = function() {
+        const checked = document.querySelectorAll('.exception-checkbox:checked');
+        const deleteBtn = document.getElementById('deleteSelectedBtn');
+        if (deleteBtn) {
+            deleteBtn.style.display = checked.length > 0 ? 'inline-block' : 'none';
+        }
+        
+        // Update select all checkbox state
+        const selectAll = document.getElementById('selectAllExceptions');
+        if (selectAll) {
+            const allCheckboxes = document.querySelectorAll('.exception-checkbox');
+            selectAll.checked = allCheckboxes.length > 0 && checked.length === allCheckboxes.length;
+        }
+    };
+    
+    // Delete selected exceptions
+    window.deleteSelectedExceptions = async function() {
+        const checked = document.querySelectorAll('.exception-checkbox:checked');
+        if (checked.length === 0) {
+            alert('Please select at least one exception to delete.');
+            return;
+        }
+        
+        const ids = Array.from(checked).map(cb => parseInt(cb.value));
+        const count = ids.length;
+        
+        if (!confirm(`Are you sure you want to delete ${count} exception${count > 1 ? 's' : ''}?`)) {
+            return;
+        }
+        
+        try {
+            if (typeof showActionLoadingScreen !== 'undefined') {
+                showActionLoadingScreen('deleting exceptions');
+            }
+            
+            // Delete all selected exceptions
+            const { error } = await supabaseService.client
+                .from('exception_logs')
+                .delete()
+                .in('id', ids);
+            
+            if (error) throw error;
+            
+            alert(`✅ Successfully deleted ${count} exception${count > 1 ? 's' : ''}`);
+            
+            // Reload the list
+            loadExceptionLogs();
+        } catch (error) {
+            console.error('Error deleting exceptions:', error);
+            alert('❌ Failed to delete exceptions: ' + error.message);
+        }
+    };
     
     // Filter logs
     document.getElementById('filterLogsBtn').addEventListener('click', () => {

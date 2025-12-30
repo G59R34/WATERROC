@@ -13,3 +13,4 @@ CREATE POLICY "Allow inserts for stock price history"
 
 
 
+

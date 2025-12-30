@@ -456,6 +456,21 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     }
     
+    // Employee Monitor navigation
+    const employeeMonitorBtn = document.getElementById('employeeMonitorBtn');
+    if (employeeMonitorBtn) {
+        employeeMonitorBtn.addEventListener('click', function() {
+            if (typeof showPageLoadScreen !== 'undefined') {
+                showPageLoadScreen();
+                setTimeout(() => {
+                    window.location.href = 'employee-monitor.html';
+                }, 100);
+            } else {
+                window.location.href = 'employee-monitor.html';
+            }
+        });
+    }
+    
     // Exceptions & Absence navigation
     const manageExceptionsBtn = document.getElementById('manageExceptionsBtn');
     if (manageExceptionsBtn) {

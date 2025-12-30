@@ -162,6 +162,7 @@
                             <button id="filterLogsBtn" class="btn-primary">Filter</button>
                             <button id="clearFiltersBtn" class="btn-secondary">Clear</button>
                             <button id="exportLogsBtn" class="btn-success">Export CSV</button>
+                            <button id="deleteSelectedBtn" class="btn-danger" style="display: none;" onclick="deleteSelectedExceptions()">Delete Selected</button>
                         </div>
                     </div>
 
@@ -169,6 +170,9 @@
                         <table class="data-table" id="exceptionLogsTable">
                             <thead>
                                 <tr>
+                                    <th style="width: 40px;">
+                                        <input type="checkbox" id="selectAllExceptions" title="Select All">
+                                    </th>
                                     <th>Date</th>
                                     <th>Employee</th>
                                     <th>Code</th>

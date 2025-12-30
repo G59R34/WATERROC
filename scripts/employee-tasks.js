@@ -533,6 +533,11 @@ document.addEventListener('DOMContentLoaded', async function() {
             const acknowledgeBtn = !task.acknowledged && task.status !== 'completed'
                 ? `<button class="btn-acknowledge" onclick="acknowledgeTask(${task.id})">✓ Acknowledge Task</button>`
                 : '';
+            
+            // Add "Mark as Completed" button for acknowledged tasks that aren't completed or overdue
+            const completeBtn = (task.acknowledged && task.status !== 'completed' && task.status !== 'overdue')
+                ? `<button class="btn-complete" onclick="markTaskAsCompleted(${task.id})" style="margin-top: 8px; padding: 8px 16px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; width: 100%;">✅ Mark as Completed</button>`
+                : '';
 
             return `
                 <div class="task-item ${urgentClass} ${statusClass}" data-task-id="${task.id}">
@@ -552,6 +557,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                         ${acknowledgedHtml}
                     </div>
                     ${acknowledgeBtn}
+                    ${completeBtn}
                 </div>
             `;
         }).join('');
@@ -609,6 +615,45 @@ document.addEventListener('DOMContentLoaded', async function() {
             showNotification('✅ Task acknowledged!');
         } catch (error) {
             console.error('Error acknowledging task:', error);
+            showNotification('❌ Error: ' + error.message);
+        }
+    };
+
+    // Make markTaskAsCompleted available globally
+    window.markTaskAsCompleted = async function(taskId) {
+        if (typeof showActionLoadingScreen !== 'undefined') {
+            showActionLoadingScreen('marking task as completed');
+        }
+        
+        try {
+            console.log('Attempting to mark task as completed:', taskId);
+            console.log('Current employee:', currentEmployee);
+            
+            if (!supabaseService || !supabaseService.isReady()) {
+                showNotification('❌ Supabase not connected');
+                return;
+            }
+            
+            if (!currentEmployee || !currentEmployee.name || !currentEmployee.employeeId) {
+                showNotification('❌ Employee data not loaded');
+                return;
+            }
+            
+            // Mark task as completed and create admin notification
+            const result = await supabaseService.markHourlyTaskAsCompleted(taskId, currentEmployee.employeeId, currentEmployee.name);
+            console.log('Mark completed result:', result);
+            
+            if (!result) {
+                showNotification('❌ Failed to mark task as completed');
+                return;
+            }
+            
+            // Reload tasks to update display
+            await loadTasks();
+            
+            showNotification('✅ Task marked as completed! Awaiting admin review.');
+        } catch (error) {
+            console.error('Error marking task as completed:', error);
             showNotification('❌ Error: ' + error.message);
         }
     };

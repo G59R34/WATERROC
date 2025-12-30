@@ -175,10 +175,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             useFullEmployeeDashboard.checked = saved === 'true';
         }
 
-        // Keep a session hint so redirect routing knows which page to open (employee only)
-        if ((roleSelect?.value || '') === 'employee') {
-            sessionStorage.setItem('employeePortalMode', getEmployeePortalModeFromUI());
-        }
+        // Note: employeePortalMode is no longer used - always redirects to employee.html
     }
 
     function wireMobileModeToggle() {
@@ -186,8 +183,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (!useFullEmployeeDashboard) return;
 
         useFullEmployeeDashboard.addEventListener('change', () => {
-            const mode = getEmployeePortalModeFromUI();
-            sessionStorage.setItem('employeePortalMode', mode);
+            // Save preference for UI, but redirect always goes to employee.html
             localStorage.setItem('empPreferFullDashboard', useFullEmployeeDashboard.checked ? 'true' : 'false');
         });
     }
@@ -337,13 +333,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         const role = roleSelect.value;
 
         // Store which employee page to open (all devices).
-        // Default is the dedicated employee tasks portal; users can opt into the full dashboard.
+        // Note: Always redirects to employee.html, preference saved for UI only
         if (role === 'employee') {
-            try {
-                sessionStorage.setItem('employeePortalMode', getEmployeePortalModeFromUI());
-            } catch (e) {
-                // ignore
-            }
             try {
                 localStorage.setItem('empPreferFullDashboard', useFullEmployeeDashboard?.checked ? 'true' : 'false');
             } catch (e) {
@@ -609,13 +600,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                 sessionStorage.setItem('isAdmin', 'false');
                 // ADDED: Wait for login sound to finish before redirecting
                 await playLoginSound();
-                // Default to employee portal (/emp/); full dashboard is opt-in
-                const mode = sessionStorage.getItem('employeePortalMode') || 'mobile_tasks';
-                if (mode === 'full_employee') {
-                    window.location.href = 'employee.html';
-                } else {
-                    window.location.href = 'emp/index.html';
-                }
+                // Always redirect to full employee dashboard
+                window.location.href = 'employee.html';
             } else {
                 alert('Invalid credentials! Default password is emp123');
             }
@@ -643,15 +629,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         } else if (isAdmin) {
             window.location.href = 'admin.html';
         } else {
-            // Employee routing: default to the dedicated employee portal (/emp/) on ALL devices.
-            // Full dashboard is opt-in via employeePortalMode.
+            // Employee routing: always use full employee dashboard
             if (role === 'employee') {
-                const mode = sessionStorage.getItem('employeePortalMode') || 'mobile_tasks';
-                if (mode === 'full_employee') {
-                    window.location.href = 'employee.html';
-                } else {
-                    window.location.href = 'emp/index.html';
-                }
+                window.location.href = 'employee.html';
                 return;
             }
             window.location.href = 'employee.html';
