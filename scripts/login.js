@@ -89,6 +89,9 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     const urlParams = new URLSearchParams(window.location.search || '');
     const urlRole = (urlParams.get('role') || '').trim().toLowerCase();
+    // Single source of truth for what the user chose in the UI (mobile role switch).
+    // Some mobile browsers can keep the <select> value stale when it is hidden.
+    let selectedRole = '';
 
     function getEmployeePortalModeFromUI() {
         // mobile_tasks => /emp/index.html (tasks-only)
@@ -120,6 +123,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     function setSelectedRole(role, { fromUI = false } = {}) {
         const nextRole = (role || '').trim().toLowerCase();
         if (!nextRole) return;
+        selectedRole = nextRole;
         if (roleSelect) roleSelect.value = nextRole;
 
         // Mobile UX: hide the full role dropdown unless user asks for it,
@@ -334,7 +338,10 @@ document.addEventListener('DOMContentLoaded', async function() {
         const email = emailInput.value.trim();
         const fullName = fullNameInput.value.trim();
         const password = passwordInput.value;
-        const role = roleSelect.value;
+        // IMPORTANT: prefer the role chosen via the mobile role switch.
+        // Fall back to the <select> value if needed.
+        const role = ((selectedRole || roleSelect.value || '') + '').trim().toLowerCase();
+        if (roleSelect && role) roleSelect.value = role; // keep the DOM in sync
 
         // Store which employee page to open (mobile only)
         if (isMobileDevice && role === 'employee') {
