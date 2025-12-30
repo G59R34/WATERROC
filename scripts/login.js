@@ -263,7 +263,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     });
     }
     
-    // Check if already logged in
+    // Check if already logged in (simple session check - no persistent storage)
     if (typeof supabaseService !== 'undefined' && supabaseService.isReady()) {
         const session = await supabaseService.getSession();
         if (session && sessionStorage.getItem('userRole')) {
@@ -271,7 +271,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             const user = await supabaseService.getCurrentUser();
             if (user) {
                 // Check employment status before allowing access
-                // employee_profiles.employee_id references employees.id (BIGINT), so we must resolve the employee record first.
                 const employee = await supabaseService.getCurrentEmployee();
                 const { data: profile } = employee
                     ? await supabaseService.client
@@ -284,7 +283,6 @@ document.addEventListener('DOMContentLoaded', async function() {
                 const employmentStatus = profile?.employment_status || 'active';
                 
                 if (employmentStatus === 'terminated' || employmentStatus === 'administrative_leave') {
-                    // Revoke access and force re-login
                     await supabaseService.signOut();
                     sessionStorage.clear();
                     alert('Your account access has been revoked. Please contact an administrator.');
@@ -292,8 +290,6 @@ document.addEventListener('DOMContentLoaded', async function() {
                 }
                 
                 if (employmentStatus === 'extended_leave') {
-                    // Redirect to extended leave page
-                    // ADDED: Wait for login sound to finish before redirecting
                     await playLoginSound();
                     window.location.href = 'extended-leave.html';
                     return;
@@ -561,7 +557,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 console.log('Admin viewing employee dashboard');
             }
             
-            // Store session info
+            // Store session info in sessionStorage (clears when browser closes)
             sessionStorage.setItem('userRole', role);
             sessionStorage.setItem('username', user.username);
             sessionStorage.setItem('userId', user.id);

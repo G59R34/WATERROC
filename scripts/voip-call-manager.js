@@ -19,6 +19,7 @@ class VOIPCallManager {
         this.onCallStateChange = null;
         this.onIncomingCall = null;
         this.onCallEnded = null;
+        this.iceCandidateQueue = []; // Queue for ICE candidates received before remote description is set
         
         // WebRTC configuration with multiple STUN servers for better connectivity
         // Note: For production, consider adding TURN servers for users behind strict NATs
@@ -501,6 +502,9 @@ class VOIPCallManager {
             await this.peerConnection.setRemoteDescription(
                 new RTCSessionDescription(signalData.offer)
             );
+            
+            // Process queued ICE candidates now that remote description is set
+            await this.processQueuedIceCandidates();
 
             // Create answer with proper options
             const answerOptions = {
@@ -732,6 +736,9 @@ class VOIPCallManager {
                             new RTCSessionDescription(signalData.answer)
                         );
                         console.log('✅ Set remote description from answer');
+                        
+                        // Process queued ICE candidates now that remote description is set
+                        await this.processQueuedIceCandidates();
                     }
                     if (this.currentCallLogId) {
                         await this.supabaseService.updateCallLog(this.currentCallLogId, 'answered');
@@ -755,7 +762,7 @@ class VOIPCallManager {
                     break;
 
                 case 'ice-candidate':
-                    // Add ICE candidate
+                    // Add ICE candidate (queue if remote description not set yet)
                     if (this.peerConnection) {
                         try {
                             // Handle both direct candidate object and wrapped in signal_data
@@ -763,8 +770,17 @@ class VOIPCallManager {
                             
                             if (candidateData && (candidateData.candidate || candidateData.sdpMLineIndex !== undefined)) {
                                 const candidate = new RTCIceCandidate(candidateData);
-                                await this.peerConnection.addIceCandidate(candidate);
-                                console.log('✅ ICE candidate added:', candidate.type);
+                                
+                                // Check if remote description is set
+                                if (this.peerConnection.remoteDescription) {
+                                    // Remote description is set, add candidate immediately
+                                    await this.peerConnection.addIceCandidate(candidate);
+                                    console.log('✅ ICE candidate added:', candidate.type);
+                                } else {
+                                    // Remote description not set yet, queue the candidate
+                                    this.iceCandidateQueue.push(candidate);
+                                    console.log('📦 Queued ICE candidate (waiting for remote description)');
+                                }
                             }
                         } catch (error) {
                             // Ignore errors for duplicate or invalid candidates
@@ -782,9 +798,41 @@ class VOIPCallManager {
     }
 
     /**
+     * Process queued ICE candidates after remote description is set
+     */
+    async processQueuedIceCandidates() {
+        if (!this.peerConnection || !this.peerConnection.remoteDescription) {
+            return;
+        }
+        
+        if (this.iceCandidateQueue.length === 0) {
+            return;
+        }
+        
+        console.log(`📤 Processing ${this.iceCandidateQueue.length} queued ICE candidates`);
+        
+        // Process all queued candidates
+        while (this.iceCandidateQueue.length > 0) {
+            const candidate = this.iceCandidateQueue.shift();
+            try {
+                await this.peerConnection.addIceCandidate(candidate);
+                console.log('✅ Queued ICE candidate added:', candidate.type);
+            } catch (error) {
+                // Ignore errors for duplicate or invalid candidates
+                if (error.name !== 'OperationError' && error.name !== 'TypeError') {
+                    console.warn('⚠️ Error adding queued ICE candidate:', error);
+                }
+            }
+        }
+    }
+
+    /**
      * Cleanup call resources
      */
     cleanup() {
+        // Clear ICE candidate queue
+        this.iceCandidateQueue = [];
+        
         // Stop local stream
         if (this.localStream) {
             this.localStream.getTracks().forEach(track => track.stop());

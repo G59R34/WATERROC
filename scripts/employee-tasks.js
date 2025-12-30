@@ -21,8 +21,15 @@ document.addEventListener('DOMContentLoaded', async function() {
         showPageLoadScreen();
     }
 
-    // Check authentication first using sessionStorage
-    const userRole = sessionStorage.getItem('userRole');
+    // Check authentication first (check localStorage for persistent sessions)
+    const userRole = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
+    
+    // Restore session to sessionStorage for backward compatibility
+    if (localStorage.getItem('userRole') && !sessionStorage.getItem('userRole')) {
+        sessionStorage.setItem('userRole', localStorage.getItem('userRole'));
+        sessionStorage.setItem('username', localStorage.getItem('username') || '');
+        sessionStorage.setItem('userId', localStorage.getItem('userId') || '');
+    }
     if (userRole !== 'employee') {
         window.location.href = getLoginUrl();
         return;
@@ -167,8 +174,13 @@ document.addEventListener('DOMContentLoaded', async function() {
                 console.error('Error during Supabase logout:', error);
             }
             
-            // Clear all session data
+            // Clear all session data (including persistent localStorage)
             sessionStorage.clear();
+            localStorage.removeItem('userRole');
+            localStorage.removeItem('username');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('isAdmin');
+            localStorage.removeItem('employmentStatus');
             
             // Redirect to login
             window.location.href = getLoginUrl();

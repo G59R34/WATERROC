@@ -14,3 +14,4 @@ CREATE INDEX IF NOT EXISTS idx_screen_shares_signal_data ON public.employee_scre
 
 COMMENT ON COLUMN public.employee_screen_shares.signal_data IS 'WebRTC signaling data (offer/answer/ICE candidates) stored as JSONB';
 
+
