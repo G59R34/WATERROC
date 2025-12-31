@@ -117,7 +117,7 @@ console.log('[ATTENTION LOCK] Script loaded');
                     font-size: 48px;
                     margin: 0 0 20px 0;
                     font-weight: 700;
-                ">RETURN TO WATERROC</h1>
+                ">PLEASE RETURN</h1>
                 <p style="
                     font-size: 24px;
                     margin: 0 0 30px 0;
@@ -320,7 +320,7 @@ console.log('[ATTENTION LOCK] Script loaded');
         const now = Date.now();
         const timeAway = Math.floor((now - hiddenStartTime) / 1000);
         
-        const message = `RETURN TO WATERROC NOW`;
+        const message = `PLEASE RETURN NOW`;
         const detail = `You've been away for ${timeAway} seconds. This is unacceptable.`;
         
         // CONSTANT: Always try to focus the window on EVERY reminder

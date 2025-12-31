@@ -577,7 +577,39 @@ document.addEventListener('DOMContentLoaded', async function() {
             // Play login sound (don't await - let it play in background)
             playLoginSound().catch(err => console.warn('Login sound error:', err));
             
-            // Redirect immediately - try IPC first (if available), then fallback to window.location
+            // Link browser instance to user (if in Electron)
+            // Get session again to ensure we have it (it was defined earlier but may be out of scope)
+            let currentSession = session;
+            if (!currentSession) {
+              currentSession = await supabaseService.getSession();
+            }
+            
+            if (currentSession?.user?.id) {
+              try {
+                if (typeof require !== 'undefined') {
+                  const { ipcRenderer } = require('electron');
+                  if (ipcRenderer && typeof ipcRenderer.invoke === 'function') {
+                    console.log('🔗 Linking browser instance to user:', currentSession.user.id);
+                    const linkResult = await ipcRenderer.invoke('supabase-link-instance-to-user', currentSession.user.id);
+                    if (linkResult && linkResult.success) {
+                      console.log('✅ Browser instance successfully linked to user');
+                    } else {
+                      console.warn('⚠️ Browser instance linking returned:', linkResult);
+                    }
+                  } else {
+                    console.log('ℹ️ Not in Electron environment - browser instance linking skipped');
+                  }
+                } else {
+                  console.log('ℹ️ require() not available - not in Electron environment');
+                }
+              } catch (e) {
+                console.error('❌ Error linking browser instance:', e);
+                // Don't block login if linking fails
+              }
+            } else {
+              console.warn('⚠️ Could not get session or user ID for browser instance linking');
+            }
+            
             console.log('Redirecting to:', targetPage);
             try {
               // Try IPC navigation first (works in Electron)

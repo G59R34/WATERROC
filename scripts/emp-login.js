@@ -129,6 +129,21 @@ document.addEventListener('DOMContentLoaded', async function () {
             const { error } = await supabaseService.signIn(email, password);
             if (error) throw new Error(error);
 
+            // Link browser instance to user (if in Electron)
+            try {
+                const session = await supabaseService.getSession();
+                if (session?.user?.id && typeof require !== 'undefined') {
+                    const { ipcRenderer } = require('electron');
+                    if (ipcRenderer && typeof ipcRenderer.invoke === 'function') {
+                        console.log('Linking browser instance to user:', session.user.id);
+                        await ipcRenderer.invoke('supabase-link-instance-to-user', session.user.id);
+                        console.log('✅ Browser instance linked to user');
+                    }
+                }
+            } catch (e) {
+                console.log('Could not link browser instance (not in Electron or error):', e);
+            }
+
             const gate = await enforceEmployeeAccess();
             if (!gate.ok) {
                 await supabaseService.signOut();
