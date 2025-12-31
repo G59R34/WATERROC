@@ -1274,22 +1274,27 @@ document.addEventListener('DOMContentLoaded', async function() {
             // Since we don't know the exact schema, we'll use a simpler approach:
             // The browser instance will poll for lockdown status
             
-            // Update browser instance with lockdown flag if table exists
+            // Update browser instance with lockdown flag
             if (browserInstances && browserInstances.length > 0) {
                 const instanceId = browserInstances[0].instance_id;
-                const { error: updateError } = await supabaseService.client
+                const { data: updateData, error: updateError } = await supabaseService.client
                     .from('browser_instances')
                     .update({ 
                         lockdown_enabled: true,
                         updated_at: new Date().toISOString()
                     })
-                    .eq('instance_id', instanceId);
+                    .eq('instance_id', instanceId)
+                    .select();
                 
                 if (updateError) {
-                    console.warn('Could not update browser_instances (column might not exist):', updateError);
+                    console.error('Error updating browser_instances for lockdown:', updateError);
+                    alert(`❌ Error: Could not set lockdown. ${updateError.message}\n\nYou may need to add the 'lockdown_enabled' column to the browser_instances table.`);
                 } else {
-                    console.log(`✅ Set lockdown flag for browser instance: ${instanceId}`);
+                    console.log(`✅ Set lockdown_enabled=true for browser instance: ${instanceId}`, updateData);
                 }
+            } else {
+                alert(`⚠️ Could not find active browser instance for ${employeeName}.\n\nThey may not be logged in or using the WaterROC Secure Browser.`);
+                return;
             }
             
             // Store lockdown state in a way the browser can check
@@ -1326,13 +1331,21 @@ document.addEventListener('DOMContentLoaded', async function() {
                 
                 if (browserInstances && browserInstances.length > 0) {
                     const instanceId = browserInstances[0].instance_id;
-                    await supabaseService.client
+                    const { error: updateError } = await supabaseService.client
                         .from('browser_instances')
                         .update({ 
                             lockdown_enabled: false,
                             updated_at: new Date().toISOString()
                         })
                         .eq('instance_id', instanceId);
+                    
+                    if (updateError) {
+                        console.error('Error releasing lockdown:', updateError);
+                        alert('❌ Error releasing lockdown: ' + updateError.message);
+                        return;
+                    }
+                    
+                    console.log(`✅ Released lockdown for browser instance: ${instanceId}`);
                 }
             }
             
