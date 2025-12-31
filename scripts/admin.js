@@ -386,14 +386,41 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     }
     
-    // Scale selector dropdown
-    if (scaleSelector && gantt) {
-        scaleSelector.value = gantt.currentZoomLevel; // Set initial value
+    // Scale selector dropdown - wait for gantt to be ready
+    if (scaleSelector) {
+        // Set initial value if gantt is available
+        if (gantt) {
+            scaleSelector.value = gantt.currentZoomLevel;
+        }
+        
+        // Add event listener - check gantt inside the handler in case it's not ready yet
         scaleSelector.addEventListener('change', function() {
-            if (gantt) {
-                gantt.setZoomLevel(this.value);
+            const currentGantt = window.gantt || gantt;
+            if (currentGantt) {
+                console.log('Changing zoom level to:', this.value);
+                currentGantt.setZoomLevel(this.value);
+                // Update selector value to match (in case setZoomLevel changes it)
+                if (scaleSelector.value !== currentGantt.currentZoomLevel) {
+                    scaleSelector.value = currentGantt.currentZoomLevel;
+                }
+            } else {
+                console.warn('Gantt chart not available for zoom change');
             }
         });
+        
+        // Also update selector value after gantt finishes initializing
+        if (gantt) {
+            // Wait for gantt to finish initializing, then sync selector
+            const checkGanttReady = setInterval(() => {
+                if (gantt && gantt._initialized && scaleSelector) {
+                    scaleSelector.value = gantt.currentZoomLevel;
+                    clearInterval(checkGanttReady);
+                }
+            }, 100);
+            
+            // Stop checking after 5 seconds
+            setTimeout(() => clearInterval(checkGanttReady), 5000);
+        }
     }
     
     // Analytics navigation

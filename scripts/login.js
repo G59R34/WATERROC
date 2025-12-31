@@ -290,13 +290,19 @@ document.addEventListener('DOMContentLoaded', async function() {
                 }
                 
                 if (employmentStatus === 'extended_leave') {
-                    await playLoginSound();
-                    window.location.href = 'extended-leave.html';
+                    playLoginSound().catch(err => console.warn('Login sound error:', err));
+                    window.location.replace('extended-leave.html');
                     return;
                 }
                 
                 const storedRole = sessionStorage.getItem('userRole');
-                await redirectToApp(user.is_admin, storedRole);
+                const targetPage = storedRole === 'accountant' ? 'accountant.html' :
+                                  storedRole === 'crew_scheduler' ? 'crew-scheduling.html' :
+                                  user.is_admin ? 'admin.html' : 'employee.html';
+                // Play sound but don't block - redirect immediately
+                playLoginSound().catch(() => {});
+                console.log('Already logged in - redirecting to:', targetPage);
+                window.location.replace(targetPage);
                 return;
             }
         }
@@ -513,9 +519,9 @@ document.addEventListener('DOMContentLoaded', async function() {
                             sessionStorage.setItem('userRole', role);
                             sessionStorage.setItem('username', username);
                             sessionStorage.setItem('userId', userData.id);
-                            // ADDED: Wait for login sound to finish before redirecting
-                            await playLoginSound();
-                            window.location.href = 'extended-leave.html';
+                            // Play login sound but don't block redirect
+                            playLoginSound().catch(err => console.warn('Login sound error:', err));
+                            window.location.replace('extended-leave.html');
                             return;
                         }
                     }
@@ -563,75 +569,130 @@ document.addEventListener('DOMContentLoaded', async function() {
             sessionStorage.setItem('userId', user.id);
             sessionStorage.setItem('isAdmin', isAdmin);
             
-            // Redirect to appropriate page
-            await redirectToApp(role === 'admin', role);
+            // Determine target page BEFORE redirect
+            const targetPage = role === 'accountant' ? 'accountant.html' :
+                              role === 'crew_scheduler' ? 'crew-scheduling.html' :
+                              role === 'admin' || isAdmin ? 'admin.html' : 'employee.html';
+            
+            // Play login sound (don't await - let it play in background)
+            playLoginSound().catch(err => console.warn('Login sound error:', err));
+            
+            // Redirect immediately - try IPC first (if available), then fallback to window.location
+            console.log('Redirecting to:', targetPage);
+            try {
+              // Try IPC navigation first (works in Electron)
+              if (typeof require !== 'undefined') {
+                const { ipcRenderer } = require('electron');
+                if (ipcRenderer && typeof ipcRenderer.send === 'function') {
+                  console.log('Using IPC navigation to:', targetPage);
+                  ipcRenderer.send('navigate-to', targetPage);
+                  return;
+                }
+              }
+            } catch (e) {
+              console.log('IPC navigation failed, using window.location:', e);
+            }
+            
+            // Fallback to window.location
+            console.log('Using window.location.replace to:', targetPage);
+            window.location.replace(targetPage);
+            
+            // This code should never execute due to redirect above, but just in case:
+            return;
             
         } catch (error) {
             console.error('Login error:', error);
             alert(error.message || 'Invalid credentials! Please try again.');
         } finally {
-            loginBtn.textContent = originalText;
-            loginBtn.disabled = false;
+            // Reset button state (if redirect fails, button will be enabled again)
+            // Note: If redirect succeeds, this won't execute as page unloads
+            if (loginBtn) {
+                loginBtn.textContent = originalText;
+                loginBtn.disabled = false;
+            }
         }
     }
     
     async function handleOfflineLogin(username, password, role) {
         // Simple offline authentication (for demo/offline mode)
-        if (role === 'admin') {
-            // In offline mode, accept any admin credentials for testing
-            if (password === 'admin123') {
-                sessionStorage.setItem('userRole', 'admin');
-                sessionStorage.setItem('username', username);
-                sessionStorage.setItem('isAdmin', 'true');
-                // ADDED: Wait for login sound to finish before redirecting
-                await playLoginSound();
-                window.location.href = 'admin.html';
-            } else {
-                alert('Invalid admin password! Use admin123 for offline mode.');
+        try {
+            if (role === 'admin') {
+                // In offline mode, accept any admin credentials for testing
+                if (password === 'admin123') {
+                    sessionStorage.setItem('userRole', 'admin');
+                    sessionStorage.setItem('username', username);
+                    sessionStorage.setItem('isAdmin', 'true');
+                    // Wait for login sound to finish before redirecting (with error handling)
+                    try {
+                        await playLoginSound();
+                    } catch (soundError) {
+                        console.warn('Login sound error (continuing with redirect):', soundError);
+                    }
+                    console.log('Redirecting to: admin.html');
+                    window.location.replace('admin.html');
+                } else {
+                    alert('Invalid admin password! Use admin123 for offline mode.');
+                }
+            } else if (role === 'employee') {
+                if (password === 'emp123') {
+                    sessionStorage.setItem('userRole', 'employee');
+                    sessionStorage.setItem('username', username);
+                    sessionStorage.setItem('isAdmin', 'false');
+                    // Wait for login sound to finish before redirecting (with error handling)
+                    try {
+                        await playLoginSound();
+                    } catch (soundError) {
+                        console.warn('Login sound error (continuing with redirect):', soundError);
+                    }
+                    console.log('Redirecting to: employee.html');
+                    // Always redirect to full employee dashboard
+                    window.location.replace('employee.html');
+                } else {
+                    alert('Invalid credentials! Default password is emp123');
+                }
+            } else if (role === 'accountant') {
+                if (password === 'acc123') {
+                    sessionStorage.setItem('userRole', 'accountant');
+                    sessionStorage.setItem('username', username);
+                    sessionStorage.setItem('isAdmin', 'false');
+                    // Wait for login sound to finish before redirecting (with error handling)
+                    try {
+                        await playLoginSound();
+                    } catch (soundError) {
+                        console.warn('Login sound error (continuing with redirect):', soundError);
+                    }
+                    console.log('Redirecting to: accountant.html');
+                    window.location.replace('accountant.html');
+                } else {
+                    alert('Invalid credentials! Default password is acc123');
+                }
             }
-        } else if (role === 'employee') {
-            if (password === 'emp123') {
-                sessionStorage.setItem('userRole', 'employee');
-                sessionStorage.setItem('username', username);
-                sessionStorage.setItem('isAdmin', 'false');
-                // ADDED: Wait for login sound to finish before redirecting
-                await playLoginSound();
-                // Always redirect to full employee dashboard
-                window.location.href = 'employee.html';
-            } else {
-                alert('Invalid credentials! Default password is emp123');
-            }
-        } else if (role === 'accountant') {
-            if (password === 'acc123') {
-                sessionStorage.setItem('userRole', 'accountant');
-                sessionStorage.setItem('username', username);
-                sessionStorage.setItem('isAdmin', 'false');
-                // ADDED: Wait for login sound to finish before redirecting
-                await playLoginSound();
-                window.location.href = 'accountant.html';
-            } else {
-                alert('Invalid credentials! Default password is acc123');
-            }
+        } catch (error) {
+            console.error('Offline login error:', error);
+            alert('Login failed. Please try again.');
         }
     }
     
+    // This function is no longer used but kept for backwards compatibility
     async function redirectToApp(isAdmin, role = null) {
-        // ADDED: Wait for login sound to finish before redirecting
-        await playLoginSound();
+        // Determine target page
+        let targetPage = 'employee.html'; // default
         if (role === 'accountant') {
-            window.location.href = 'accountant.html';
+            targetPage = 'accountant.html';
         } else if (role === 'crew_scheduler') {
-            window.location.href = 'crew-scheduling.html';
-        } else if (isAdmin) {
-            window.location.href = 'admin.html';
-        } else {
-            // Employee routing: always use full employee dashboard
-            if (role === 'employee') {
-                window.location.href = 'employee.html';
-                return;
-            }
-            window.location.href = 'employee.html';
+            targetPage = 'crew-scheduling.html';
+        } else if (isAdmin || role === 'admin') {
+            targetPage = 'admin.html';
+        } else if (role === 'employee') {
+            targetPage = 'employee.html';
         }
+        
+        // Play login sound (don't block on it)
+        playLoginSound().catch(err => console.warn('Login sound error:', err));
+        
+        // Perform redirect - use replace to prevent back button issues
+        console.log('Redirecting to:', targetPage);
+        window.location.replace(targetPage);
     }
 });
 

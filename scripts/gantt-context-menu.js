@@ -3,7 +3,9 @@
 // Right-click menu for tasks, shifts, and hourly tasks
 // ============================================
 
-class GanttContextMenu {
+// Prevent duplicate declaration
+if (typeof GanttContextMenu === 'undefined') {
+    window.GanttContextMenu = class GanttContextMenu {
     constructor(ganttChart) {
         this.ganttChart = ganttChart;
         this.menu = null;
@@ -355,4 +357,5 @@ class GanttContextMenu {
             alert('❌ Failed to delete hourly task: ' + error.message);
         }
     }
-}
+};
+} // End of if (typeof GanttContextMenu === 'undefined')

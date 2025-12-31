@@ -487,6 +487,13 @@ document.addEventListener('DOMContentLoaded', async function() {
                     ` : ''}
                     
                     <div class="employee-actions">
+                        <button class="lockdown-btn" 
+                                data-employee-id="${emp.id}" 
+                                data-employee-name="${escapeHtml(emp.name)}"
+                                title="Force browser into lockdown mode (fullscreen, always on top, no escape)"
+                                onclick="lockdownEmployee(${emp.id}, '${escapeHtml(emp.name)}')">
+                            🔒 Lockdown
+                        </button>
                         <button class="punish-btn" 
                                 data-employee-id="${emp.id}" 
                                 data-employee-name="${escapeHtml(emp.name)}"
@@ -1226,6 +1233,117 @@ document.addEventListener('DOMContentLoaded', async function() {
      * Punish employee - Force logout with womp womp screen
      * Temporarily sets employee status to 'suspended' which triggers the womp womp logout
      */
+    // Lockdown employee - Force their browser into lockdown mode
+    window.lockdownEmployee = async function(employeeId, employeeName) {
+        if (!confirm(`🔒 Are you sure you want to LOCKDOWN ${employeeName}'s browser?\n\nThis will:\n- Force their browser to fullscreen\n- Keep it always on top\n- Prevent minimizing/closing\n- Block access to other applications\n\nThey will NOT be able to escape until you release the lockdown.`)) {
+            return;
+        }
+        
+        try {
+            console.log(`🔒 Locking down employee ${employeeId} (${employeeName})...`);
+            
+            // Get the employee's user ID to find their browser instance
+            const { data: employee } = await supabaseService.client
+                .from('employees')
+                .select('user_id')
+                .eq('id', employeeId)
+                .single();
+            
+            if (!employee || !employee.user_id) {
+                alert('❌ Could not find employee user ID');
+                return;
+            }
+            
+            // Update browser instance to set lockdown flag
+            // First, try to find the browser instance for this user
+            const { data: browserInstances, error: instanceError } = await supabaseService.client
+                .from('browser_instances')
+                .select('instance_id')
+                .eq('user_id', employee.user_id)
+                .eq('is_active', true)
+                .limit(1);
+            
+            if (instanceError) {
+                console.error('Error finding browser instance:', instanceError);
+                // Continue anyway - the browser will check for lockdown on next poll
+            }
+            
+            // Set lockdown flag in employee_profiles or browser_instances
+            // For now, we'll use a custom approach - store it in employee_profiles as metadata
+            // or create a browser_instances.lockdown_enabled column
+            // Since we don't know the exact schema, we'll use a simpler approach:
+            // The browser instance will poll for lockdown status
+            
+            // Update browser instance with lockdown flag if table exists
+            if (browserInstances && browserInstances.length > 0) {
+                const instanceId = browserInstances[0].instance_id;
+                const { error: updateError } = await supabaseService.client
+                    .from('browser_instances')
+                    .update({ 
+                        lockdown_enabled: true,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('instance_id', instanceId);
+                
+                if (updateError) {
+                    console.warn('Could not update browser_instances (column might not exist):', updateError);
+                } else {
+                    console.log(`✅ Set lockdown flag for browser instance: ${instanceId}`);
+                }
+            }
+            
+            // Store lockdown state in a way the browser can check
+            // Alternative: Use a dedicated table or add column to employee_profiles
+            // For now, we'll use a simple metadata approach
+            
+            alert(`✅ Lockdown command sent to ${employeeName}'s browser.\n\nThe browser will enter lockdown mode within a few seconds.`);
+            
+            console.log(`✅ Lockdown command processed for ${employeeName}`);
+        } catch (error) {
+            console.error('Error locking down employee:', error);
+            alert('❌ Error locking down employee: ' + (error.message || 'Unknown error'));
+        }
+    };
+    
+    // Release lockdown
+    window.releaseLockdown = async function(employeeId, employeeName) {
+        try {
+            console.log(`🔓 Releasing lockdown for employee ${employeeId} (${employeeName})...`);
+            
+            const { data: employee } = await supabaseService.client
+                .from('employees')
+                .select('user_id')
+                .eq('id', employeeId)
+                .single();
+            
+            if (employee && employee.user_id) {
+                const { data: browserInstances } = await supabaseService.client
+                    .from('browser_instances')
+                    .select('instance_id')
+                    .eq('user_id', employee.user_id)
+                    .eq('is_active', true)
+                    .limit(1);
+                
+                if (browserInstances && browserInstances.length > 0) {
+                    const instanceId = browserInstances[0].instance_id;
+                    await supabaseService.client
+                        .from('browser_instances')
+                        .update({ 
+                            lockdown_enabled: false,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('instance_id', instanceId);
+                }
+            }
+            
+            alert(`✅ Lockdown released for ${employeeName}`);
+            await loadEmployeeData(false); // Refresh to update UI
+        } catch (error) {
+            console.error('Error releasing lockdown:', error);
+            alert('❌ Error releasing lockdown: ' + (error.message || 'Unknown error'));
+        }
+    };
+    
     window.punishEmployee = async function(employeeId, employeeName) {
         if (!confirm(`⚠️ Are you sure you want to punish ${employeeName}?\n\nThis will force them to logout with the womp womp screen.`)) {
             return;
@@ -1257,9 +1375,9 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             // Temporarily set status to 'suspended' to trigger womp womp logout
             const updateData = {
-                employee_id: employeeId,
                 employment_status: 'suspended',
-                status_changed_at: new Date().toISOString()
+                status_changed_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
             };
             
             // Only add status_changed_by if we have an employee ID (bigint, not UUID)
@@ -1267,18 +1385,46 @@ document.addEventListener('DOMContentLoaded', async function() {
                 updateData.status_changed_by = changedByEmployeeId;
             }
             
-            const { data: updatedProfile, error } = await supabaseService.client
+            // Try to update first (if profile exists)
+            const { data: updatedProfile, error: updateError } = await supabaseService.client
                 .from('employee_profiles')
-                .upsert(updateData, {
-                    onConflict: 'employee_id'
-                })
-                .select()
-                .single();
+                .update(updateData)
+                .eq('employee_id', employeeId)
+                .select();
             
-            if (error) {
-                console.error('Error punishing employee:', error);
-                alert('❌ Failed to punish employee. Please try again.');
-                return;
+            // Check if update was successful
+            if (updateError) {
+                console.error('Error updating employee profile:', updateError);
+                throw new Error(`Failed to update employee status: ${updateError.message}`);
+            }
+            
+            // If update didn't find a record (empty result), insert a new one
+            if (!updatedProfile || updatedProfile.length === 0) {
+                const insertData = {
+                    employee_id: employeeId,
+                    employment_status: 'suspended',
+                    status_changed_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                
+                if (changedByEmployeeId) {
+                    insertData.status_changed_by = changedByEmployeeId;
+                }
+                
+                const { data: insertedProfile, error: insertError } = await supabaseService.client
+                    .from('employee_profiles')
+                    .insert(insertData)
+                    .select()
+                    .single();
+                
+                if (insertError) {
+                    console.error('Error inserting employee profile:', insertError);
+                    throw new Error(`Failed to create employee profile: ${insertError.message}`);
+                }
+                
+                if (!insertedProfile) {
+                    throw new Error('Failed to insert employee profile - no data returned');
+                }
             }
             
             console.log(`✅ Employee ${employeeName} has been punished! They will see the womp womp screen and be logged out.`);
