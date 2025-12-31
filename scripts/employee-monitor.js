@@ -1271,10 +1271,10 @@ document.addEventListener('DOMContentLoaded', async function() {
             const authUserId = userData.auth_id;
             console.log(`🔍 Looking for browser instance with auth user_id: ${authUserId} (employee user_id: ${employee.user_id})`);
             
-            // Find the browser instance for this auth user (most recent active one)
-            const { data: browserInstances, error: instanceError } = await supabaseService.client
+            // First, try to find active instances
+            let { data: browserInstances, error: instanceError } = await supabaseService.client
                 .from('browser_instances')
-                .select('instance_id, last_seen, hostname, user_id')
+                .select('instance_id, last_seen, hostname, user_id, is_active')
                 .eq('user_id', authUserId) // browser_instances.user_id references auth.users.id
                 .eq('is_active', true)
                 .order('last_seen', { ascending: false })
@@ -1282,8 +1282,73 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             if (instanceError) {
                 console.error('❌ Error finding browser instance:', instanceError);
-                alert(`❌ Error finding browser instance: ${instanceError.message}\n\nThis may be a permissions issue. Please check RLS policies.`);
+                console.error('Full error details:', JSON.stringify(instanceError, null, 2));
+                alert(`❌ Error finding browser instance: ${instanceError.message}\n\nThis may be a permissions issue. Please check RLS policies.\n\nError code: ${instanceError.code || 'unknown'}`);
                 return;
+            }
+            
+            console.log(`🔍 Query result: Found ${browserInstances?.length || 0} active instances`);
+            
+            // If no active instances found, try without is_active filter (maybe it's false but still usable)
+            if (!browserInstances || browserInstances.length === 0) {
+                console.log('⚠️ No active instances found, checking all instances for this user...');
+                const { data: allInstances, error: allError } = await supabaseService.client
+                    .from('browser_instances')
+                    .select('instance_id, last_seen, hostname, user_id, is_active')
+                    .eq('user_id', authUserId)
+                    .order('last_seen', { ascending: false })
+                    .limit(1);
+                
+                if (!allError && allInstances && allInstances.length > 0) {
+                    console.log(`ℹ️ Found inactive instance: ${allInstances[0].instance_id}, is_active: ${allInstances[0].is_active}`);
+                    browserInstances = allInstances;
+                } else {
+                    // Debug: Let's see if there are ANY instances with this user_id
+                    const { data: debugInstances, error: debugError } = await supabaseService.client
+                        .from('browser_instances')
+                        .select('instance_id, user_id, is_active, last_seen, hostname')
+                        .eq('user_id', authUserId)
+                        .limit(10);
+                    
+                    console.log(`🔍 Debug: Found ${debugInstances?.length || 0} total instances for auth user_id ${authUserId}:`, debugInstances);
+                    if (debugError) {
+                        console.error('❌ Debug query error:', debugError);
+                    }
+                    
+                    // Also check if there are any instances with NULL user_id (maybe they're not linked yet)
+                    const { data: nullInstances, error: nullError } = await supabaseService.client
+                        .from('browser_instances')
+                        .select('instance_id, user_id, is_active, last_seen, hostname, serial_code')
+                        .is('user_id', null)
+                        .eq('is_active', true)
+                        .order('last_seen', { ascending: false })
+                        .limit(5);
+                    
+                    console.log(`🔍 Debug: Found ${nullInstances?.length || 0} instances with NULL user_id (not linked):`, nullInstances);
+                    if (nullError) {
+                        console.error('❌ Null instances query error:', nullError);
+                    }
+                    
+                    // Show detailed error message
+                    const errorDetails = `Could not find browser instance for ${employeeName}.\n\n` +
+                        `Auth User ID: ${authUserId}\n` +
+                        `Employee User ID: ${employee.user_id}\n\n` +
+                        `Found ${debugInstances?.length || 0} instances linked to this user.\n` +
+                        `Found ${nullInstances?.length || 0} unlinked instances.\n\n` +
+                        `Possible causes:\n` +
+                        `- The employee hasn't logged in yet in the WaterROC Secure Browser\n` +
+                        `- The browser instance registration failed\n` +
+                        `- The browser instance wasn't linked to the user account\n\n` +
+                        `Ask the employee to:\n` +
+                        `1. Open the WaterROC Secure Browser\n` +
+                        `2. Log in to their account\n` +
+                        `3. Wait a few seconds for the instance to register\n` +
+                        `4. Then try locking down again`;
+                    
+                    console.error('❌ ' + errorDetails);
+                    alert(errorDetails);
+                    return;
+                }
             }
             
             // Update browser instance with lockdown flag
