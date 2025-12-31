@@ -1242,41 +1242,58 @@ document.addEventListener('DOMContentLoaded', async function() {
         try {
             console.log(`🔒 Locking down employee ${employeeId} (${employeeName})...`);
             
-            // Get the employee's user ID to find their browser instance
-            const { data: employee } = await supabaseService.client
+            // Get the employee's user_id (which references public.users.id)
+            const { data: employee, error: empError } = await supabaseService.client
                 .from('employees')
                 .select('user_id')
                 .eq('id', employeeId)
                 .single();
             
-            if (!employee || !employee.user_id) {
-                alert('❌ Could not find employee user ID');
+            if (empError || !employee || !employee.user_id) {
+                console.error('❌ Error finding employee:', empError);
+                alert(`❌ Could not find employee user ID. ${empError ? empError.message : ''}`);
                 return;
             }
             
-            // Update browser instance to set lockdown flag
-            // First, try to find the browser instance for this user
+            // Get the auth_id from the users table (browser_instances.user_id references auth.users.id)
+            const { data: userData, error: userError } = await supabaseService.client
+                .from('users')
+                .select('auth_id')
+                .eq('id', employee.user_id)
+                .single();
+            
+            if (userError || !userData || !userData.auth_id) {
+                console.error('❌ Error finding user auth_id:', userError);
+                alert(`❌ Could not find user's auth ID. ${userError ? userError.message : 'The employee may not have a linked auth account.'}`);
+                return;
+            }
+            
+            const authUserId = userData.auth_id;
+            console.log(`🔍 Looking for browser instance with auth user_id: ${authUserId} (employee user_id: ${employee.user_id})`);
+            
+            // Find the browser instance for this auth user (most recent active one)
             const { data: browserInstances, error: instanceError } = await supabaseService.client
                 .from('browser_instances')
-                .select('instance_id')
-                .eq('user_id', employee.user_id)
+                .select('instance_id, last_seen, hostname, user_id')
+                .eq('user_id', authUserId) // browser_instances.user_id references auth.users.id
                 .eq('is_active', true)
+                .order('last_seen', { ascending: false })
                 .limit(1);
             
             if (instanceError) {
-                console.error('Error finding browser instance:', instanceError);
-                // Continue anyway - the browser will check for lockdown on next poll
+                console.error('❌ Error finding browser instance:', instanceError);
+                alert(`❌ Error finding browser instance: ${instanceError.message}\n\nThis may be a permissions issue. Please check RLS policies.`);
+                return;
             }
-            
-            // Set lockdown flag in employee_profiles or browser_instances
-            // For now, we'll use a custom approach - store it in employee_profiles as metadata
-            // or create a browser_instances.lockdown_enabled column
-            // Since we don't know the exact schema, we'll use a simpler approach:
-            // The browser instance will poll for lockdown status
             
             // Update browser instance with lockdown flag
             if (browserInstances && browserInstances.length > 0) {
-                const instanceId = browserInstances[0].instance_id;
+                const instance = browserInstances[0];
+                const instanceId = instance.instance_id;
+                
+                console.log(`🔒 Locking down instance ${instanceId} (hostname: ${instance.hostname || 'unknown'}, auth user_id: ${instance.user_id})`);
+                
+                // Update using Supabase properly
                 const { data: updateData, error: updateError } = await supabaseService.client
                     .from('browser_instances')
                     .update({ 
@@ -1284,16 +1301,23 @@ document.addEventListener('DOMContentLoaded', async function() {
                         updated_at: new Date().toISOString()
                     })
                     .eq('instance_id', instanceId)
-                    .select();
+                    .select('instance_id, lockdown_enabled, updated_at');
                 
                 if (updateError) {
-                    console.error('Error updating browser_instances for lockdown:', updateError);
-                    alert(`❌ Error: Could not set lockdown. ${updateError.message}\n\nYou may need to add the 'lockdown_enabled' column to the browser_instances table.`);
+                    console.error('❌ Error updating browser_instances for lockdown:', updateError);
+                    alert(`❌ Error: Could not set lockdown. ${updateError.message}\n\nPossible causes:\n- Missing 'lockdown_enabled' column (run the SQL schema)\n- RLS policy blocking update\n- Instance not found`);
+                    return;
+                }
+                
+                if (updateData && updateData.length > 0) {
+                    console.log(`✅ Successfully set lockdown_enabled=true for instance: ${instanceId}`, updateData[0]);
+                    console.log(`   Lockdown enabled: ${updateData[0].lockdown_enabled}`);
+                    console.log(`   Updated at: ${updateData[0].updated_at}`);
                 } else {
-                    console.log(`✅ Set lockdown_enabled=true for browser instance: ${instanceId}`, updateData);
+                    console.warn('⚠️ Update returned no data - check if update actually worked');
                 }
             } else {
-                alert(`⚠️ Could not find active browser instance for ${employeeName}.\n\nThey may not be logged in or using the WaterROC Secure Browser.`);
+                alert(`⚠️ Could not find active browser instance for ${employeeName}.\n\nPossible reasons:\n- They are not logged in\n- They are not using the WaterROC Secure Browser\n- Their browser instance hasn't registered yet\n\nAsk them to log in using the WaterROC Secure Browser application.`);
                 return;
             }
             
@@ -1315,38 +1339,75 @@ document.addEventListener('DOMContentLoaded', async function() {
         try {
             console.log(`🔓 Releasing lockdown for employee ${employeeId} (${employeeName})...`);
             
-            const { data: employee } = await supabaseService.client
+            // Get the employee's user_id (which references public.users.id)
+            const { data: employee, error: empError } = await supabaseService.client
                 .from('employees')
                 .select('user_id')
                 .eq('id', employeeId)
                 .single();
             
-            if (employee && employee.user_id) {
-                const { data: browserInstances } = await supabaseService.client
-                    .from('browser_instances')
-                    .select('instance_id')
-                    .eq('user_id', employee.user_id)
-                    .eq('is_active', true)
-                    .limit(1);
+            if (empError || !employee || !employee.user_id) {
+                console.error('❌ Error finding employee:', empError);
+                alert(`❌ Could not find employee user ID. ${empError ? empError.message : ''}`);
+                return;
+            }
+            
+            // Get the auth_id from the users table (browser_instances.user_id references auth.users.id)
+            const { data: userData, error: userError } = await supabaseService.client
+                .from('users')
+                .select('auth_id')
+                .eq('id', employee.user_id)
+                .single();
+            
+            if (userError || !userData || !userData.auth_id) {
+                console.error('❌ Error finding user auth_id:', userError);
+                alert(`❌ Could not find user's auth ID. ${userError ? userError.message : 'The employee may not have a linked auth account.'}`);
+                return;
+            }
+            
+            const authUserId = userData.auth_id;
+            console.log(`🔍 Looking for browser instance with auth user_id: ${authUserId} (employee user_id: ${employee.user_id})`);
+            
+            // Find the most recent active browser instance
+            const { data: browserInstances, error: findError } = await supabaseService.client
+                .from('browser_instances')
+                .select('instance_id, last_seen')
+                .eq('user_id', authUserId) // browser_instances.user_id references auth.users.id
+                .eq('is_active', true)
+                .order('last_seen', { ascending: false })
+                .limit(1);
+            
+            if (findError) {
+                console.error('❌ Error finding browser instance for release:', findError);
+                alert('❌ Error finding browser instance: ' + findError.message);
+                return;
+            }
+            
+            if (browserInstances && browserInstances.length > 0) {
+                const instanceId = browserInstances[0].instance_id;
                 
-                if (browserInstances && browserInstances.length > 0) {
-                    const instanceId = browserInstances[0].instance_id;
-                    const { error: updateError } = await supabaseService.client
-                        .from('browser_instances')
-                        .update({ 
-                            lockdown_enabled: false,
-                            updated_at: new Date().toISOString()
-                        })
-                        .eq('instance_id', instanceId);
-                    
-                    if (updateError) {
-                        console.error('Error releasing lockdown:', updateError);
-                        alert('❌ Error releasing lockdown: ' + updateError.message);
-                        return;
-                    }
-                    
-                    console.log(`✅ Released lockdown for browser instance: ${instanceId}`);
+                const { data: updateData, error: updateError } = await supabaseService.client
+                    .from('browser_instances')
+                    .update({ 
+                        lockdown_enabled: false,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('instance_id', instanceId)
+                    .select('instance_id, lockdown_enabled, updated_at');
+                
+                if (updateError) {
+                    console.error('❌ Error releasing lockdown:', updateError);
+                    alert('❌ Error releasing lockdown: ' + updateError.message);
+                    return;
                 }
+                
+                if (updateData && updateData.length > 0) {
+                    console.log(`✅ Successfully released lockdown for instance: ${instanceId}`, updateData[0]);
+                    alert(`✅ Lockdown released for ${employeeName}'s browser.`);
+                }
+            } else {
+                console.warn('⚠️ No active browser instance found to release lockdown');
+                alert(`⚠️ Could not find active browser instance for ${employeeName}.`);
             }
             
             alert(`✅ Lockdown released for ${employeeName}`);
