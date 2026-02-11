@@ -1,6 +1,0 @@
-# Waterstream - Do not commit these files
-
-.env
-*.log
-node_modules/
-.DS_Store

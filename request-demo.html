@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Request A Demo | WROC NextGen</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="site-shell">
+      <header class="top-nav">
+        <a class="brand" href="./index.html">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>WROC NextGen</span>
+        </a>
+        <nav class="nav-links">
+          <a class="nav-link" href="./index.html#platform">Platform</a>
+          <a class="nav-link" href="./features/index.html">Features</a>
+          <a class="nav-link" href="./index.html#impact">Impact</a>
+        </nav>
+        <div class="nav-actions">
+          <a class="btn btn-ghost" href="./index.html">Back To Overview</a>
+        </div>
+      </header>
+
+      <section class="hero reveal">
+        <div class="hero-grid">
+          <div class="hero-copy">
+            <span class="eyebrow">Demo Intake</span>
+            <h1>Request a live WROC NextGen walkthrough.</h1>
+            <p>
+              Tell us about your operation and we will tailor the demo around your shift model, assignment workflow,
+              and payroll visibility requirements.
+            </p>
+          </div>
+          <aside class="hero-panel">
+            <h3>In The Demo You Will See</h3>
+            <div class="metric-grid">
+              <div class="metric"><strong>Live Dispatch Board</strong>Task and shift actions in real time</div>
+              <div class="metric"><strong>Messaging + NOTE Flow</strong>Manager directives to employee tasks</div>
+              <div class="metric"><strong>Payroll Context</strong>Worked-hours and pay-rate summaries</div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="demo-layout reveal delay-1">
+        <article class="form-card">
+          <h2>Request Form</h2>
+          <p>Complete this and we will follow up to schedule your walkthrough.</p>
+
+          <div id="success-banner" class="success-banner" role="status" aria-live="polite">
+            Request received. A product specialist will contact you soon.
+          </div>
+
+          <form id="demo-form" class="demo-form">
+            <div class="form-grid">
+              <label class="field">
+                Full Name
+                <input type="text" name="full_name" required />
+              </label>
+              <label class="field">
+                Work Email
+                <input type="email" name="work_email" required />
+              </label>
+              <label class="field">
+                Company
+                <input type="text" name="company" required />
+              </label>
+              <label class="field">
+                Team Size
+                <select name="team_size" required>
+                  <option value="">Select...</option>
+                  <option>1-25</option>
+                  <option>26-75</option>
+                  <option>76-150</option>
+                  <option>151-300</option>
+                  <option>300+</option>
+                </select>
+              </label>
+              <label class="field">
+                Industry
+                <select name="industry" required>
+                  <option value="">Select...</option>
+                  <option>Utilities</option>
+                  <option>Facilities</option>
+                  <option>Field Services</option>
+                  <option>Transportation</option>
+                  <option>Other</option>
+                </select>
+              </label>
+              <label class="field">
+                Current Scheduling Tool
+                <input type="text" name="current_tool" placeholder="Sheets, ERP, custom app, etc." />
+              </label>
+            </div>
+
+            <label class="field full">
+              Top Priorities
+              <span class="chip-group">
+                <label class="chip-option"><input type="checkbox" name="priority" value="dispatch" /><span>Dispatch Speed</span></label>
+                <label class="chip-option"><input type="checkbox" name="priority" value="compliance" /><span>Compliance Controls</span></label>
+                <label class="chip-option"><input type="checkbox" name="priority" value="payroll" /><span>Payroll Accuracy</span></label>
+                <label class="chip-option"><input type="checkbox" name="priority" value="messaging" /><span>Team Messaging</span></label>
+                <label class="chip-option"><input type="checkbox" name="priority" value="visibility" /><span>Real-Time Visibility</span></label>
+              </span>
+            </label>
+
+            <label class="field full">
+              What should we focus on in your demo?
+              <textarea name="notes" placeholder="Describe your current process and what you want to improve." required></textarea>
+            </label>
+
+            <div class="nav-actions">
+              <button type="submit" class="btn btn-primary">Submit Demo Request</button>
+              <a class="btn btn-ghost" href="./index.html">Cancel</a>
+            </div>
+          </form>
+        </article>
+
+        <aside class="aside-card">
+          <h2>What Happens Next</h2>
+          <ul class="aside-list">
+            <li><strong>Step 1:</strong> We review your intake and map your workforce flow.</li>
+            <li><strong>Step 2:</strong> You get a tailored live demo based on your shift and task model.</li>
+            <li><strong>Step 3:</strong> We provide rollout options and implementation steps.</li>
+          </ul>
+
+          <article class="panel" style="margin-top: 0.8rem">
+            <h3>Typical Demo Topics</h3>
+            <p>
+              Timeline scheduling, task guardrails, right-click workforce actions, NOTE task messaging, employee portal,
+              and payroll summaries.
+            </p>
+          </article>
+        </aside>
+      </section>
+
+      <footer class="site-footer">WROC NextGen Demo Team</footer>
+    </main>
+
+    <script>
+      (function () {
+        var form = document.getElementById("demo-form");
+        var banner = document.getElementById("success-banner");
+
+        if (!form || !banner) return;
+
+        form.addEventListener("submit", function (event) {
+          event.preventDefault();
+          banner.classList.add("show");
+          form.reset();
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        });
+      })();
+    </script>
+  </body>
+</html>

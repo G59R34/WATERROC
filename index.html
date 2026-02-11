@@ -1,158 +1,126 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WaterROC - Login</title>
-    <link rel="icon" type="image/png" href="favicon.png">
-    <link rel="shortcut icon" type="image/png" href="favicon.png">
-    <link rel="stylesheet" href="styles/main.css">
-    <script>
-        // If this site is opened via emp.waterroc.com, send users to the employee-only login.
-        (function () {
-            const host = window.location.hostname || '';
-            if (host.startsWith('emp.')) {
-                window.location.replace('/emp/login.html');
-            }
-        })();
-    </script>
-    <script src="scripts/dark-mode.js" defer></script>
-    <!-- ADDED UI: QR code scanner library -->
-    <script src="https://unpkg.com/html5-qrcode@latest/html5-qrcode.min.js"></script>
-</head>
-<body>
-    <!-- ADDED UI: Loading overlay -->
-    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
-        <div class="loading-spinner"></div>
-        <p>Loading...</p>
-    </div>
-    
-    <!-- ADDED UI: Error message container -->
-    <div id="errorMessage" class="error-message" style="display: none;"></div>
-    
-    <!-- FIXED DARK MODE: Square centered card, adapts to theme -->
-    <div class="login-container">
-        <div class="login-card">
-            <div class="logo">
-                <!-- ADDED: Favicon logo image -->
-                <img src="favicon.png" alt="WaterROC Logo" class="logo-image" onerror="this.style.display='none';">
-                <h1>WaterROC Login</h1>
-                <p>Waterstream Resource Operations Center</p>
-            </div>
-            <div class="login-form">
-                <h2 id="formTitle">Sign In</h2>
-                <!-- Mobile UX: quick portal picker (Employee/Admin) -->
-                <div id="mobileRoleSwitch" class="mobile-role-switch">
-                    <button type="button" class="btn-secondary role-switch-btn" data-role="employee" aria-label="Employee login">
-                        Employee
-                    </button>
-                    <button type="button" class="btn-secondary role-switch-btn" data-role="admin" aria-label="Admin login">
-                        Admin
-                    </button>
-                    <button type="button" class="btn-secondary role-switch-more" id="mobileRoleMore" aria-expanded="false" aria-controls="roleGroup">
-                        More roles…
-                    </button>
-                </div>
-                <p id="mobileRoleHint" class="mobile-role-hint"></p>
-                <form id="loginForm">
-                    <!-- LOGIC: Form validation on login -->
-                    <div class="form-group">
-                        <label for="username">Employee ID / Username</label>
-                        <input type="text" id="username" name="username" autocomplete="username" required title="Enter your employee ID or username">
-                        <small class="field-error" id="usernameError"></small>
-                    </div>
-                    <div class="form-group" id="emailGroup" style="display: none;">
-                        <label for="email">Email Address</label>
-                        <input type="email" id="email" name="email" title="Enter your email address">
-                        <small class="field-error" id="emailError"></small>
-                    </div>
-                    <div class="form-group" id="fullNameGroup" style="display: none;">
-                        <label for="fullName">Full Name</label>
-                        <input type="text" id="fullName" name="fullName" title="Enter your full name">
-                        <small class="field-error" id="fullNameError"></small>
-                    </div>
-                    <div class="form-group">
-                        <label for="password">Password</label>
-                        <input type="password" id="password" name="password" autocomplete="current-password" required title="Enter your password">
-                        <small class="field-error" id="passwordError"></small>
-                        <!-- ADDED UI: Password strength hint -->
-                        <small class="password-hint" id="passwordHint" style="display: none;">Password should be at least 6 characters</small>
-                    </div>
-                    <div class="form-group" id="roleGroup">
-                        <label for="role">Role</label>
-                        <select id="role" name="role" required title="Select your role">
-                            <option value="admin">Admin</option>
-                            <option value="employee">Employee</option>
-                            <option value="accountant">Accountant</option>
-                            <option value="crew_scheduler">Crew Scheduler</option>
-                        </select>
-                    </div>
-                    <!-- Mobile default: employee tasks portal (toggle full employee dashboard) -->
-                    <div class="form-group checkbox-group" id="mobileEmployeeMode" style="display:none;">
-                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-                            <input type="checkbox" id="useFullEmployeeDashboard" style="width:auto; margin:0;">
-                            <span>Use full employee dashboard (instead of mobile tasks)</span>
-                        </label>
-                        <small style="display:block; margin-top:6px; color: var(--text-secondary);">
-                            On mobile, we default to the fast tasks-only view.
-                        </small>
-                    </div>
-                    <!-- ADDED UI: Remember me checkbox -->
-                    <div class="form-group checkbox-group">
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" id="rememberMe" style="width: auto; margin: 0;">
-                            <span>Remember me</span>
-                        </label>
-                    </div>
-                    <!-- ADDED UI: Progress bar for loading -->
-                    <div id="loginProgress" class="login-progress" style="display: none;">
-                        <div class="progress-bar"></div>
-                    </div>
-                    <button type="submit" class="btn-primary" id="submitBtn" title="Click to login">Login</button>
-                </form>
-                <!-- ADDED UI: QR code scan button with tooltip -->
-                <button type="button" class="btn-primary btn-qr" id="scanQRBtn" title="Scan QR code to auto-fill login credentials">Scan QR Code</button>
-                <div class="toggle-form">
-                    <p>Don't have an account? <a href="#" id="toggleSignup" title="Create a new account">Sign Up</a></p>
-                    <!-- ADDED UI: Forgot password link -->
-                    <p style="margin-top: 10px;"><a href="#" id="forgotPassword" title="Reset your password">Forgot Password?</a></p>
-                </div>
-            </div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WROC NextGen | Workforce Operations Control</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="site-shell">
+      <header class="top-nav">
+        <a class="brand" href="./index.html">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>WROC NextGen</span>
+        </a>
+        <nav class="nav-links">
+          <a class="nav-link" href="#platform">Platform</a>
+          <a class="nav-link" href="./features/index.html">Features</a>
+          <a class="nav-link" href="#impact">Impact</a>
+        </nav>
+        <div class="nav-actions">
+          <a class="btn btn-ghost" href="./request-demo.html">See Demo Process</a>
+          <a class="btn btn-primary" href="./request-demo.html">Request Demo</a>
         </div>
-    </div>
-    
-    <!-- ADDED UI: QR scanner modal with better styling -->
-    <div id="qrModal" class="qr-modal">
-        <div class="qr-modal-content">
-            <button class="qr-modal-close" id="qrModalClose" title="Close QR scanner">&times;</button>
-            <h3>Scan QR Code</h3>
-            <div id="qr-reader"></div>
-            <p class="qr-help-text">Allow camera access to scan QR code</p>
-            <!-- ADDED UI: QR scan status -->
-            <div id="qrStatus" class="qr-status" style="display: none;"></div>
+      </header>
+
+      <section class="hero reveal">
+        <div class="hero-grid">
+          <div class="hero-copy">
+            <span class="eyebrow">Operations Platform</span>
+            <h1>WROC NextGen turns workforce noise into command-level clarity.</h1>
+            <p>
+              WROC NextGen gives operations teams one live control surface for scheduling, assignments, clock events,
+              messaging, compliance, and payroll visibility. No spreadsheet lag. No disconnected tools. No blind spots.
+            </p>
+            <div class="hero-actions">
+              <a class="btn btn-primary" href="./request-demo.html">Book A Live Demo</a>
+              <a class="btn btn-ghost" href="#features">Explore Features</a>
+            </div>
+          </div>
+          <aside class="hero-panel">
+            <h3>Operations Snapshot</h3>
+            <div class="metric-grid">
+              <div class="metric"><strong>Live Timeline</strong>Real-time shift and task visibility</div>
+              <div class="metric"><strong>Policy Guardrails</strong>Task assignment rules enforced in SQL</div>
+              <div class="metric"><strong>Payroll-Aware</strong>Worked-hours and pay-rate rollups</div>
+              <div class="metric"><strong>Action Messaging</strong>Admin notes sent directly into task flow</div>
+            </div>
+          </aside>
         </div>
-    </div>
-    
-    <!-- ADDED UI: Footer with version/copyright -->
-    <footer class="login-footer">
-        <p>WaterROC v2.1.4 &copy; 1983 Waterstream Resource Operations Center</p>
-    </footer>
-    
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="scripts/supabase.js"></script>
-    <script src="scripts/config.js"></script>
-    <script src="scripts/login.js"></script>
-    <!-- ADDED UI: Enhanced QR code handler -->
-    <script src="scripts/qr-login.js"></script>
-    <!-- LOGIC: Enhanced login validation -->
-    <script src="scripts/login-validation.js"></script>
-    <script>
-        // DISABLED: Page load screen was blocking login functionality
-        // window.addEventListener('load', function() {
-        //     if (typeof showPageLoadScreen !== 'undefined') {
-        //         showPageLoadScreen();
-        //     }
-        // });
-    </script>
-</body>
+      </section>
+
+      <section class="section-shell two-col reveal delay-1" id="platform">
+        <article class="panel">
+          <h2>What WROC NextGen Is</h2>
+          <p>
+            A workforce operations command system for service-heavy teams that need fast dispatch decisions and reliable
+            accountability across admins and field employees.
+          </p>
+        </article>
+        <article class="panel">
+          <h2>What It Replaces</h2>
+          <p>
+            Fragmented scheduling sheets, disconnected chat channels, and manual payroll tracking. WROC NextGen combines
+            all of that into one workflow designed for daily execution.
+          </p>
+        </article>
+      </section>
+
+      <section class="section-shell reveal delay-2" id="features">
+        <h2>Feature Set That Moves Real Operations</h2>
+        <div class="feature-grid">
+          <article class="feature">
+            <h3>Timeline-First Dispatch</h3>
+            <p>Assign, edit, and track tasks and shifts visually with immediate team-wide updates.</p>
+          </article>
+          <article class="feature">
+            <h3>Shift-Bound Task Governance</h3>
+            <p>Tasks can only be assigned inside scheduled shift windows to prevent invalid labor events.</p>
+          </article>
+          <article class="feature">
+            <h3>Admin To Employee Messaging</h3>
+            <p>Right-click staff in the timeline to send instructions instantly, including NOTE tasks.</p>
+          </article>
+          <article class="feature">
+            <h3>Clock-In + Overtime Capture</h3>
+            <p>Track scheduled and unscheduled activity with transparent status changes and markers.</p>
+          </article>
+          <article class="feature">
+            <h3>Payroll Visibility</h3>
+            <p>Worked minutes and pay rates tie directly to shift reality for cleaner labor forecasting.</p>
+          </article>
+          <article class="feature">
+            <h3>Multi-Org Isolation</h3>
+            <p>Organization boundaries and policy logic keep each team secure and operationally separated.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section-shell reveal delay-3" id="impact">
+        <article class="band">
+          <h2>Why Teams Buy In</h2>
+          <p>
+            WROC NextGen is built for execution pressure. Supervisors get faster control. Employees get clearer direction.
+            Leaders get measurable accountability in every shift cycle.
+          </p>
+          <div class="badge-row">
+            <span class="badge">Real-Time Workforce View</span>
+            <span class="badge">Lower Assignment Friction</span>
+            <span class="badge">Stronger Compliance Signals</span>
+            <span class="badge">Integrated Messaging</span>
+            <span class="badge accent">Built For Daily Operations</span>
+          </div>
+        </article>
+      </section>
+
+      <footer class="site-footer">WROC NextGen | Workforce Operations Control Platform</footer>
+    </main>
+  </body>
 </html>
